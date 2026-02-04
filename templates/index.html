@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A股策略回测系统</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>股票策略回测系统</h1>
+            <p class="subtitle">自定义策略条件，回测A股市场</p>
+        </header>
+
+        <div class="main-content">
+            <div class="strategy-panel">
+                <h2>策略配置</h2>
+                <form id="strategyForm">
+                    <div class="form-group">
+                        <label>策略名称</label>
+                        <input type="text" id="strategyName" placeholder="输入策略名称（可选）" value="涨停回测策略">
+                    </div>
+                    <div class="form-group">
+                        <label>回测时间范围（交易日，不含周末）</label>
+                        <select id="timeRange">
+                            <option value="30">近30个交易日</option>
+                            <option value="60">近60个交易日</option>
+                            <option value="90">近90个交易日</option>
+                        </select>
+                    </div>
+
+                    <div class="conditions-container">
+                        <h3>策略条件</h3>
+                        <div id="conditionsList"></div>
+                        <button type="button" class="btn-add" onclick="addCondition()">+ 添加条件</button>
+                    </div>
+
+                    <div class="exclude-rules">
+                        <h3>排除规则</h3>
+                        <label>
+                            <input type="checkbox" id="excludeKCB" checked> 排除科创板
+                        </label>
+                        <label>
+                            <input type="checkbox" id="excludeCYB" checked> 排除创业板
+                        </label>
+                        <label>
+                            <input type="checkbox" id="excludeBJS" checked> 排除北交所
+                        </label>
+                        <label>
+                            <input type="checkbox" id="excludeST" checked> 排除ST股
+                        </label>
+                        <label>
+                            <input type="checkbox" id="excludeDelist" checked> 排除退市股
+                        </label>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn-primary">开始回测</button>
+                        <button type="button" class="btn-secondary" onclick="loadExample()">加载示例策略</button>
+                        <button type="button" class="btn-secondary" onclick="clearForm()">清空</button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="results-panel">
+                <h2>回测结果</h2>
+                <div id="loading" class="loading" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>正在回测中，请稍候...</p>
+                </div>
+                <div id="resultsInfo" class="results-info"></div>
+                <div id="resultsTable" class="results-table"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

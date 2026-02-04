@@ -1,0 +1,67 @@
+============================================================
+批量获取所有主板股票近一个月的数据（极速版）
+============================================================
+login success!
+
+1. 获取股票列表...
+login success!
+[INFO] Baostock 初始化成功（完全免费，无访问限制）
+[INFO] 从文件缓存加载股票列表（缓存时间: 2026-02-02 18:38:37）
+   总共 3059 只主板股票
+
+2. 日期范围: 20260103 到 20260202
+   已有缓存: 965 只股票
+   需要获取: 2094 只股票
+   开始批量获取数据（使用200个并发线程，极速模式）...
+
+'utf-8' codec can't decode byte 0xf8 in position 4: invalid start byte
+接收数据异常，请稍后再试。
+'utf-8' codec can't decode byte 0xf9 in position 0: invalid start byte
+接收数据异常，请稍后再试。
+'utf-8' codec can't decode byte 0xe0 in position 1: invalid continuation byte
+接收数据异常，请稍后再试。
+'utf-8' codec can't decode byte 0xfa in position 1: invalid start byte
+接收数据异常，请稍后再试。
+'utf-8' codec can't decode byte 0x93 in position 4: invalid start byte
+接收数据异常，请稍后再试。
+'utf-8' codec can't decode byte 0x9f in position 0: invalid start byte
+接收数据异常，请稍后再试。
+'utf-8' codec can't decode byte 0xdb in position 7: invalid continuation byte
+接收数据异常，请稍后再试。
+'utf-8' codec can't decode byte 0xbc in position 1: invalid start byte
+接收数据异常，请稍后再试。
+'utf-8' codec can't decode byte 0xad in position 0: invalid start byte
+接收数据异常，请稍后再试。
+'utf-8' codec can't decode byte 0x9d in position 0: invalid start byte
+接收数据异常，请稍后再试。
+'utf-8' codec can't decode byte 0x9f in position 0: invalid start byte
+接收数据异常，请稍后再试。
+'utf-8' codec can't decode byte 0xd2 in position 0: invalid continuation byte
+接收数据异常，请稍后再试。
+'utf-8' codec can't decode byte 0xbf in position 1: invalid start byte
+接收数据异常，请稍后再试。
+'utf-8' codec can't decode byte 0x96 in position 0: invalid start byte
+接收数据异常，请稍后再试。
+'utf-8' codec can't decode byte 0xd9 in position 0: invalid continuation byte
+接收数据异常，请稍后再试。
+'utf-8' codec can't decode byte 0xac in position 0: invalid start byte
+接收数据异常，请稍后再试。
+'utf-8' codec can't decode bytes in position 3-4: invalid continuation byte
+接收数据异常，请稍后再试。
+'utf-8' codec can't decode byte 0xde in position 1: invalid continuation byte
+接收数据异常，请稍后再试。
+'utf-8' codec can't decode byte 0xac in position 0: invalid start byte
+接收数据异常，请稍后再试。
+'utf-8' codec can't decode byte 0xad in position 0: invalid start byte
+接收数据异常，请稍后再试。
+'utf-8' codec can't decode byte 0xdf in position 0: invalid continuation byte
+接收数据异常，请稍后再试。
+'utf-8' codec can't decode byte 0xf0 in position 0: invalid continuation byte
+接收数据异常，请稍后再试。
+'utf-8' codec can't decode byte 0xdf in position 6: invalid continuation byte
+接收数据异常，请稍后再试。
+'utf-8' codec can't decode byte 0x84 in position 0: invalid start byte
+接收数据异常，请稍后再试。
+'utf-8' codec can't decode byte 0xc1 in position 3: invalid start byte
+接收数据异常，请稍后再试。
+进度: 1065/3059 (34%) | 成功: 980 (缓存:965) | 失败: 85 | 速度: 4.1只/秒 | 预计剩余: 484秒
