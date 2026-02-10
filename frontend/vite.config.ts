@@ -13,6 +13,11 @@ export default defineConfig(({ mode }) => {
         '@': resolve(__dirname, 'src')
       }
     },
+    build: {
+      // 构建输出到项目根目录的 static 目录
+      outDir: resolve(__dirname, '../static'),
+      emptyOutDir: true
+    },
     server: {
       // 支持通过环境变量配置端口，默认 5173
       port: parseInt(env.VITE_PORT || process.env.VITE_PORT || '5173'),

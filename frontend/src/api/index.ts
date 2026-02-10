@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { BacktestRequest, BacktestResponse, StocksResponse } from '@/types'
+import type { BacktestRequest, BacktestResponse, StocksResponse, ResultsListResponse, ResultFileResponse } from '@/types'
 
 const api = axios.create({
   baseURL: '/api',
@@ -42,4 +42,18 @@ export function backtest(data: BacktestRequest): Promise<BacktestResponse> {
  */
 export function getStocks(): Promise<StocksResponse> {
   return api.get('/stocks')
+}
+
+/**
+ * 获取 results 文件列表
+ */
+export function getResultsList(): Promise<ResultsListResponse> {
+  return api.get('/results/list')
+}
+
+/**
+ * 获取指定 results 文件内容
+ */
+export function getResultsFile(filename: string): Promise<ResultFileResponse> {
+  return api.get('/results/file', { params: { filename } })
 }

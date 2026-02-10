@@ -40,6 +40,10 @@ export interface StockResult {
   match_date?: string
   match_price?: number
   current_price?: number
+  day2_amplitude?: number // 次日振幅（收盘-开盘）
+  day2_change_pct?: number // 次日涨跌幅（(收盘-前收盘)/前收盘*100）
+  day3_amplitude?: number // 第三日振幅（收盘-开盘）
+  day3_change_pct?: number // 第三日涨跌幅（(收盘-前收盘)/前收盘*100）
 }
 
 export interface BacktestResponse {
@@ -58,5 +62,33 @@ export interface Stock {
 export interface StocksResponse {
   success: boolean
   data: Stock[]
+  error?: string
+}
+
+export interface ResultFile {
+  filename: string
+  size: number
+  modified: string
+}
+
+export interface ResultsListResponse {
+  success: boolean
+  data: ResultFile[]
+  error?: string
+}
+
+export interface ResultFileData {
+  meta?: {
+    strategy_name?: string
+    run_at?: string
+    count?: number
+  }
+  results: StockResult[]
+  count: number
+}
+
+export interface ResultFileResponse {
+  success: boolean
+  data: ResultFileData
   error?: string
 }

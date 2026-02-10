@@ -17,7 +17,7 @@
       </FormItem>
       
       <FormItem label="策略条件">
-        <div class="space-y-2">
+        <div class="space-y-1">
           <draggable
             v-model="conditions"
             handle=".drag-handle"
@@ -25,7 +25,7 @@
             @end="handleDragEnd"
           >
             <template #item="{ element, index }">
-              <div class="mb-2">
+              <div class="mb-1">
                 <ConditionItem
                   :key="`condition-${index}-${element.date1}-${element.date2}`"
                   :condition="element"
@@ -39,8 +39,9 @@
           <Button
             type="dashed"
             block
+            size="small"
             @click="handleAddCondition"
-            class="mt-2"
+            class="mt-1"
           >
             + 添加条件
           </Button>
@@ -48,7 +49,7 @@
       </FormItem>
       
       <FormItem label="排除规则">
-        <Space direction="vertical">
+        <Space direction="vertical" size="small">
           <Checkbox v-model:checked="formData.exclude.kcb">排除科创板</Checkbox>
           <Checkbox v-model:checked="formData.exclude.cyb">排除创业板</Checkbox>
           <Checkbox v-model:checked="formData.exclude.bjs">排除北交所</Checkbox>
@@ -58,19 +59,19 @@
       </FormItem>
       
       <FormItem>
-        <Space>
+        <Space size="small">
           <Button
             type="primary"
             html-type="submit"
             :loading="loading"
-            size="large"
+            size="small"
           >
             开始回测
           </Button>
-          <Button @click="handleLoadExample" size="large">
+          <Button @click="handleLoadExample" size="small">
             加载示例策略
           </Button>
-          <Button @click="handleClear" size="large">
+          <Button @click="handleClear" size="small">
             清空
           </Button>
         </Space>

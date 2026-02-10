@@ -1,0 +1,109 @@
+{
+  "strategies": [
+    {
+      "name": "龙头战法",
+      "description": "捕捉连续涨停的龙头股，适合追涨策略",
+      "strategy": {
+        "conditions": [
+          { "type": "limit_up", "date1": -2 },
+          { "type": "limit_up", "date1": -1 },
+          { "type": "pct_change_gt", "date1": 0, "value": 0 },
+          { "type": "volume_ratio", "date1": -1, "date2": -2, "ratio": 1.2 },
+          { "type": "volume_ratio", "date1": 0, "date2": -2, "ratio": 1.5 }
+        ],
+        "exclude": {
+          "kcb": true,
+          "cyb": true,
+          "bjs": true,
+          "st": true,
+          "delist": true
+        },
+        "timeRange": 90
+      }
+    },
+    {
+      "name": "断板反包",
+      "description": "捕捉涨停后回调再反包的股票，适合低吸策略",
+      "strategy": {
+        "conditions": [
+          { "type": "limit_up", "date1": -2 },
+          { "type": "pct_change_lt", "date1": -1, "value": 0 },
+          { "type": "limit_up", "date1": 0 },
+          { "type": "volume_ratio", "date1": -1, "date2": -2, "ratio": 1.1 },
+          { "type": "volume_ratio", "date1": 0, "date2": -2, "ratio": 1.3 }
+        ],
+        "exclude": {
+          "kcb": true,
+          "cyb": true,
+          "bjs": true,
+          "st": true,
+          "delist": true
+        },
+        "timeRange": 90
+      }
+    },
+    {
+      "name": "均线上穿",
+      "description": "捕捉涨停后均线上穿的股票，结合技术面确认",
+      "strategy": {
+        "conditions": [
+          { "type": "limit_up", "date1": -1 },
+          { "type": "ma_cross_up", "date1": 0, "shortPeriod": 5, "longPeriod": 10 },
+          { "type": "pct_change_gt", "date1": 0, "value": 0 },
+          { "type": "volume_ratio", "date1": 0, "date2": -1, "ratio": 1.1 }
+        ],
+        "exclude": {
+          "kcb": true,
+          "cyb": true,
+          "bjs": true,
+          "st": true,
+          "delist": true
+        },
+        "timeRange": 90
+      }
+    },
+    {
+      "name": "情绪周期",
+      "description": "捕捉情绪周期中的上涨股票，适合情绪追涨策略",
+      "strategy": {
+        "conditions": [
+          { "type": "limit_up", "date1": -3 },
+          { "type": "pct_change_gt", "date1": -2, "value": 3 },
+          { "type": "pct_change_gt", "date1": -1, "value": 0 },
+          { "type": "limit_up", "date1": 0 },
+          { "type": "volume_ratio", "date1": -1, "date2": -3, "ratio": 1.2 },
+          { "type": "volume_ratio", "date1": 0, "date2": -3, "ratio": 1.5 }
+        ],
+        "exclude": {
+          "kcb": true,
+          "cyb": true,
+          "bjs": true,
+          "st": true,
+          "delist": true
+        },
+        "timeRange": 90
+      }
+    },
+    {
+      "name": "三连板",
+      "description": "捕捉连续三个交易日涨停的股票，适合强势追涨策略",
+      "strategy": {
+        "conditions": [
+          { "type": "limit_up", "date1": -2 },
+          { "type": "limit_up", "date1": -1 },
+          { "type": "limit_up", "date1": 0 },
+          { "type": "volume_ratio", "date1": -1, "date2": -2, "ratio": 1.1 },
+          { "type": "volume_ratio", "date1": 0, "date2": -2, "ratio": 1.2 }
+        ],
+        "exclude": {
+          "kcb": true,
+          "cyb": true,
+          "bjs": true,
+          "st": true,
+          "delist": true
+        },
+        "timeRange": 90
+      }
+    }
+  ]
+}

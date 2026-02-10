@@ -1,24 +1,9 @@
 <template>
-  <Card title="回测结果" class="h-full">
+  <Card title="回测结果（密集表格）" class="h-full">
     <template #extra>
       <Space>
-        <Button size="small" @click="isDense = !isDense">
-          {{ isDense ? '普通模式' : '密集模式' }}
-        </Button>
-        <Button v-if="hasResults" size="small" @click="handleExport">导出CSV</Button>
-        <Input
-          v-if="hasResults && isDense"
-          v-model:value="searchText"
-          placeholder="搜索代码或名称"
-          allow-clear
-          size="small"
-          style="width: 150px"
-        >
-          <template #prefix>
-            <SearchOutlined />
-          </template>
-        </Input>
-        <Spin v-if="loading" />
+        <Button size="small" @click="handleExport">导出CSV</Button>
+        <Button size="small" @click="handleClearFilters">清除筛选</Button>
       </Space>
     </template>
     
@@ -42,89 +27,77 @@
         <div class="text-sm font-semibold text-primary">
           找到 {{ filteredResults.length }} 只符合条件的股票
         </div>
+        <Input
+          v-model:value="searchText"
+          placeholder="搜索代码或名称"
+          allow-clear
+          size="small"
+          style="width: 180px"
+          @input="handleSearch"
+        >
+          <template #prefix>
+            <SearchOutlined />
+          </template>
+        </Input>
       </div>
       
       <Table
-        :columns="isDense ? denseColumns : columns"
+        :columns="columns"
         :data-source="filteredResults"
         :loading="loading"
-        :pagination="isDense ? {
+        :pagination="{
           pageSize: 50,
           showSizeChanger: true,
           pageSizeOptions: ['20', '50', '100', '200'],
           showTotal: (total) => `共 ${total} 条`,
           showQuickJumper: true
-        } : {
-          pageSize: 20,
-          showSizeChanger: true,
-          showTotal: (total) => `共 ${total} 条`
         }"
         row-key="code"
-        :scroll="isDense ? { x: 'max-content', y: 600 } : { x: 'max-content' }"
-        :size="isDense ? 'small' : 'middle'"
-        :bordered="isDense"
-        :row-class-name="isDense ? getRowClassName : undefined"
+        :scroll="{ x: 'max-content', y: 600 }"
+        size="small"
+        bordered
+        :row-class-name="getRowClassName"
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'pctChange'">
             <span 
-              :class="getPctChangeClass(record as any as StockResult)"
-              :style="getPctChangeStyle(record as any as StockResult)"
+              :class="getPctChangeClass(record)"
+              :style="getPctChangeStyle(record)"
             >
-              {{ getPctChange(record as any as StockResult) }}
+              {{ getPctChange(record) }}
             </span>
           </template>
+          <template v-else-if="column.key === 'match_date'">
+            <span class="text-xs">{{ formatDate(record.match_date) }}</span>
+          </template>
+          <template v-else-if="column.key === 'match_price'">
+            <span class="font-mono text-xs">{{ formatPrice(record.match_price) }}</span>
+          </template>
+          <template v-else-if="column.key === 'current_price'">
+            <span class="font-mono text-xs">{{ formatPrice(record.current_price) }}</span>
+          </template>
           <template v-else-if="column.key === 'day2_amplitude'">
-            <span :class="getAmplitudeClass((record as any).day2_amplitude)">
-              {{ formatAmplitude((record as any).day2_amplitude) }}
+            <span :class="getAmplitudeClass(record.day2_amplitude)" class="text-xs">
+              {{ formatAmplitude(record.day2_amplitude) }}
             </span>
           </template>
           <template v-else-if="column.key === 'day2_change_pct'">
-            <span :class="getDayPctClass((record as any).day2_change_pct)">
-              {{ formatDayPct((record as any).day2_change_pct) }}
+            <span :class="getDayPctClass(record.day2_change_pct)" class="text-xs">
+              {{ formatDayPct(record.day2_change_pct) }}
             </span>
           </template>
           <template v-else-if="column.key === 'day3_amplitude'">
-            <span :class="getAmplitudeClass((record as any).day3_amplitude)">
-              {{ formatAmplitude((record as any).day3_amplitude) }}
+            <span :class="getAmplitudeClass(record.day3_amplitude)" class="text-xs">
+              {{ formatAmplitude(record.day3_amplitude) }}
             </span>
           </template>
           <template v-else-if="column.key === 'day3_change_pct'">
-            <span :class="getDayPctClass((record as any).day3_change_pct)">
-              {{ formatDayPct((record as any).day3_change_pct) }}
+            <span :class="getDayPctClass(record.day3_change_pct)" class="text-xs">
+              {{ formatDayPct(record.day3_change_pct) }}
             </span>
           </template>
-          <template v-else-if="isDense && column.key === 'match_date'">
-            <span class="text-xs">{{ formatDate((record as any).match_date) }}</span>
-          </template>
-          <template v-else-if="isDense && column.key === 'match_price'">
-            <span class="font-mono text-xs">{{ formatPrice((record as any).match_price) }}</span>
-          </template>
-          <template v-else-if="isDense && column.key === 'current_price'">
-            <span class="font-mono text-xs">{{ formatPrice((record as any).current_price) }}</span>
-          </template>
-          <template v-else-if="isDense && column.key === 'code'">
-            <span class="font-mono text-xs font-semibold">{{ (record as any).code }}</span>
-          </template>
-          <template v-else-if="isDense && column.key === 'day2_amplitude'">
-            <span :class="getAmplitudeClass((record as any).day2_amplitude)" class="text-xs">
-              {{ formatAmplitude((record as any).day2_amplitude) }}
-            </span>
-          </template>
-          <template v-else-if="isDense && column.key === 'day2_change_pct'">
-            <span :class="getDayPctClass((record as any).day2_change_pct)" class="text-xs">
-              {{ formatDayPct((record as any).day2_change_pct) }}
-            </span>
-          </template>
-          <template v-else-if="isDense && column.key === 'day3_amplitude'">
-            <span :class="getAmplitudeClass((record as any).day3_amplitude)" class="text-xs">
-              {{ formatAmplitude((record as any).day3_amplitude) }}
-            </span>
-          </template>
-          <template v-else-if="isDense && column.key === 'day3_change_pct'">
-            <span :class="getDayPctClass((record as any).day3_change_pct)" class="text-xs">
-              {{ formatDayPct((record as any).day3_change_pct) }}
-            </span>
+          <template v-else-if="column.key === 'code'">
+            <span class="font-mono text-xs font-semibold">{{ record.code }}</span>
           </template>
         </template>
       </Table>
@@ -147,12 +120,11 @@ const error = computed(() => strategyStore.error)
 const results = computed(() => strategyStore.results)
 const hasResults = computed(() => strategyStore.hasResults)
 
-const isDense = ref(true)
 const searchText = ref('')
 
 // 筛选后的结果
 const filteredResults = computed(() => {
-  if (!isDense.value || !searchText.value) {
+  if (!searchText.value) {
     return results.value
   }
   const search = searchText.value.toLowerCase()
@@ -162,98 +134,7 @@ const filteredResults = computed(() => {
   )
 })
 
-function formatDate(date?: string): string {
-  if (!date) return '-'
-  return date
-}
-
-function formatPrice(price?: number): string {
-  if (!price) return '-'
-  return price.toFixed(2)
-}
-
-function getPctChange(stock: StockResult): string {
-  if (!stock.current_price || !stock.match_price) {
-    return '-'
-  }
-  const pct = ((stock.current_price - stock.match_price) / stock.match_price * 100).toFixed(2)
-  return `${pct}%`
-}
-
-function getPctChangeValue(stock: StockResult): number {
-  if (!stock.current_price || !stock.match_price) {
-    return 0
-  }
-  return (stock.current_price - stock.match_price) / stock.match_price * 100
-}
-
 const columns: ColumnsType<StockResult> = [
-  {
-    title: '代码',
-    dataIndex: 'code',
-    key: 'code',
-    width: 100,
-    fixed: 'left'
-  },
-  {
-    title: '名称',
-    dataIndex: 'name',
-    key: 'name',
-    width: 120
-  },
-  {
-    title: '匹配日期',
-    dataIndex: 'match_date',
-    key: 'match_date',
-    width: 120
-  },
-  {
-    title: '匹配价格',
-    dataIndex: 'match_price',
-    key: 'match_price',
-    width: 120,
-    customRender: ({ text }) => text ? text.toFixed(2) : '-'
-  },
-  {
-    title: '当前价格',
-    dataIndex: 'current_price',
-    key: 'current_price',
-    width: 120,
-    customRender: ({ text }) => text ? text.toFixed(2) : '-'
-  },
-  {
-    title: '涨跌幅',
-    key: 'pctChange',
-    width: 120
-  },
-  {
-    title: '次日振幅',
-    dataIndex: 'day2_amplitude',
-    key: 'day2_amplitude',
-    width: 100
-  },
-  {
-    title: '次日涨跌幅',
-    dataIndex: 'day2_change_pct',
-    key: 'day2_change_pct',
-    width: 100
-  },
-  {
-    title: '第三日振幅',
-    dataIndex: 'day3_amplitude',
-    key: 'day3_amplitude',
-    width: 100
-  },
-  {
-    title: '第三日涨跌幅',
-    dataIndex: 'day3_change_pct',
-    key: 'day3_change_pct',
-    width: 100,
-    fixed: 'right'
-  }
-]
-
-const denseColumns: ColumnsType<StockResult> = [
   {
     title: '代码',
     dataIndex: 'code',
@@ -342,6 +223,31 @@ const denseColumns: ColumnsType<StockResult> = [
   }
 ]
 
+function formatDate(date?: string): string {
+  if (!date) return '-'
+  return date
+}
+
+function formatPrice(price?: number): string {
+  if (!price) return '-'
+  return price.toFixed(2)
+}
+
+function getPctChange(stock: StockResult): string {
+  if (!stock.current_price || !stock.match_price) {
+    return '-'
+  }
+  const pct = ((stock.current_price - stock.match_price) / stock.match_price * 100).toFixed(2)
+  return `${pct}%`
+}
+
+function getPctChangeValue(stock: StockResult): number {
+  if (!stock.current_price || !stock.match_price) {
+    return 0
+  }
+  return (stock.current_price - stock.match_price) / stock.match_price * 100
+}
+
 function getPctChangeClass(stock: StockResult): string {
   if (!stock.current_price || !stock.match_price) {
     return ''
@@ -381,12 +287,20 @@ function getAmplitudeClass(amplitude?: number): string {
   return amplitude >= 0 ? 'text-red-600 font-semibold' : 'text-green-600 font-semibold'
 }
 
-function getRowClassName(record: StockResult): string {
+function getRowClassName(record: StockResult, index: number): string {
   if (!record.current_price || !record.match_price) {
     return ''
   }
   const pct = (record.current_price - record.match_price) / record.match_price
   return pct >= 0 ? 'bg-red-50' : 'bg-green-50'
+}
+
+function handleSearch() {
+  // 搜索逻辑已在 computed 中处理
+}
+
+function handleClearFilters() {
+  searchText.value = ''
 }
 
 function handleExport() {
@@ -453,13 +367,13 @@ function handleCloseError() {
   font-size: 12px;
 }
 
-:deep(.ant-table-small .ant-table-thead > tr > th) {
+:deep(.ant-table-thead > tr > th) {
   padding: 8px 4px;
   font-size: 12px;
   font-weight: 600;
 }
 
-:deep(.ant-table-small .ant-table-tbody > tr > td) {
+:deep(.ant-table-tbody > tr > td) {
   padding: 4px;
   font-size: 12px;
 }

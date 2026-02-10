@@ -50,34 +50,70 @@ class DataFetcher:
 
     def get_stock_list(self):
         """获取所有主板A股股票列表"""
+        # 检查内存缓存
         if (self.stock_list_cache is not None and
                 self.stock_list_cache_time is not None and
                 (datetime.now() - self.stock_list_cache_time).seconds < self.cache_duration):
+            print(f"[DEBUG] 使用内存缓存，共 {len(self.stock_list_cache)} 只股票")
             return self.stock_list_cache
 
+        # 检查文件缓存（包括过期缓存，作为备用）
+        fallback_stocks = None
+        fallback_cache_time = None
         try:
             if os.path.exists(self.stock_list_cache_file):
+                print(f"[DEBUG] 尝试从文件缓存加载股票列表: {self.stock_list_cache_file}")
                 with open(self.stock_list_cache_file, 'r', encoding='utf-8') as f:
                     cache_data = json.load(f)
                     cache_time = datetime.fromisoformat(cache_data['cache_time'])
-                    if (datetime.now() - cache_time).total_seconds() < 86400:
-                        return cache_data['stocks']
-        except Exception:
-            pass
+                    cache_age = (datetime.now() - cache_time).total_seconds()
+                    print(f"[DEBUG] 缓存文件时间: {cache_time}, 缓存年龄: {cache_age/3600:.2f} 小时")
+                    stocks = cache_data.get('stocks', [])
+                    if stocks:
+                        fallback_stocks = stocks
+                        fallback_cache_time = cache_time
+                    if cache_age < 86400:  # 24小时内有效
+                        if stocks:
+                            print(f"[INFO] 从文件缓存加载股票列表（缓存时间: {cache_time}），共 {len(stocks)} 只股票")
+                            self.stock_list_cache = stocks
+                            self.stock_list_cache_time = cache_time
+                            return stocks
+                    else:
+                        print(f"[DEBUG] 缓存文件已过期（超过24小时），尝试重新获取，如有失败将使用过期缓存")
+        except Exception as e:
+            print(f"[WARNING] 读取缓存文件失败: {e}")
 
+        # 从 baostock 获取
+        print(f"[DEBUG] 开始从 baostock 获取股票列表...")
         try:
             with self._bs_lock:
                 self._ensure_login()
-                rs = bs.query_all_stock(day=datetime.now().strftime('%Y-%m-%d'))
+                if not self._bs_logged_in:
+                    print(f"[ERROR] Baostock 登录失败")
+                    # 如果登录失败，使用过期缓存
+                    if fallback_stocks:
+                        print(f"[INFO] 使用过期缓存（{len(fallback_stocks)} 只股票）")
+                        self.stock_list_cache = fallback_stocks
+                        self.stock_list_cache_time = fallback_cache_time
+                        return fallback_stocks
+                    return []
+                query_date = datetime.now().strftime('%Y-%m-%d')
+                print(f"[DEBUG] 查询日期: {query_date}")
+                rs = bs.query_all_stock(day=query_date)
+                print(f"[DEBUG] Baostock 查询错误码: {rs.error_code}, 错误信息: {rs.error_msg}")
             stock_list = []
-            while rs.error_code == '0' and rs.next():
-                row = rs.get_row_data()
-                # code: sh.600000, code_name: 浦发银行
-                bs_code, trade_status, name = row[0], row[1], row[2]
-                code = bs_code.split('.')[-1] if '.' in bs_code else bs_code
-                if len(code) != 6 or self._should_exclude(code, name):
-                    continue
-                stock_list.append({'code': code, 'name': name})
+            if rs.error_code == '0':
+                count = 0
+                while rs.next():
+                    row = rs.get_row_data()
+                    # code: sh.600000, code_name: 浦发银行
+                    bs_code, trade_status, name = row[0], row[1], row[2]
+                    code = bs_code.split('.')[-1] if '.' in bs_code else bs_code
+                    if len(code) != 6 or self._should_exclude(code, name):
+                        continue
+                    stock_list.append({'code': code, 'name': name})
+                    count += 1
+                print(f"[DEBUG] 从 baostock 获取到 {count} 只股票（过滤前）")
 
             if stock_list:
                 self.stock_list_cache = stock_list
@@ -87,8 +123,26 @@ class DataFetcher:
                               f, ensure_ascii=False, indent=2)
                 print(f"[INFO] 获取 {len(stock_list)} 只主板股票")
                 return stock_list
+            else:
+                print(f"[WARNING] 从 baostock 获取的股票列表为空，尝试使用过期缓存")
+                # 如果 baostock 获取失败，使用过期缓存
+                if fallback_stocks:
+                    print(f"[INFO] 使用过期缓存（{len(fallback_stocks)} 只股票）")
+                    self.stock_list_cache = fallback_stocks
+                    self.stock_list_cache_time = fallback_cache_time
+                    return fallback_stocks
         except Exception as e:
+            import traceback
             print(f"[ERROR] 获取股票列表失败: {e}")
+            print(f"[ERROR] 错误堆栈: {traceback.format_exc()}")
+            # 如果获取失败，使用过期缓存
+            if fallback_stocks:
+                print(f"[INFO] 使用过期缓存（{len(fallback_stocks)} 只股票）")
+                self.stock_list_cache = fallback_stocks
+                self.stock_list_cache_time = fallback_cache_time
+                return fallback_stocks
+        
+        print(f"[ERROR] 无法获取股票列表，且无可用缓存")
         return []
 
     def _get_cache_path(self, code, start_date, end_date):
@@ -126,6 +180,38 @@ class DataFetcher:
         if d.weekday() == 6:  # 周日
             return (d - timedelta(days=2)).strftime('%Y-%m-%d')
         return d.strftime('%Y-%m-%d')
+
+    def _get_last_trading_day_available(self):
+        """获取 Baostock 已有数据的最新交易日（当日数据通常收盘后才更新）"""
+        last_trade = self._get_last_trading_day()
+        last_trade_str = last_trade.replace('-', '')
+        try:
+            with self._bs_lock:
+                self._ensure_login()
+                rs = bs.query_history_k_data_plus(
+                    'sz.000001', 'date', start_date=last_trade, end_date=last_trade,
+                    frequency='d', adjustflag='3'
+                )
+                has_data = rs.error_code == '0' and rs.next()
+            if not has_data:
+                # 当日数据未更新，回退到前一交易日
+                d = datetime.strptime(last_trade, '%Y-%m-%d').date()
+                for _ in range(5):
+                    d = d - timedelta(days=1)
+                    if d.weekday() < 5:  # 周一到周五
+                        check_date = d.strftime('%Y-%m-%d')
+                        with self._bs_lock:
+                            self._ensure_login()
+                            rs = bs.query_history_k_data_plus(
+                                'sz.000001', 'date', start_date=check_date, end_date=check_date,
+                                frequency='d', adjustflag='3'
+                            )
+                            if rs.error_code == '0' and rs.next():
+                                return check_date
+                return last_trade  #  fallback
+        except Exception:
+            pass
+        return last_trade
 
     def get_local_cache_latest_date(self):
         """获取本地缓存中最新一条数据的日期，无缓存返回 None"""
@@ -237,31 +323,54 @@ class DataFetcher:
         # 先清理重复缓存，避免更新时出现重复数据
         self.remove_duplicate_cache()
 
-        last_trade = self._get_last_trading_day()
+        # 使用 Baostock 已有数据的最新交易日（当日数据通常收盘后才更新）
+        last_trade = self._get_last_trading_day_available()
         last_trade_str = last_trade.replace('-', '')
 
+        # 根据缓存中实际最后交易日判断：若非上个交易日，则需拉取 [缓存最后日+1, 上个交易日]
+        # 注：必须读取实际数据判断，不能依赖文件名 end_str（文件名可能与实际数据不一致）
         pattern = os.path.join(self.stock_data_cache_dir, '*.json')
         files = glob.glob(pattern)
+
+        def _check_need_update(fp):
+            try:
+                name = os.path.basename(fp)
+                if '_' not in name or not name.endswith('.json'):
+                    return None
+                parts = name[:-5].split('_')
+                if len(parts) != 3:
+                    return None
+                code, start_str, end_str = parts
+                if len(code) != 6 or len(start_str) != 8 or len(end_str) != 8:
+                    return None
+                with open(fp, 'r', encoding='utf-8') as f:
+                    cache_data = json.load(f)
+                rows = cache_data.get('data') or []
+                if not rows:
+                    return None
+                actual_max = max(r['日期'][:10] for r in rows)
+                if actual_max >= last_trade:
+                    return None
+                return (code, start_str, end_str, fp)
+            except Exception:
+                return None
+
+        need_update_list = []
+        with ThreadPoolExecutor(max_workers=min(20, len(files) or 1)) as ex:
+            for r in ex.map(_check_need_update, files):
+                if r is not None:
+                    need_update_list.append(r)
+
         by_code = {}
-        for fp in files:
-            name = os.path.basename(fp)
-            if '_' not in name or not name.endswith('.json'):
-                continue
-            parts = name[:-5].split('_')
-            if len(parts) != 3:
-                continue
-            code, start_str, end_str = parts
-            if len(code) != 6 or len(start_str) != 8 or len(end_str) != 8:
-                continue
-            if end_str >= last_trade_str:
-                continue
-            # 如果同一股票代码有多个文件，保留 start_date 最早的那个（覆盖范围最大）
+        for code, start_str, end_str, fp in need_update_list:
             if code not in by_code:
                 by_code[code] = (start_str, end_str, fp)
             else:
                 existing_start, _, _ = by_code[code]
                 if start_str < existing_start:
                     by_code[code] = (start_str, end_str, fp)
+
+        print(f'[INFO] 扫描 {len(files)} 个缓存，其中 {len(by_code)} 个需补齐至 {last_trade}')
 
         # 检查是否有股票没有缓存文件，需要创建新缓存
         all_stocks = self.get_stock_list()
@@ -295,21 +404,15 @@ class DataFetcher:
                         print(f'  进度: {i+1}/{len(missing_codes)} | 已创建: {created}', flush=True)
             print(f'[INFO] 已为 {created}/{len(missing_codes)} 只股票创建缓存')
             
-            # 重新扫描缓存文件，更新 by_code
+            # 重新扫描缓存文件，按实际最后交易日判断是否需更新
             files = glob.glob(pattern)
+            need_update_list2 = []
+            with ThreadPoolExecutor(max_workers=min(20, len(files) or 1)) as ex:
+                for r in ex.map(_check_need_update, files):
+                    if r is not None:
+                        need_update_list2.append(r)
             by_code = {}
-            for fp in files:
-                name = os.path.basename(fp)
-                if '_' not in name or not name.endswith('.json'):
-                    continue
-                parts = name[:-5].split('_')
-                if len(parts) != 3:
-                    continue
-                code, start_str, end_str = parts
-                if len(code) != 6 or len(start_str) != 8 or len(end_str) != 8:
-                    continue
-                if end_str >= last_trade_str:
-                    continue
+            for code, start_str, end_str, fp in need_update_list2:
                 if code not in by_code:
                     by_code[code] = (start_str, end_str, fp)
                 else:
@@ -361,7 +464,7 @@ class DataFetcher:
 
         tasks = [(code, s, e, p) for code, (s, e, p) in by_code.items()]
         total = len(tasks)
-        print(f'[INFO] 待更新 {total} 个缓存（缺少最近交易日数据）')
+        print(f'[INFO] 待更新 {total} 个缓存（缓存最后日 < 上个交易日 {last_trade}）')
         success = 0
         with ThreadPoolExecutor(max_workers=max_workers) as ex:
             futures = {ex.submit(update_one, t): t[0] for t in tasks}
@@ -373,6 +476,8 @@ class DataFetcher:
                 if ((i + 1) % step == 0) or (i == total - 1):
                     print(f'进度: {i+1}/{total} | 已更新: {success}', flush=True)
         print(f'[INFO] 今日数据已落盘: 更新 {success}/{total} 个缓存')
+        if success < total and total > 0:
+            print(f'[TIP] 部分股票未更新可能因 Baostock 无数据（如 ST/退市股），可忽略')
 
     def ensure_sufficient_data(self, time_range, max_workers=20):
         """确保有足够的数据用于回测

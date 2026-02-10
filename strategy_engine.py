@@ -28,15 +28,21 @@ class StrategyEngine:
         if strategy_name is None:
             strategy_name = f"策略_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         
+        # 打印策略信息
+        print(f'策略名称: {strategy_name}')
+        print(f'策略条件数量: {len(conditions)}')
+        print(f'回测时间范围: {time_range} 个交易日')
+        
         # 结果文件路径（每条结果实时追加）
         results_filepath = os.path.join(self.results_dir, f"{strategy_name}_结果.jsonl")
         
         # 在回测开始前，确保有足够的数据
-        print(f'[INFO] 开始数据预检查，确保有足够的数据用于回测 {time_range} 个交易日...')
+        print(f'开始数据预检查，确保有足够的数据用于回测 {time_range} 个交易日...')
         self.data_fetcher.ensure_sufficient_data(time_range, max_workers=20)
         
         # 获取所有股票
         stocks = self.data_fetcher.get_stock_list()
+        print(f'获取到 {len(stocks)} 只股票')
         
         # 计算回测时间范围：timeRange 为交易日数，不含周末
         # 约 1 交易日 ≈ 1.4 日历日，多取一些确保覆盖
@@ -74,11 +80,11 @@ class StrategyEngine:
                         with self.results_lock:
                             results.append(result)
                             self._append_result(results_filepath, strategy_name, result, len(results))
-                            print(f"✓ 找到符合条件的股票: {result['code']} {result['name']}", flush=True)
+                            print(f"✓ 找到符合条件的股票: {result['code']} {result['name']} (匹配日期: {result.get('match_date', 'N/A')})", flush=True)
                 except Exception as e:
                     # 输出错误信息以便调试
                     if processed_count[0] % 100 == 0:  # 每100只股票输出一次错误统计
-                        print(f"[WARNING] 处理股票时出错: {type(e).__name__}", flush=True)
+                        print(f"[WARNING] 处理股票时出错: {type(e).__name__}: {str(e)}", flush=True)
                     continue
         
         print(f"回测完成！共检查 {total_stocks} 只股票，找到 {len(results)} 只符合条件的股票")
@@ -162,9 +168,12 @@ class StrategyEngine:
             # 按日期排序（从早到晚）
             df = df.sort_values('日期').reset_index(drop=True)
             
-            # 优化：若无任何涨停日，直接跳过（T-5 需涨停，无涨停则不可能符合）
-            if (df['涨跌幅'] >= 9.8).sum() == 0:
-                return False
+            # 优化：检查是否有涨停条件，如果有，则检查是否有涨停日
+            has_limit_up_condition = any(c.get('type') == 'limit_up' for c in conditions)
+            if has_limit_up_condition:
+                # 如果有涨停条件但没有任何涨停日，直接跳过
+                if (df['涨跌幅'] >= 9.8).sum() == 0:
+                    return False
             
             # 计算需要的最少交易日数（T-5 需预留 5 个交易日）
             max_backward_offset = 0
@@ -204,8 +213,9 @@ class StrategyEngine:
             date_map = df.set_index('_ds').to_dict('index')
             
             # 解析每个条件
-            for condition in conditions:
-                if not self._evaluate_condition(condition, base_date, date_map, df):
+            for idx, condition in enumerate(conditions):
+                result = self._evaluate_condition(condition, base_date, date_map, df)
+                if not result:
                     return False
             
             return True
@@ -463,13 +473,68 @@ class StrategyEngine:
             df_tmp['_ds'] = pd.to_datetime(df_tmp['日期']).dt.strftime('%Y-%m-%d')
             date_map = df_tmp.set_index('_ds').to_dict('index')
             
+            # 获取所有交易日并排序
+            dates = sorted([pd.to_datetime(d).to_pydatetime() for d in df['日期'].unique()])
+            
             base_date_str = base_date.strftime('%Y-%m-%d')
+            
             # 提取关键信息
             detail = {
                 'match_date': base_date_str,
                 'current_price': float(df.iloc[-1]['收盘']),
                 'match_price': float(date_map[base_date_str]['收盘']) if base_date_str in date_map else 0
             }
+            
+            # 计算第二天和第三天的振幅和涨跌幅
+            try:
+                base_idx = dates.index(base_date)
+                base_close = float(date_map[base_date_str]['收盘']) if base_date_str in date_map else None
+                
+                # 第二天（base_date + 1个交易日）
+                if base_idx + 1 < len(dates):
+                    day2_date = dates[base_idx + 1]
+                    day2_str = day2_date.strftime('%Y-%m-%d')
+                    if day2_str in date_map:
+                        day2_open = float(date_map[day2_str]['开盘'])
+                        day2_close = float(date_map[day2_str]['收盘'])
+                        
+                        # 次日振幅（(收盘-开盘)/开盘*100，百分比形式）
+                        if day2_open > 0:
+                            day2_amplitude = ((day2_close - day2_open) / day2_open * 100)
+                            detail['day2_amplitude'] = round(day2_amplitude, 2)
+                        
+                        # 次日涨跌幅（(收盘-前收盘)/前收盘*100）
+                        if base_close and base_close > 0:
+                            day2_change_pct = ((day2_close - base_close) / base_close * 100)
+                            detail['day2_change_pct'] = round(day2_change_pct, 2)
+                
+                # 第三天（base_date + 2个交易日）
+                if base_idx + 2 < len(dates):
+                    day3_date = dates[base_idx + 2]
+                    day3_str = day3_date.strftime('%Y-%m-%d')
+                    if day3_str in date_map:
+                        day3_open = float(date_map[day3_str]['开盘'])
+                        day3_close = float(date_map[day3_str]['收盘'])
+                        
+                        # 第三日振幅（(收盘-开盘)/开盘*100，百分比形式）
+                        if day3_open > 0:
+                            day3_amplitude = ((day3_close - day3_open) / day3_open * 100)
+                            detail['day3_amplitude'] = round(day3_amplitude, 2)
+                        
+                        # 第三日涨跌幅（(收盘-前收盘)/前收盘*100）
+                        # 前收盘是第二日的收盘价
+                        if base_idx + 1 < len(dates):
+                            day2_date = dates[base_idx + 1]
+                            day2_str = day2_date.strftime('%Y-%m-%d')
+                            if day2_str in date_map:
+                                day2_close = float(date_map[day2_str]['收盘'])
+                                if day2_close > 0:
+                                    day3_change_pct = ((day3_close - day2_close) / day2_close * 100)
+                                    detail['day3_change_pct'] = round(day3_change_pct, 2)
+            except (ValueError, KeyError, IndexError):
+                # 如果无法获取第二天或第三天的数据，跳过
+                pass
+            
             return detail
         except Exception as e:
             return None
