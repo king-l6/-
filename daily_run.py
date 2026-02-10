@@ -74,7 +74,7 @@ def run_backtest(fetcher):
     print('步骤2: 回测近一个月')
     print('=' * 60)
 
-    engine = StrategyEngine(fetcher, max_workers=30)
+    engine = StrategyEngine(fetcher, max_workers=50)
 
     strategy = {
         'conditions': [

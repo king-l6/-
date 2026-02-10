@@ -9,7 +9,7 @@ import os
 class StrategyEngine:
     """策略回测引擎"""
     
-    def __init__(self, data_fetcher: DataFetcher, max_workers=10):
+    def __init__(self, data_fetcher: DataFetcher, max_workers=50):
         self.data_fetcher = data_fetcher
         self.max_workers = max_workers  # 并发线程数
         self.results_lock = Lock()  # 线程锁
@@ -30,6 +30,10 @@ class StrategyEngine:
         
         # 结果文件路径（每条结果实时追加）
         results_filepath = os.path.join(self.results_dir, f"{strategy_name}_结果.jsonl")
+        
+        # 在回测开始前，确保有足够的数据
+        print(f'[INFO] 开始数据预检查，确保有足够的数据用于回测 {time_range} 个交易日...')
+        self.data_fetcher.ensure_sufficient_data(time_range, max_workers=20)
         
         # 获取所有股票
         stocks = self.data_fetcher.get_stock_list()
@@ -174,7 +178,10 @@ class StrategyEngine:
             min_required_days = max_backward_offset + 1
             
             # 只检查最近 time_range 个交易日作为 T（不含周末，df 每行即一交易日）
+            # 确保从最新日期往前遍历，但只检查最近 time_range 个交易日
+            # 这样可以保证不同日期回测时，相同日期范围的结果一致
             min_i = max(min_required_days, len(df) - time_range)
+            # 从最新日期往前遍历，找到第一个符合条件的就返回（这是策略设计：返回最近的匹配日期）
             for i in range(len(df) - 1, min_i - 1, -1):
                 base_date = df.iloc[i]['日期']  # 回测日期（比如1月12日）
                 
@@ -191,11 +198,10 @@ class StrategyEngine:
     def _check_conditions_from_date(self, code, conditions, base_date, df):
         """从指定日期开始检查条件"""
         try:
-            # 创建日期映射（使用日期字符串作为键）
-            date_map = {}
-            for _, row in df.iterrows():
-                date_str = pd.to_datetime(row['日期']).strftime('%Y-%m-%d')
-                date_map[date_str] = row
+            # 创建日期映射（向量化，避免 iterrows）
+            df = df.copy()
+            df['_ds'] = pd.to_datetime(df['日期']).dt.strftime('%Y-%m-%d')
+            date_map = df.set_index('_ds').to_dict('index')
             
             # 解析每个条件
             for condition in conditions:
@@ -244,6 +250,20 @@ class StrategyEngine:
                 row = date_map[date1_str]
                 return row['涨跌幅'] < condition.get('value', 0)
             
+            elif cond_type == 'pct_change_between':
+                # 涨幅大于且小于：date1涨幅在 [minValue, maxValue] 范围内
+                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df)
+                if date1 is None:
+                    return False  # 无法找到对应的交易日
+                date1_str = date1.strftime('%Y-%m-%d')
+                if date1_str not in date_map:
+                    return False
+                row = date_map[date1_str]
+                min_value = condition.get('minValue', 0)
+                max_value = condition.get('maxValue', 10)
+                pct_change = row['涨跌幅']
+                return min_value <= pct_change <= max_value
+            
             elif cond_type == 'volume_ratio':
                 # 成交量比例：date1成交量 / date2成交量 > ratio
                 date1 = self._get_date_offset(base_date, condition.get('date1', 0), df)
@@ -264,6 +284,98 @@ class StrategyEngine:
                 
                 ratio = vol1 / vol2
                 return ratio > condition.get('ratio', 1)
+            
+            elif cond_type == 'three_limit_up':
+                # 三连板：在指定时间范围内（从base_date往前推）出现连续三天涨停
+                # date1: 起始日期偏移（负数表示往前推，0表示base_date）
+                # days: 检查的天数范围（默认30个交易日）
+                check_days = condition.get('days', 30)
+                start_offset = condition.get('date1', 0)
+                
+                # 获取起始日期
+                start_date = self._get_date_offset(base_date, start_offset, df)
+                if start_date is None:
+                    return False
+                
+                # 获取所有交易日并排序
+                dates = sorted([pd.to_datetime(d).to_pydatetime() for d in df['日期'].unique()])
+                
+                try:
+                    start_idx = dates.index(start_date)
+                except ValueError:
+                    return False
+                
+                # 从起始日期往前查找，最多检查 check_days 个交易日
+                end_idx = max(0, start_idx - check_days + 1)
+                
+                # 检查是否有连续三天涨停
+                for i in range(start_idx, end_idx - 1, -1):
+                    if i < 2:  # 至少需要3天
+                        break
+                    # 检查连续三天是否都涨停
+                    date1_str = dates[i].strftime('%Y-%m-%d')
+                    date2_str = dates[i-1].strftime('%Y-%m-%d')
+                    date3_str = dates[i-2].strftime('%Y-%m-%d')
+                    
+                    if (date1_str in date_map and date2_str in date_map and date3_str in date_map):
+                        row1 = date_map[date1_str]
+                        row2 = date_map[date2_str]
+                        row3 = date_map[date3_str]
+                        
+                        # 连续三天都涨停
+                        if (row1['涨跌幅'] >= 9.8 and 
+                            row2['涨跌幅'] >= 9.8 and 
+                            row3['涨跌幅'] >= 9.8):
+                            return True
+                
+                return False
+            
+            elif cond_type == 'ma_cross_up':
+                # 均线上穿：date1日期的短均线上穿长均线
+                # date1: 检查日期偏移（0表示base_date）
+                # short_period: 短期均线周期（默认5）
+                # long_period: 长期均线周期（默认10）
+                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df)
+                if date1 is None:
+                    return False
+                
+                short_period = condition.get('shortPeriod', 5)
+                long_period = condition.get('longPeriod', 10)
+                
+                # 需要至少 long_period 天的数据
+                if len(df) < long_period:
+                    return False
+                
+                # 计算均线
+                df_sorted = df.sort_values('日期').reset_index(drop=True)
+                df_sorted['ma_short'] = df_sorted['收盘'].rolling(window=short_period, min_periods=short_period).mean()
+                df_sorted['ma_long'] = df_sorted['收盘'].rolling(window=long_period, min_periods=long_period).mean()
+                
+                # 找到date1对应的行
+                date1_str = date1.strftime('%Y-%m-%d')
+                date1_idx = None
+                for idx, row in df_sorted.iterrows():
+                    if pd.to_datetime(row['日期']).strftime('%Y-%m-%d') == date1_str:
+                        date1_idx = idx
+                        break
+                
+                if date1_idx is None or date1_idx < long_period:
+                    return False
+                
+                # 检查当日和前一日是否满足上穿条件
+                # 上穿：当日 ma_short > ma_long 且 前一日 ma_short <= ma_long
+                current_ma_short = df_sorted.iloc[date1_idx]['ma_short']
+                current_ma_long = df_sorted.iloc[date1_idx]['ma_long']
+                prev_ma_short = df_sorted.iloc[date1_idx - 1]['ma_short']
+                prev_ma_long = df_sorted.iloc[date1_idx - 1]['ma_long']
+                
+                # 检查是否有NaN值
+                if (pd.isna(current_ma_short) or pd.isna(current_ma_long) or 
+                    pd.isna(prev_ma_short) or pd.isna(prev_ma_long)):
+                    return False
+                
+                # 上穿条件：当前 ma_short > ma_long，且前一日 ma_short <= ma_long
+                return current_ma_short > current_ma_long and prev_ma_short <= prev_ma_long
             
             return False
         except Exception as e:
@@ -346,11 +458,10 @@ class StrategyEngine:
             elif not isinstance(base_date, datetime):
                 base_date = pd.to_datetime(base_date).to_pydatetime()
             
-            # 创建日期映射
-            date_map = {}
-            for _, row in df.iterrows():
-                date_str = pd.to_datetime(row['日期']).strftime('%Y-%m-%d')
-                date_map[date_str] = row
+            # 创建日期映射（向量化）
+            df_tmp = df.copy()
+            df_tmp['_ds'] = pd.to_datetime(df_tmp['日期']).dt.strftime('%Y-%m-%d')
+            date_map = df_tmp.set_index('_ds').to_dict('index')
             
             base_date_str = base_date.strftime('%Y-%m-%d')
             # 提取关键信息

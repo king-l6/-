@@ -12,7 +12,7 @@ from data_fetcher import DataFetcher
 
 if __name__ == '__main__':
     fetcher = DataFetcher()
-    engine = StrategyEngine(fetcher, max_workers=30)
+    engine = StrategyEngine(fetcher, max_workers=50)
 
     strategy = {
         'conditions': [

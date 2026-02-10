@@ -23,10 +23,6 @@ wheels/
 .installed.cfg
 *.egg
 
-# Flask
-instance/
-.webassets-cache
-
 # IDE
 .vscode/
 .idea/
@@ -43,16 +39,13 @@ Thumbs.db
 
 # Cache
 *.cache
+cache/
 
 # Environment variables
 .env
 .env.local
 
-# Cache files
-cache/
-*.cache
-
-# Results - 回测结果文件（可能很大）
+# Results
 results/
 
 # Frontend
@@ -63,10 +56,21 @@ frontend/.env
 frontend/.env.local
 frontend/.env.*.local
 
-# Log files
-*.log
-fetch_log.txt
-fetch_log_fast.txt
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md
+docs/
+
+# Test files
+test_*.py
+*_test.py
+
+# Scheduled tasks
+*.plist
+*.sh
 
 # Cursor IDE
 .cursor/

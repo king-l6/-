@@ -1,0 +1,10 @@
+# 生产环境额外依赖
+# 在 requirements.txt 基础上添加以下依赖
+
+-r requirements.txt
+
+# WSGI 服务器（生产环境推荐）
+gunicorn>=21.2.0
+
+# 环境变量管理（可选）
+python-dotenv>=1.0.0

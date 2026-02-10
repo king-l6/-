@@ -94,6 +94,29 @@ class DataFetcher:
     def _get_cache_path(self, code, start_date, end_date):
         return os.path.join(self.stock_data_cache_dir, f"{code}_{start_date}_{end_date}.json")
 
+    def _load_from_cache_file(self, cache_path):
+        """从缓存文件加载 DataFrame，失败返回 None"""
+        try:
+            if not cache_path or not os.path.exists(cache_path) or os.path.getsize(cache_path) <= 100:
+                return None
+            try:
+                import orjson
+                with open(cache_path, 'rb') as f:
+                    cache_data = orjson.loads(f.read())
+            except ImportError:
+                with open(cache_path, 'r', encoding='utf-8') as f:
+                    cache_data = json.load(f)
+            if not cache_data.get('data'):
+                return None
+            cache_time = datetime.fromisoformat(cache_data['cache_time'])
+            if (datetime.now() - cache_time).total_seconds() >= 604800:
+                return None
+            df = pd.DataFrame(cache_data['data'])
+            df['日期'] = pd.to_datetime(df['日期'])
+            return df
+        except Exception:
+            return None
+
     def _get_last_trading_day(self):
         """获取最近的 A 股交易日（周一至周五，不考虑节假日）"""
         d = datetime.now().date()
@@ -211,6 +234,9 @@ class DataFetcher:
         """拉取今天（最近交易日）的数据，合并到对应的 json 缓存文件中"""
         from concurrent.futures import ThreadPoolExecutor, as_completed
 
+        # 先清理重复缓存，避免更新时出现重复数据
+        self.remove_duplicate_cache()
+
         last_trade = self._get_last_trading_day()
         last_trade_str = last_trade.replace('-', '')
 
@@ -229,7 +255,67 @@ class DataFetcher:
                 continue
             if end_str >= last_trade_str:
                 continue
-            by_code[code] = (start_str, end_str, fp)
+            # 如果同一股票代码有多个文件，保留 start_date 最早的那个（覆盖范围最大）
+            if code not in by_code:
+                by_code[code] = (start_str, end_str, fp)
+            else:
+                existing_start, _, _ = by_code[code]
+                if start_str < existing_start:
+                    by_code[code] = (start_str, end_str, fp)
+
+        # 检查是否有股票没有缓存文件，需要创建新缓存
+        all_stocks = self.get_stock_list()
+        all_codes = {s['code'] for s in all_stocks}
+        cached_codes = set(by_code.keys())
+        missing_codes = all_codes - cached_codes
+        
+        if missing_codes:
+            print(f'[INFO] 发现 {len(missing_codes)} 只股票没有缓存文件，需要创建新缓存')
+            # 为没有缓存的股票创建缓存（拉取近一个月数据）
+            today = datetime.now()
+            start_date = (today - timedelta(days=50)).strftime('%Y%m%d')
+            end_date = today.strftime('%Y%m%d')
+            
+            def create_cache(code):
+                try:
+                    df = self.get_stock_data(code, start_date, end_date, force_refresh=True)
+                    return code, df is not None and not df.empty
+                except Exception:
+                    return code, False
+            
+            print(f'[INFO] 为 {len(missing_codes)} 只股票创建缓存...')
+            created = 0
+            with ThreadPoolExecutor(max_workers=max_workers) as ex:
+                futures = {ex.submit(create_cache, code): code for code in missing_codes}
+                for i, future in enumerate(as_completed(futures)):
+                    code, success = future.result()
+                    if success:
+                        created += 1
+                    if (i + 1) % 50 == 0:
+                        print(f'  进度: {i+1}/{len(missing_codes)} | 已创建: {created}', flush=True)
+            print(f'[INFO] 已为 {created}/{len(missing_codes)} 只股票创建缓存')
+            
+            # 重新扫描缓存文件，更新 by_code
+            files = glob.glob(pattern)
+            by_code = {}
+            for fp in files:
+                name = os.path.basename(fp)
+                if '_' not in name or not name.endswith('.json'):
+                    continue
+                parts = name[:-5].split('_')
+                if len(parts) != 3:
+                    continue
+                code, start_str, end_str = parts
+                if len(code) != 6 or len(start_str) != 8 or len(end_str) != 8:
+                    continue
+                if end_str >= last_trade_str:
+                    continue
+                if code not in by_code:
+                    by_code[code] = (start_str, end_str, fp)
+                else:
+                    existing_start, _, _ = by_code[code]
+                    if start_str < existing_start:
+                        by_code[code] = (start_str, end_str, fp)
 
         if not by_code:
             print('[INFO] 所有缓存已含最近交易日数据，无需更新')
@@ -288,6 +374,105 @@ class DataFetcher:
                     print(f'进度: {i+1}/{total} | 已更新: {success}', flush=True)
         print(f'[INFO] 今日数据已落盘: 更新 {success}/{total} 个缓存')
 
+    def ensure_sufficient_data(self, time_range, max_workers=20):
+        """确保有足够的数据用于回测
+        
+        Args:
+            time_range: 回测的交易日数（如30、60、90）
+            max_workers: 并发线程数
+        """
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        
+        # 计算需要的日历日数：约 1 交易日 ≈ 1.4 日历日，多取一些确保覆盖
+        calendar_days = int(time_range * 1.6) + 10
+        end_date = datetime.now()
+        required_start_date = (end_date - timedelta(days=calendar_days)).strftime('%Y%m%d')
+        end_date_str = end_date.strftime('%Y%m%d')
+        
+        print(f'[INFO] 检查数据完整性：回测需要 {time_range} 个交易日（约 {calendar_days} 个日历日）')
+        print(f'[INFO] 需要的数据范围：{required_start_date} 至 {end_date_str}')
+        
+        # 获取所有股票
+        all_stocks = self.get_stock_list()
+        all_codes = [s['code'] for s in all_stocks]
+        
+        # 检查每只股票的缓存是否足够
+        need_fetch_codes = []
+        pattern = os.path.join(self.stock_data_cache_dir, '*.json')
+        files = glob.glob(pattern)
+        
+        # 按股票代码分组，找出每只股票最早的start_date
+        by_code = {}
+        for fp in files:
+            name = os.path.basename(fp)
+            if '_' not in name or not name.endswith('.json'):
+                continue
+            parts = name[:-5].split('_')
+            if len(parts) != 3:
+                continue
+            code, start_str, end_str = parts
+            if len(code) != 6 or len(start_str) != 8 or len(end_str) != 8:
+                continue
+            # 保留 start_date 最早的那个缓存文件
+            if code not in by_code:
+                by_code[code] = start_str
+            else:
+                if start_str < by_code[code]:
+                    by_code[code] = start_str
+        
+        # 检查哪些股票需要拉取更多数据
+        for code in all_codes:
+            if code not in by_code:
+                # 没有缓存，需要拉取
+                need_fetch_codes.append(code)
+            else:
+                cache_start = by_code[code]
+                # 如果缓存的开始日期晚于需要的开始日期，需要拉取更多数据
+                if cache_start > required_start_date:
+                    need_fetch_codes.append(code)
+        
+        if not need_fetch_codes:
+            print(f'[INFO] 所有股票的数据都已足够，无需额外拉取')
+            return
+        
+        print(f'[INFO] 发现 {len(need_fetch_codes)} 只股票需要拉取更多数据')
+        
+        # 批量拉取数据
+        # 使用 get_stock_data 方法，它会自动处理缓存合并
+        def fetch_data(code):
+            try:
+                # 直接调用 get_stock_data，它会检查缓存，如果不够会自动从API拉取并合并
+                df = self.get_stock_data(code, required_start_date, end_date_str, force_refresh=False)
+                if df is not None and not df.empty:
+                    # 检查最早日期是否满足要求（允许一些误差，因为可能没有更早的数据）
+                    min_date = df['日期'].min()
+                    min_date_str = pd.to_datetime(min_date).strftime('%Y%m%d')
+                    # 如果最早日期在要求日期之后5天内，认为数据足够（可能股票上市较晚）
+                    required_dt = pd.to_datetime(required_start_date)
+                    min_dt = pd.to_datetime(min_date_str)
+                    days_diff = (min_dt - required_dt).days
+                    # 如果最早日期早于或等于要求日期，或者只晚几天（可能是新上市股票），认为数据足够
+                    return code, days_diff <= 5
+                return code, False
+            except Exception as e:
+                return code, False
+        
+        print(f'[INFO] 开始批量拉取数据...')
+        success = 0
+        with ThreadPoolExecutor(max_workers=max_workers) as ex:
+            futures = {ex.submit(fetch_data, code): code for code in need_fetch_codes}
+            for i, future in enumerate(as_completed(futures)):
+                code, ok = future.result()
+                if ok:
+                    success += 1
+                if (i + 1) % 50 == 0 or (i + 1) == len(need_fetch_codes):
+                    print(f'  进度: {i+1}/{len(need_fetch_codes)} | 已拉取: {success}', flush=True)
+        
+        print(f'[INFO] 数据预拉取完成: {success}/{len(need_fetch_codes)} 只股票数据已就绪')
+        
+        # 清理重复缓存
+        self.remove_duplicate_cache()
+
     def get_stock_data(self, code, start_date=None, end_date=None, force_refresh=False):
         """获取单只股票的历史K线数据
         
@@ -304,19 +489,32 @@ class DataFetcher:
         start_fmt = f"{start_date[:4]}-{start_date[4:6]}-{start_date[6:]}"
         end_fmt = f"{end_date[:4]}-{end_date[4:6]}-{end_date[6:]}"
 
-        cache_path = self._get_cache_path(code, start_date, end_date)
-        try:
-            if not force_refresh and os.path.exists(cache_path) and os.path.getsize(cache_path) > 100:
-                with open(cache_path, 'r', encoding='utf-8') as f:
-                    cache_data = json.load(f)
-                if cache_data.get('data'):
-                    cache_time = datetime.fromisoformat(cache_data['cache_time'])
-                    if (datetime.now() - cache_time).total_seconds() < 604800:
-                        df = pd.DataFrame(cache_data['data'])
-                        df['日期'] = pd.to_datetime(df['日期'])
-                        return df
-        except Exception:
-            pass
+        if not force_refresh:
+            try:
+                # 1. 精确匹配
+                cache_path = self._get_cache_path(code, start_date, end_date)
+                df = self._load_from_cache_file(cache_path)
+                if df is not None:
+                    return df
+                # 2. 重叠匹配：任意缓存覆盖请求区间即可用（避免日期略不同时走 API）
+                pattern = os.path.join(self.stock_data_cache_dir, f'{code}_*.json')
+                for fp in glob.glob(pattern):
+                    name = os.path.basename(fp)
+                    if '_' not in name or not name.endswith('.json'):
+                        continue
+                    parts = name[:-5].split('_')
+                    if len(parts) != 3 or len(parts[1]) != 8 or len(parts[2]) != 8:
+                        continue
+                    c_start, c_end = parts[1], parts[2]
+                    if c_start <= start_date and c_end >= end_date:
+                        df = self._load_from_cache_file(fp)
+                        if df is not None and not df.empty:
+                            s, e = pd.to_datetime(start_date), pd.to_datetime(end_date)
+                            df = df[(df['日期'] >= s) & (df['日期'] <= e)]
+                            if not df.empty:
+                                return df.reset_index(drop=True)
+            except Exception:
+                pass
 
         try:
             with self._bs_lock:
@@ -344,6 +542,16 @@ class DataFetcher:
             df['振幅'] = ((df['最高'] - df['最低']) / df['最低'].replace(0, float('nan')) * 100).fillna(0)
             df = df[['日期','开盘','收盘','最高','最低','成交量','成交额','振幅','涨跌幅','涨跌额','换手率']]
             df = df.sort_values('日期')
+
+            # 保存前先删除该股票代码的其他缓存文件，避免重复数据
+            pattern = os.path.join(self.stock_data_cache_dir, f'{code}_*.json')
+            existing_files = glob.glob(pattern)
+            for existing_file in existing_files:
+                if existing_file != cache_path:
+                    try:
+                        os.remove(existing_file)
+                    except Exception:
+                        pass
 
             with open(cache_path, 'w', encoding='utf-8') as f:
                 json.dump({

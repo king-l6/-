@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: stock-backtest-app
+    ports:
+      - "8086:8086"
+    environment:
+      - FLASK_ENV=production
+      - FLASK_PORT=8086
+    volumes:
+      # 持久化缓存数据
+      - ./cache:/app/cache
+      # 持久化回测结果
+      - ./results:/app/results
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8086/api/stocks"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
