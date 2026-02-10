@@ -274,9 +274,15 @@ const denseColumns: ColumnsType<StockResult> = [
     dataIndex: 'match_date',
     key: 'match_date',
     width: 100,
+    sortDirections: ['ascend', 'descend'],
     sorter: (a, b) => {
       const dateA = a.match_date || ''
       const dateB = b.match_date || ''
+      // 处理空值：空值排在最后
+      if (!dateA && !dateB) return 0
+      if (!dateA) return 1
+      if (!dateB) return -1
+      // 使用日期字符串比较（格式：YYYY-MM-DD，可以直接用字符串比较）
       return dateA.localeCompare(dateB)
     }
   },
