@@ -313,6 +313,7 @@ def get_results_file():
                     pass
             
             # 解析数据行
+            seen_keys = set()  # 用于去重：code + match_date + name
             for line in lines:
                 line = line.strip()
                 if not line:
@@ -320,7 +321,11 @@ def get_results_file():
                 try:
                     data = json.loads(line)
                     if 'code' in data:
-                        results.append(data)
+                        # 生成唯一键：code + match_date + name
+                        key = f"{data.get('code', '')}-{data.get('match_date', '')}-{data.get('name', '')}"
+                        if key not in seen_keys:
+                            seen_keys.add(key)
+                            results.append(data)
                 except:
                     continue
         

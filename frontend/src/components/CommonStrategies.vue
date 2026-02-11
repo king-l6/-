@@ -92,6 +92,8 @@ function formatCondition(condition: StrategyCondition): string {
       return `近${condition.days ?? 30}个交易日内三连板`
     case 'ma_cross_up':
       return `${dateStr}${condition.shortPeriod ?? 5}日均线上穿${condition.longPeriod ?? 10}日均线`
+    case 'bottoming_breakout':
+      return '涨一波→回调低点1→涨一小波→二次筑底→放量上涨=买点'
     default:
       return `${dateStr}未知条件`
   }

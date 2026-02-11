@@ -1,5 +1,5 @@
 // 策略条件类型
-export type ConditionType = 'limit_up' | 'pct_change_gt' | 'pct_change_lt' | 'pct_change_between' | 'volume_ratio' | 'three_limit_up' | 'ma_cross_up'
+export type ConditionType = 'limit_up' | 'pct_change_gt' | 'pct_change_lt' | 'pct_change_between' | 'volume_ratio' | 'three_limit_up' | 'ma_cross_up' | 'bottoming_breakout'
 
 export interface StrategyCondition {
   type: ConditionType

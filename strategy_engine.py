@@ -75,19 +75,21 @@ class StrategyEngine:
                     print(f"进度: {processed_count[0]}/{total_stocks} ({percentage}%) - 已找到 {len(results)} 只符合条件的股票", flush=True)
                 
                 try:
-                    result = future.result(timeout=30)  # 添加30秒超时
+                    result = future.result(timeout=30)
                     if result:
                         with self.results_lock:
-                            results.append(result)
-                            self._append_result(results_filepath, strategy_name, result, len(results))
-                            print(f"✓ 找到符合条件的股票: {result['code']} {result['name']} (匹配日期: {result.get('match_date', 'N/A')})", flush=True)
+                            rows = result if isinstance(result, list) else [result]
+                            for r in rows:
+                                results.append(r)
+                                self._append_result(results_filepath, strategy_name, r, len(results))
+                                print(f"✓ 找到: {r['code']} {r['name']} (匹配日期: {r.get('match_date', 'N/A')})", flush=True)
                 except Exception as e:
                     # 输出错误信息以便调试
                     if processed_count[0] % 100 == 0:  # 每100只股票输出一次错误统计
                         print(f"[WARNING] 处理股票时出错: {type(e).__name__}: {str(e)}", flush=True)
                     continue
         
-        print(f"回测完成！共检查 {total_stocks} 只股票，找到 {len(results)} 只符合条件的股票")
+        print(f"回测完成！共检查 {total_stocks} 只股票，找到 {len(results)} 条符合条件的记录")
         if results:
             # 按符合日期从小到大排序（日期早的在前），同日期按代码排
             results.sort(key=lambda r: (r.get('match_date', '9999-99-99'), r.get('code', '')))
@@ -125,17 +127,16 @@ class StrategyEngine:
         name = stock['name']
         
         try:
-            # 检查是否符合策略（time_range=回测的交易日数，不含周末）
             check_result = self._check_strategy(code, conditions, start_date, end_date, time_range)
             if check_result:
-                # 获取详细信息（check_result包含df和base_date，避免重复获取）
-                detail = self._get_stock_detail_from_check(code, name, conditions, check_result)
-                if detail:
-                    return {
-                        'code': code,
-                        'name': name,
-                        **detail
-                    }
+                # 筑底突破返回多个 match_date，其余策略返回单个
+                items = check_result if isinstance(check_result, list) else [check_result]
+                out = []
+                for item in items:
+                    detail = self._get_stock_detail_from_check(code, name, conditions, item)
+                    if detail:
+                        out.append({'code': code, 'name': name, **detail})
+                return out if out else None
         except Exception as e:
             # 只记录严重错误，避免日志过多
             if 'timeout' in str(e).lower() or 'connection' in str(e).lower():
@@ -150,6 +151,10 @@ class StrategyEngine:
         优化：先检查是否有涨停日，无则直接跳过；只遍历最近 time_range 个交易日作为 T
         """
         try:
+            # 筑底突破策略使用独立的检查逻辑
+            if any(c.get('type') == 'bottoming_breakout' for c in conditions):
+                return self._check_bottoming_breakout(code, start_date, end_date, time_range)
+
             # 获取股票数据
             df = self.data_fetcher.get_stock_data(
                 code, 
@@ -203,7 +208,138 @@ class StrategyEngine:
         except Exception as e:
             # 静默处理错误
             return False
-    
+
+    def _check_bottoming_breakout(self, code, start_date, end_date, time_range=30):
+        """二次筑底突破策略（双底/W底）：
+        形态：前面涨一波→回调形成低点1→涨一小波→再回调形成低点2（二次筑底）→放量上涨那天=买点
+        """
+        try:
+            df = self.data_fetcher.get_stock_data(
+                code, start_date.strftime('%Y%m%d'), end_date.strftime('%Y%m%d')
+            )
+            if df is None or df.empty or len(df) < 40:
+                return False
+            req = ['日期', '开盘', '收盘', '最高', '最低', '成交量']
+            if not all(c in df.columns for c in req):
+                return False
+            df = df.sort_values('日期').reset_index(drop=True)
+            # 从最近日期往前遍历，找所有符合买点的 T 日
+            matches = []
+            min_i = max(30, len(df) - time_range)
+            for i in range(len(df) - 1, min_i - 1, -1):
+                if self._is_double_bottom_breakout_day(df, i):
+                    matches.append({'df': df, 'base_date': df.iloc[i]['日期']})
+            return matches if matches else False
+        except Exception:
+            return False
+
+    def _is_double_bottom_breakout_day(self, df, i):
+        """判断第 i 日是否为二次筑底后的放量上涨买点日
+
+        形态：涨一波(低点1→峰1)→回调低点2→涨一小波(低点2→峰2)→二次筑底(低点3)→T日放量上涨
+        变量：low1=一轮上涨最低价, peak1, low2=第一次回调低点, peak2, low3=二次筑底
+        """
+        close = df['收盘'].astype(float).values
+        low = df['最低'].astype(float).values
+        high = df['最高'].astype(float).values
+        volume = df['成交量'].astype(float).values
+
+        if i < 4:
+            return False
+
+        # 1. T日必须：阳线
+        open_i = float(df['开盘'].iloc[i])
+        if close[i] <= open_i:
+            return False
+
+        # 2. 找 low3：T 日或 T 日前最近的局部最低，作为二次筑底
+        window = 3
+        low3_idx = None
+        for j in range(i, max(window, i - 25) - 1, -1):
+            if j < window or j >= len(low) - window:
+                continue
+            left = max(0, j - window)
+            right = min(len(low), j + window + 1)
+            if low[j] <= low[left:right].min():
+                low3_idx = j
+                low3_val = low[j]
+                break
+        if low3_idx is None or low3_idx < window + 5:
+            return False
+        if low3_idx != i and low3_idx != i - 1 and low3_idx != i - 2:
+            return False
+
+        # 3. 找 peak2：low3 之前的局部最高（涨一小波的顶点）
+        peak2_idx = None
+        for k in range(low3_idx - 1, max(window, low3_idx - 20) - 1, -1):
+            if k < window or k >= len(high) - window:
+                continue
+            left = max(0, k - window)
+            right = min(len(high), k + window + 1)
+            if high[k] >= high[left:right].max():
+                peak2_idx = k
+                peak2_val = high[k]
+                break
+        if peak2_idx is None:
+            return False
+
+        # 4. 找 low2：peak2 之前的局部最低（第一次回调低点）
+        low2_idx = None
+        for m in range(peak2_idx - 1, max(window, peak2_idx - 25) - 1, -1):
+            if m < window or m >= len(low) - window:
+                continue
+            left = max(0, m - window)
+            right = min(len(low), m + window + 1)
+            if low[m] <= low[left:right].min():
+                low2_idx = m
+                low2_val = low[m]
+                break
+        if low2_idx is None or low2_val <= 0:
+            return False
+
+        # 5. 二次筑底：低点2×95% ≤ 低点3 ≤ 低点2×105%，峰2→低点3 回调>10%
+        if low3_val < low2_val * 0.95 or low3_val > low2_val * 1.05:
+            return False
+        drop2_pct = (peak2_val - low3_val) / peak2_val * 100
+        if drop2_pct <= 10:
+            return False
+
+        # 6. 涨一小波：低点2→峰2 涨幅 >10%
+        rise_pct = (peak2_val - low2_val) / low2_val * 100
+        if rise_pct <= 10:
+            return False
+
+        # 7. 前面涨了一波：任意10个交易日内 最高-最低 相差≥30%，且窗口在low2前、low2距窗口末<10日、峰→low2回调>10%
+        has_rise = False
+        for start in range(max(0, low2_idx - 19), low2_idx - 9):
+            end = start + 10
+            if end > low2_idx:
+                continue
+            w_high = high[start:end].max()
+            w_low = low[start:end].min()
+            if w_low <= 0 or w_high <= 0:
+                continue
+            range_ok = (w_high - w_low) / w_low >= 0.30
+            days_ok = low2_idx - (end - 1) < 10
+            drop_ok = (w_high - low2_val) / w_high > 0.10
+            if range_ok and days_ok and drop_ok:
+                has_rise = True
+                peak1_val = w_high
+                break
+        if not has_rise:
+            return False
+
+        # 8. 回调形成低点2：该10日窗口的最高→low2 回调>10%
+        drop1_pct = (peak1_val - low2_val) / peak1_val * 100
+        if drop1_pct <= 10:
+            return False
+
+        # 9. 其余每波交易日 <10（回调低2已由窗口约束，涨小波、二次筑底需<10日）
+        if peak2_idx - low2_idx >= 10 or low3_idx - peak2_idx >= 10:
+            return False
+
+        return True
+
     def _check_conditions_from_date(self, code, conditions, base_date, df):
         """从指定日期开始检查条件"""
         try:

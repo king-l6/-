@@ -163,6 +163,25 @@ export const maCrossUpStrategy: StrategyTemplate = {
   }
 }
 
+/**
+ * 二次筑底突破策略（双底/W底）
+ * 形态：涨一波→回调低点1→涨一小波→再回调低点2（二次筑底）→放量上涨那天=买点
+ */
+export const bottomingBreakoutStrategy: StrategyTemplate = {
+  id: 'bottoming_breakout',
+  name: '筑底突破',
+  description: '捕捉双底形态突破买点。形态：前面涨一波→回调形成低点→涨一小波→再回调形成二次筑底→放量上涨那天符合买点。',
+  timeRange: 90,
+  conditions: [{ type: 'bottoming_breakout' }],
+  exclude: {
+    kcb: true,
+    cyb: true,
+    bjs: true,
+    st: true,
+    delist: true
+  }
+}
+
 // 所有策略模板（所有战法置顶）
 export const allStrategyTemplates: StrategyTemplate[] = [
   // 所有战法策略（置顶）
@@ -170,5 +189,6 @@ export const allStrategyTemplates: StrategyTemplate[] = [
   breakAndRecoverStrategy,   // 断板反包
   maCrossUpStrategy,         // 均线上穿
   emotionCycleStrategy,      // 情绪周期
-  threeLimitUpStrategy       // 三连板
+  threeLimitUpStrategy,      // 三连板
+  bottomingBreakoutStrategy  // 筑底突破
 ]

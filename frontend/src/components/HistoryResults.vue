@@ -122,7 +122,7 @@
             showSizeChanger: true,
             showTotal: (total) => `共 ${total} 条`
           }"
-          row-key="code"
+          :row-key="(record, index) => `${record.code}-${record.match_date || ''}-${record.name || ''}-${index}`"
           :scroll="isDense ? { x: 'max-content', y: 600 } : { x: 'max-content' }"
           :size="isDense ? 'small' : 'middle'"
           :bordered="isDense"
@@ -226,16 +226,19 @@ watch(activeFile, (newVal) => {
 
 const hasResults = computed(() => results.value.length > 0)
 
-// 筛选后的结果
+// 筛选后的结果（确保返回新数组，避免被 Table 组件修改）
 const filteredResults = computed(() => {
-  if (!isDense.value || !searchText.value) {
-    return results.value
+  let sourceData = results.value
+  // 如果有搜索条件，先筛选
+  if (isDense.value && searchText.value) {
+    const search = searchText.value.toLowerCase()
+    sourceData = sourceData.filter(item => 
+      item.code.toLowerCase().includes(search) || 
+      item.name.toLowerCase().includes(search)
+    )
   }
-  const search = searchText.value.toLowerCase()
-  return results.value.filter(item => 
-    item.code.toLowerCase().includes(search) || 
-    item.name.toLowerCase().includes(search)
-  )
+  // 返回数组的副本，避免 Table 组件修改原始数据
+  return [...sourceData]
 })
 
 function formatFileName(filename: string): string {
@@ -401,8 +404,8 @@ const denseColumns: ColumnsType<StockResult> = [
     width: 100,
     sortDirections: ['ascend', 'descend'],
     sorter: (a, b) => {
-      const dateA = a.match_date || ''
-      const dateB = b.match_date || ''
+      const dateA = (a.match_date || '').trim()
+      const dateB = (b.match_date || '').trim()
       // 处理空值：空值排在最后
       if (!dateA && !dateB) return 0
       if (!dateA) return 1
@@ -627,13 +630,30 @@ async function handleFileChange(filename: string, force = false) {
   activeFile.value = filename
   loading.value = true
   error.value = ''
+  // 清空结果，确保数据不会重复
   results.value = []
   metaInfo.value = null
   
   try {
     const response = await getResultsFile(filename)
     if (response.success) {
-      results.value = response.data.results
+      // 确保返回的是数组，并且是新的数组实例
+      let newResults = Array.isArray(response.data.results) 
+        ? [...response.data.results] 
+        : []
+      
+      // 去重：根据 code + match_date + name 组合去重，保留第一条
+      const seen = new Set<string>()
+      newResults = newResults.filter(item => {
+        const key = `${item.code}-${item.match_date || ''}-${item.name || ''}`
+        if (seen.has(key)) {
+          return false
+        }
+        seen.add(key)
+        return true
+      })
+      
+      results.value = newResults
       metaInfo.value = response.data.meta
     } else {
       error.value = response.error || '加载文件失败'

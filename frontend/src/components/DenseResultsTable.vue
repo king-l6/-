@@ -40,7 +40,6 @@
           </template>
         </Input>
       </div>
-      
       <Table
         :columns="columns"
         :data-source="filteredResults"
@@ -52,7 +51,7 @@
           showTotal: (total) => `共 ${total} 条`,
           showQuickJumper: true
         }"
-        row-key="code"
+        :row-key="(record) => `${record.code}-${record.match_date || ''}`"
         :scroll="{ x: 'max-content', y: 600 }"
         size="small"
         bordered
@@ -122,16 +121,19 @@ const hasResults = computed(() => strategyStore.hasResults)
 
 const searchText = ref('')
 
-// 筛选后的结果
+// 筛选后的结果（确保返回新数组，避免被 Table 组件修改）
 const filteredResults = computed(() => {
-  if (!searchText.value) {
-    return results.value
+  let sourceData = results.value
+  // 如果有搜索条件，先筛选
+  if (searchText.value) {
+    const search = searchText.value.toLowerCase()
+    sourceData = sourceData.filter(item => 
+      item.code.toLowerCase().includes(search) || 
+      item.name.toLowerCase().includes(search)
+    )
   }
-  const search = searchText.value.toLowerCase()
-  return results.value.filter(item => 
-    item.code.toLowerCase().includes(search) || 
-    item.name.toLowerCase().includes(search)
-  )
+  // 返回数组的副本，避免 Table 组件修改原始数据
+  return [...sourceData]
 })
 
 const columns: ColumnsType<StockResult> = [
@@ -157,6 +159,7 @@ const columns: ColumnsType<StockResult> = [
     width: 100,
     sortDirections: ['ascend', 'descend'],
     sorter: (a, b) => {
+      console.log(a, b)
       const dateA = a.match_date || ''
       const dateB = b.match_date || ''
       // 处理空值：空值排在最后
