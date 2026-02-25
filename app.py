@@ -312,22 +312,34 @@ def get_results_file():
                 except:
                     pass
             
-            # 解析数据行
-            seen_keys = set()  # 用于去重：code + match_date + name
-            for line in lines:
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    data = json.loads(line)
-                    if 'code' in data:
-                        # 生成唯一键：code + match_date + name
-                        key = f"{data.get('code', '')}-{data.get('match_date', '')}-{data.get('name', '')}"
-                        if key not in seen_keys:
-                            seen_keys.add(key)
-                            results.append(data)
-                except:
-                    continue
+        # 解析数据行
+        seen_keys = set()  # 用于去重：code + match_date + name
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                data = json.loads(line)
+                if 'code' in data:
+                    name = (data.get('name') or '').strip()
+                    if len(name) > 4:
+                        continue
+                    match_date = data.get('match_date')
+                    if match_date is not None:
+                        if hasattr(match_date, 'strftime'):
+                            data = dict(data)
+                            data['match_date'] = match_date.strftime('%Y-%m-%d')
+                        else:
+                            s = str(match_date).strip()
+                            if len(s) >= 10 and s[4] == '-' and s[7] == '-':
+                                data = dict(data)
+                                data['match_date'] = s[:10]
+                    key = f"{data.get('code', '')}-{data.get('match_date', '')}-{data.get('name', '')}"
+                    if key not in seen_keys:
+                        seen_keys.add(key)
+                        results.append(data)
+            except:
+                continue
         
         return jsonify({
             'success': True,

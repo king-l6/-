@@ -80,6 +80,10 @@ class StrategyEngine:
                         with self.results_lock:
                             rows = result if isinstance(result, list) else [result]
                             for r in rows:
+                                name = (r.get('name') or '').strip()
+                                if len(name) > 4:
+                                    continue
+                                r['match_date'] = self._normalize_match_date(r.get('match_date'))
                                 results.append(r)
                                 self._append_result(results_filepath, strategy_name, r, len(results))
                                 print(f"✓ 找到: {r['code']} {r['name']} (匹配日期: {r.get('match_date', 'N/A')})", flush=True)
@@ -91,12 +95,49 @@ class StrategyEngine:
         
         print(f"回测完成！共检查 {total_stocks} 只股票，找到 {len(results)} 条符合条件的记录")
         if results:
-            # 按符合日期从小到大排序（日期早的在前），同日期按代码排
+            if any(c.get('type') == 'bottoming_breakout' for c in conditions):
+                results = self._dedupe_bottoming_by_code(results, trading_days=3)
             results.sort(key=lambda r: (r.get('match_date', '9999-99-99'), r.get('code', '')))
             self._write_sorted_results(results_filepath, strategy_name, results)
             print(f"结果已保存（按符合日期排序）: {results_filepath}")
         return results
     
+    def _dedupe_bottoming_by_code(self, results, trading_days=3):
+        """筑底突破：同股 3 个交易日内>1次时，只保留日期最早的那条"""
+        def count_trading_days(d1, d2):
+            """两日之间的交易日数（不含节假日，仅按周一到周五）"""
+            if d1 > d2:
+                d1, d2 = d2, d1
+            n = 0
+            cur = d1
+            while cur < d2:
+                if cur.weekday() < 5:
+                    n += 1
+                cur = cur + timedelta(days=1)
+            return n
+
+        by_code = {}
+        for r in results:
+            by_code.setdefault(r.get('code', ''), []).append(r)
+        out = []
+        for rows in by_code.values():
+            rows = sorted(rows, key=lambda x: x.get('match_date', '9999-99-99'))
+            kept = []
+            for r in rows:
+                try:
+                    d = datetime.strptime(r.get('match_date', '')[:10], '%Y-%m-%d')
+                except Exception:
+                    kept.append(r)
+                    continue
+                if not kept:
+                    kept.append(r)
+                    continue
+                last = datetime.strptime(kept[-1]['match_date'][:10], '%Y-%m-%d')
+                if count_trading_days(last, d) > trading_days:
+                    kept.append(r)
+            out.extend(kept)
+        return out
+
     def _append_result(self, filepath, strategy_name, result, count):
         """每找到一条符合条件的结果就追加到文件"""
         try:
@@ -117,6 +158,8 @@ class StrategyEngine:
                 meta = {'_meta': {'strategy_name': strategy_name, 'run_at': datetime.now().isoformat(), 'count': len(results)}}
                 f.write(json.dumps(meta, ensure_ascii=False, default=str) + '\n')
                 for r in results:
+                    r = dict(r)
+                    r['match_date'] = self._normalize_match_date(r.get('match_date'))
                     f.write(json.dumps(r, ensure_ascii=False, default=str) + '\n')
         except Exception as e:
             print(f"[WARNING] 保存排序结果失败: {e}")
@@ -588,6 +631,26 @@ class StrategyEngine:
                 return None
         
         return base_date
+    
+    def _normalize_match_date(self, value):
+        """将匹配日期统一为 YYYY-MM-DD 字符串"""
+        if value is None:
+            return ''
+        if isinstance(value, datetime):
+            return value.strftime('%Y-%m-%d')
+        if hasattr(value, 'strftime'):
+            return value.strftime('%Y-%m-%d')
+        s = str(value).strip()
+        if not s:
+            return ''
+        # 已有 YYYY-MM-DD 或带时间戳的，只取前 10 位
+        if len(s) >= 10 and s[4] == '-' and s[7] == '-':
+            return s[:10]
+        try:
+            dt = pd.to_datetime(value)
+            return dt.strftime('%Y-%m-%d')
+        except Exception:
+            return s[:10] if len(s) >= 10 else s
     
     def _get_stock_detail_from_check(self, code, name, conditions, check_result):
         """从check结果获取股票详细信息（避免重复获取数据）"""

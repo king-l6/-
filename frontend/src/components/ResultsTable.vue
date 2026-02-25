@@ -38,6 +38,31 @@
     </div>
     
     <div v-else>
+      <!-- 我的自选：放在表格上方，添加后一眼能看到 -->
+      <Card :title="`我的自选${collectedItems.length > 0 ? ` (${collectedItems.length} 条)` : ''}`" class="mb-3" size="small">
+        <div v-if="collectedItems.length === 0" class="py-2 text-center text-gray-500 text-sm">
+          点击下方表格「名称」列前的 ＋ 图标可加入自选
+        </div>
+        <Table
+          v-else
+          :columns="collectedColumns"
+          :data-source="collectedItems"
+          :pagination="false"
+          :row-key="(r) => `${r.code}-${r.match_date || ''}`"
+          size="small"
+          bordered
+        >
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'action'">
+              <Button type="link" danger size="small" @click="handleRemove(record as StockResult)">删除</Button>
+            </template>
+            <template v-else-if="column.key === 'pctChange'">
+              <span :class="getPctChangeClass(record as StockResult)">{{ getPctChange(record as StockResult) }}</span>
+            </template>
+          </template>
+        </Table>
+      </Card>
+
       <div class="mb-2 flex items-center justify-between">
         <div class="text-sm font-semibold text-primary">
           找到 {{ filteredResults.length }} 只符合条件的股票
@@ -48,17 +73,8 @@
         :columns="isDense ? denseColumns : columns"
         :data-source="filteredResults"
         :loading="loading"
-        :pagination="isDense ? {
-          pageSize: 50,
-          showSizeChanger: true,
-          pageSizeOptions: ['20', '50', '100', '200'],
-          showTotal: (total) => `共 ${total} 条`,
-          showQuickJumper: true
-        } : {
-          pageSize: 20,
-          showSizeChanger: true,
-          showTotal: (total) => `共 ${total} 条`
-        }"
+        :pagination="isDense ? paginationDense : paginationNormal"
+        @change="(pag: any) => onTableChange(pag)"
         :row-key="(record) => `${record.code}-${record.match_date || ''}`"
         :scroll="isDense ? { x: 'max-content', y: 600 } : { x: 'max-content' }"
         :size="isDense ? 'small' : 'middle'"
@@ -66,7 +82,19 @@
         :row-class-name="isDense ? getRowClassName : undefined"
       >
         <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'pctChange'">
+          <template v-if="column.key === 'name' || column.dataIndex === 'name'">
+            <div class="flex items-center gap-1.5">
+              <span
+                class="cursor-pointer text-primary hover:opacity-80 inline-flex items-center"
+                title="加入自选"
+                @click.stop="handleAddToCollection(record as StockResult)"
+              >
+                <PlusOutlined />
+              </span>
+              <span>{{ record.name }}</span>
+            </div>
+          </template>
+          <template v-else-if="column.key === 'pctChange'">
             <span 
               :class="getPctChangeClass(record as any as StockResult)"
               :style="getPctChangeStyle(record as any as StockResult)"
@@ -133,9 +161,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { Card, Table, Spin, Alert, Button, Space, Input } from 'ant-design-vue'
-import { SearchOutlined } from '@ant-design/icons-vue'
+import { computed, ref, onMounted } from 'vue'
+import { Card, Table, Spin, Alert, Button, Space, Input, message } from 'ant-design-vue'
+import { SearchOutlined, PlusOutlined } from '@ant-design/icons-vue'
 import { useStrategyStore } from '@/store/modules/strategy'
 import type { ColumnsType } from 'ant-design-vue/es/table'
 import type { StockResult } from '@/types'
@@ -149,6 +177,75 @@ const hasResults = computed(() => strategyStore.hasResults)
 
 const isDense = ref(true)
 const searchText = ref('')
+const STORAGE_KEY_FAVORITES = 'backtest-favorites'
+const collectedItems = ref<StockResult[]>([])
+
+function loadFavoritesFromStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_FAVORITES)
+    if (raw) {
+      const parsed = JSON.parse(raw) as StockResult[]
+      if (Array.isArray(parsed)) collectedItems.value = parsed
+    }
+  } catch (_) {}
+}
+
+function saveFavoritesToStorage() {
+  try {
+    localStorage.setItem(STORAGE_KEY_FAVORITES, JSON.stringify(collectedItems.value))
+  } catch (_) {}
+}
+
+const paginationDense = ref({
+  current: 1,
+  pageSize: 50,
+  showSizeChanger: true,
+  pageSizeOptions: ['20', '50', '100', '200'],
+  showTotal: (total: number) => `共 ${total} 条`,
+  showQuickJumper: true
+})
+const paginationNormal = ref({
+  current: 1,
+  pageSize: 20,
+  showSizeChanger: true,
+  showTotal: (total: number) => `共 ${total} 条`
+})
+
+function onTableChange(pag: { current?: number; pageSize?: number }) {
+  if (!pag) return
+  if (isDense.value) {
+    paginationDense.value = { ...paginationDense.value, ...pag }
+  } else {
+    paginationNormal.value = { ...paginationNormal.value, ...pag }
+  }
+}
+
+const collectedColumns: ColumnsType<StockResult> = [
+  { title: '代码', dataIndex: 'code', key: 'code', width: 80 },
+  { title: '名称', dataIndex: 'name', key: 'name', width: 100 },
+  { title: '匹配日期', dataIndex: 'match_date', key: 'match_date', width: 100 },
+  { title: '匹配价', dataIndex: 'match_price', key: 'match_price', width: 80, customRender: ({ text }) => text != null ? text.toFixed(2) : '-' },
+  { title: '当前价', dataIndex: 'current_price', key: 'current_price', width: 80, customRender: ({ text }) => text != null ? text.toFixed(2) : '-' },
+  { title: '涨跌幅', key: 'pctChange', width: 90 },
+  { title: '操作', key: 'action', width: 70, fixed: 'right' }
+]
+
+function handleAddToCollection(record: StockResult) {
+  const key = `${record.code}-${record.match_date || ''}`
+  if (collectedItems.value.some(r => `${r.code}-${r.match_date || ''}` === key)) {
+    message.info('已在自选中，未重复添加')
+    return
+  }
+  collectedItems.value = [...collectedItems.value, { ...record }]
+  saveFavoritesToStorage()
+  message.success(`已加入自选：${record.name} (${record.code})`)
+}
+
+function handleRemove(record: StockResult) {
+  const key = `${record.code}-${record.match_date || ''}`
+  collectedItems.value = collectedItems.value.filter(r => `${r.code}-${r.match_date || ''}` !== key)
+  saveFavoritesToStorage()
+}
 
 // 筛选后的结果（确保返回新数组，避免被 Table 组件修改）
 const filteredResults = computed(() => {
@@ -455,6 +552,10 @@ function handleExport() {
 function handleCloseError() {
   strategyStore.setError(null)
 }
+
+onMounted(() => {
+  loadFavoritesFromStorage()
+})
 </script>
 
 <style scoped>

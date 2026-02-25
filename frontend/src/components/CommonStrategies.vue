@@ -16,7 +16,7 @@
           :key="strategy.id"
           :hoverable="true"
           class="cursor-pointer transition-all hover:shadow-lg"
-          @click="handleLoadStrategy(strategy)"
+          @click="handleLoadStrategy(strategy, onStrategyLoaded)"
         >
           <template #title>
             <div class="flex items-center justify-between">
@@ -25,7 +25,7 @@
                 type="primary"
                 size="small"
                 :loading="loadingStrategyId === strategy.id"
-                @click.stop="handleLoadStrategy(strategy)"
+                @click.stop="handleLoadStrategy(strategy, onStrategyLoaded)"
               >
                 {{ loadingStrategyId === strategy.id ? '回测中...' : '开始回测' }}
               </Button>
@@ -59,92 +59,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { Card, Button, Alert, message } from 'ant-design-vue'
-import { useStrategyStore } from '@/store/modules/strategy'
-import { useBacktest } from '@/hooks/useBacktest'
-import { allStrategyTemplates, type StrategyTemplate } from '@/config/strategyTemplates'
-import type { StrategyCondition } from '@/types'
-
-const strategyStore = useStrategyStore()
-const { executeBacktest } = useBacktest()
-const strategies = ref<StrategyTemplate[]>(allStrategyTemplates)
-const loadingStrategyId = ref<string | null>(null)
-
-function formatCondition(condition: StrategyCondition): string {
-  const dateOffset = condition.date1 ?? 0
-  const dateStr = dateOffset === 0 ? 'T日' : dateOffset < 0 ? `T${dateOffset}日` : `T+${dateOffset}日`
-  
-  switch (condition.type) {
-    case 'limit_up':
-      return `${dateStr}涨停`
-    case 'pct_change_gt':
-      return `${dateStr}涨幅>${condition.value ?? 0}%`
-    case 'pct_change_lt':
-      return `${dateStr}涨幅<${condition.value ?? 0}%`
-    case 'pct_change_between':
-      return `${dateStr}涨幅在${condition.minValue ?? 0}%-${condition.maxValue ?? 0}%之间`
-    case 'volume_ratio':
-      const date2Offset = condition.date2 ?? 0
-      const date2Str = date2Offset === 0 ? 'T日' : date2Offset < 0 ? `T${date2Offset}日` : `T+${date2Offset}日`
-      return `${dateStr}成交量/${date2Str}成交量>${condition.ratio ?? 1}`
-    case 'three_limit_up':
-      return `近${condition.days ?? 30}个交易日内三连板`
-    case 'ma_cross_up':
-      return `${dateStr}${condition.shortPeriod ?? 5}日均线上穿${condition.longPeriod ?? 10}日均线`
-    case 'bottoming_breakout':
-      return '涨一波→回调低点1→涨一小波→二次筑底→放量上涨=买点'
-    default:
-      return `${dateStr}未知条件`
-  }
-}
-
-async function handleLoadStrategy(strategy: StrategyTemplate) {
-  // 如果正在加载，则忽略
-  if (loadingStrategyId.value) {
-    return
-  }
-  
-  loadingStrategyId.value = strategy.id
-  
-  try {
-    // 更新策略名称
-    strategyStore.setStrategyName(strategy.name)
-    
-    // 更新回测时间范围
-    strategyStore.setTimeRange(strategy.timeRange)
-    
-    // 更新排除规则
-    if (strategy.exclude) {
-      strategyStore.setExclude({
-        kcb: strategy.exclude.kcb ?? true,
-        cyb: strategy.exclude.cyb ?? true,
-        bjs: strategy.exclude.bjs ?? true,
-        st: strategy.exclude.st ?? true,
-        delist: strategy.exclude.delist ?? true
-      })
-      }
-    
-    // 更新策略条件
-    strategyStore.setConditions([...strategy.conditions])
-    
-    message.info(`正在执行回测：${strategy.name}（近${strategy.timeRange}个交易日）...`)
-    
-    // 自动执行回测
-    await executeBacktest()
-    
-    // 切换到策略回测tab（通过事件通知父组件）
-    emit('strategy-loaded')
-  } catch (error) {
-    console.error('回测失败:', error)
-  } finally {
-    loadingStrategyId.value = null
-  }
-}
+import { Card, Button, Alert } from 'ant-design-vue'
+import { useCommonStrategies } from '@/hooks/common-strategies/useCommonStrategies'
 
 const emit = defineEmits<{
   (e: 'strategy-loaded'): void
 }>()
+
+const { strategies, loadingStrategyId, formatCondition, handleLoadStrategy } = useCommonStrategies()
+
+function onStrategyLoaded() {
+  emit('strategy-loaded')
+}
 </script>
 
 <style scoped>

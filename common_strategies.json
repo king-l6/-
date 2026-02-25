@@ -104,6 +104,23 @@
         },
         "timeRange": 90
       }
+    },
+    {
+      "name": "筑底突破",
+      "description": "捕捉双底形态突破买点。形态：涨一波→回调低点1→涨一小波→二次筑底→放量上涨=买点。",
+      "strategy": {
+        "conditions": [
+          { "type": "bottoming_breakout" }
+        ],
+        "exclude": {
+          "kcb": true,
+          "cyb": true,
+          "bjs": true,
+          "st": true,
+          "delist": true
+        },
+        "timeRange": 90
+      }
     }
   ]
 }

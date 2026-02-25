@@ -1,11 +1,28 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import Home from '@/views/Home.vue'
+import Layout from '@/views/Layout.vue'
 
 const routes = [
   {
     path: '/',
-    name: 'Home',
-    component: Home
+    component: Layout,
+    redirect: '/strategy-backtest',
+    children: [
+      {
+        path: 'strategy-backtest',
+        name: 'StrategyBacktest',
+        component: () => import('@/views/strategy-backtest/index.vue')
+      },
+      {
+        path: 'common-strategies',
+        name: 'CommonStrategies',
+        component: () => import('@/views/common-strategies/index.vue')
+      },
+      {
+        path: 'history-results',
+        name: 'HistoryResults',
+        component: () => import('@/views/history-results/index.vue')
+      }
+    ]
   }
 ]
 

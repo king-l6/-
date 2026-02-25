@@ -85,7 +85,7 @@ import { ref, watch, onMounted } from 'vue'
 import { Card, Form, FormItem, Input, Select, SelectOption, Button, Checkbox, Space } from 'ant-design-vue'
 import draggable from 'vuedraggable'
 import { useStrategyStore } from '@/store/modules/strategy'
-import { useBacktest } from '@/hooks/useBacktest'
+import { useBacktest } from '@/hooks/strategy-backtest/useBacktest'
 import ConditionItem from './ConditionItem.vue'
 import type { StrategyCondition } from '@/types'
 
