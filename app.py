@@ -16,7 +16,8 @@ from data_fetcher import DataFetcher
 
 # 使用前端构建产物（构建到 static 目录）
 FRONTEND_DIST_PATH = os.path.join(os.path.dirname(__file__), 'static')
-app = Flask(__name__, static_folder=FRONTEND_DIST_PATH, static_url_path='')
+# 不把 static 挂到根路径，避免 Flask 默认静态路由拦截 SPA 子路径导致 404
+app = Flask(__name__, static_folder=None, static_url_path=None)
 
 CORS(app)
 
@@ -261,6 +262,108 @@ def get_results_list():
             'success': False,
             'error': str(e)
         }), 500
+
+def _read_one_results_file(filepath):
+    """读取单个 .jsonl 结果文件，返回 (meta_dict, results_list)。"""
+    meta = None
+    results = []
+    with open(filepath, 'r', encoding='utf-8') as f:
+        lines = f.readlines()
+    if not lines:
+        return meta, results
+    try:
+        first = json.loads(lines[0].strip())
+        if '_meta' in first:
+            meta = first['_meta']
+            lines = lines[1:]
+    except Exception:
+        pass
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            data = json.loads(line)
+            if 'code' not in data:
+                continue
+            name = (data.get('name') or '').strip()
+            if len(name) > 4:
+                continue
+            match_date = data.get('match_date')
+            if match_date is not None:
+                if hasattr(match_date, 'strftime'):
+                    data = dict(data)
+                    data['match_date'] = match_date.strftime('%Y-%m-%d')
+                else:
+                    s = str(match_date).strip()
+                    if len(s) >= 10 and s[4] == '-' and s[7] == '-':
+                        data = dict(data)
+                        data['match_date'] = s[:10]
+            results.append(data)
+        except Exception:
+            continue
+    return meta, results
+
+@app.route('/api/results/strategy', methods=['GET'])
+def get_results_by_strategy():
+    """按策略名聚合：合并「策略名_结果.jsonl」与所有「策略名_YYYYMMDD_结果.jsonl」，按 match_date 排序返回。"""
+    try:
+        name = request.args.get('name')
+        if not name or not name.strip():
+            return jsonify({'success': False, 'error': '缺少 name 参数'}), 400
+        strategy_name = name.strip()
+        # 安全检查：仅允许策略名（不含路径、不含 ..）
+        if '..' in strategy_name or '/' in strategy_name or '\\' in strategy_name:
+            return jsonify({'success': False, 'error': '无效的策略名'}), 400
+
+        results_dir = os.path.join(os.path.dirname(__file__), 'results')
+        if not os.path.isdir(results_dir):
+            return jsonify({'success': True, 'data': {'meta': {'strategy_name': strategy_name}, 'results': [], 'count': 0}})
+
+        import re
+        # 主文件：策略名_结果.jsonl
+        main_file = os.path.join(results_dir, f"{strategy_name}_结果.jsonl")
+        # 按日文件：策略名_YYYYMMDD_结果.jsonl
+        pattern = re.compile(re.escape(strategy_name) + r'_(\d{8})_结果\.jsonl$')
+        all_results = []
+        meta_merged = {'strategy_name': strategy_name, 'aggregated': True}
+
+        if os.path.isfile(main_file):
+            m, rows = _read_one_results_file(main_file)
+            if m:
+                meta_merged.update({k: v for k, v in m.items() if k != 'strategy_name'})
+            all_results.extend(rows)
+
+        for filename in os.listdir(results_dir):
+            if not filename.endswith('.jsonl'):
+                continue
+            if pattern.match(filename):
+                filepath = os.path.join(results_dir, filename)
+                if os.path.isfile(filepath):
+                    m, rows = _read_one_results_file(filepath)
+                    all_results.extend(rows)
+
+        # 去重：code + match_date + name
+        seen = set()
+        unique = []
+        for r in all_results:
+            key = (r.get('code', ''), r.get('match_date', ''), r.get('name', ''))
+            if key in seen:
+                continue
+            seen.add(key)
+            unique.append(r)
+        unique.sort(key=lambda x: (x.get('match_date', '9999-99-99'), x.get('code', '')))
+
+        return jsonify({
+            'success': True,
+            'data': {
+                'meta': meta_merged,
+                'results': unique,
+                'count': len(unique)
+            }
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/results/file', methods=['GET'])
 def get_results_file():

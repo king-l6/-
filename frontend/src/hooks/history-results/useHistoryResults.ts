@@ -1,10 +1,10 @@
 import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
-import { getResultsList, getResultsFile } from '@/api'
+import { getResultsList, getResultsFile, getResultsByStrategy } from '@/api'
 import type { StockResult, ResultFile } from '@/types'
 
 const STORAGE_KEY_FAVORITES = 'history-favorites-by-file'
-const strategyNames = ['龙头战法', '断板反包', '均线上穿', '情绪周期', '三连板']
+const strategyNames = ['龙头战法', '断板反包', '均线上穿', '情绪周期', '三连板', '筑底突破']
 
 export function useHistoryResults() {
   const loadingFiles = ref(false)
@@ -28,6 +28,8 @@ export function useHistoryResults() {
   })
 
   const collectedItems = computed(() => {
+    console.log('collectedItems', activeFile.value);
+    
     const file = activeFile.value
     return file ? (collectedByFile.value[file] || []) : []
   })
@@ -131,6 +133,9 @@ export function useHistoryResults() {
   }
 
   function formatFileName(filename: string): string {
+    if (filename.startsWith('__strategy__')) {
+      return filename.replace('__strategy__', '') + ' (按日期聚合)'
+    }
     const name = filename.replace(/\.jsonl$/, '')
     return name.length > 25 ? name.substring(0, 25) + '...' : name
   }
@@ -225,6 +230,75 @@ export function useHistoryResults() {
     return amplitude >= 0 ? 'text-red-600 font-semibold' : 'text-green-600 font-semibold'
   }
 
+  function parseDate(value?: string): Date | null {
+    if (!value) return null
+    const s = value.slice(0, 10)
+    const d = new Date(s)
+    return Number.isNaN(d.getTime()) ? null : d
+  }
+
+  function countTradingDays(d1: Date, d2: Date): number {
+    let start = d1
+    let end = d2
+    if (start > end) {
+      const tmp = start
+      start = end
+      end = tmp
+    }
+    let n = 0
+    const cur = new Date(start.getTime())
+    while (cur < end) {
+      const wd = cur.getDay()
+      if (wd !== 0 && wd !== 6) n++
+      cur.setDate(cur.getDate() + 1)
+    }
+    return n
+  }
+
+  function dedupeBottomingByCode(source: StockResult[], tradingDays = 3): StockResult[] {
+    const byCode = new Map<string, StockResult[]>()
+    for (const item of source) {
+      const code = item.code || ''
+      if (!byCode.has(code)) byCode.set(code, [])
+      byCode.get(code)!.push(item)
+    }
+
+    const result: StockResult[] = []
+
+    byCode.forEach(rows => {
+      rows.sort((a, b) => (a.match_date || '').localeCompare(b.match_date || ''))
+      const kept: StockResult[] = []
+      for (const row of rows) {
+        const d = parseDate(row.match_date)
+        if (!d) {
+          kept.push(row)
+          continue
+        }
+        if (kept.length === 0) {
+          kept.push(row)
+          continue
+        }
+        const lastDate = parseDate(kept[kept.length - 1].match_date)
+        if (!lastDate) {
+          kept.push(row)
+          continue
+        }
+        if (countTradingDays(lastDate, d) > tradingDays) {
+          kept.push(row)
+        }
+      }
+      result.push(...kept)
+    })
+
+    result.sort((a, b) => {
+      const dateCmp = (a.match_date || '').localeCompare(b.match_date || '')
+      if (dateCmp !== 0) return dateCmp
+      return (a.code || '').localeCompare(b.code || '')
+    })
+
+    return result
+  }
+
   function getRowClassName(record: StockResult): string {
     if (!record.current_price || !record.match_price) return ''
     const pct = (record.current_price - record.match_price) / record.match_price
@@ -232,12 +306,22 @@ export function useHistoryResults() {
   }
 
   function isStrategyFile(filename: string): boolean {
+    if (filename.startsWith('__strategy__')) return true
     const baseName = filename.replace('_结果.jsonl', '').replace('.jsonl', '')
     return strategyNames.some(name =>
       baseName === name ||
       baseName.startsWith(name + '_') ||
       baseName.startsWith(name + '-')
     )
+  }
+
+  /** 从文件名解析策略名：龙头战法_结果.jsonl 或 龙头战法_20260226_结果.jsonl -> 龙头战法 */
+  function getStrategyNameFromFilename(filename: string): string | null {
+    if (filename.startsWith('__strategy__')) return filename.replace('__strategy__', '')
+    const withDate = filename.match(/^(.+)_\d{8}_结果\.jsonl$/)
+    if (withDate) return strategyNames.includes(withDate[1]) ? withDate[1] : null
+    const main = filename.replace(/_结果\.jsonl$/, '').replace(/\.jsonl$/, '')
+    return strategyNames.includes(main) ? main : null
   }
 
   function sortFileList(files: ResultFile[]): ResultFile[] {
@@ -248,8 +332,8 @@ export function useHistoryResults() {
       else otherFiles.push(file)
     })
     strategyFiles.sort((a, b) => {
-      const baseNameA = a.filename.replace('_结果.jsonl', '').replace('.jsonl', '')
-      const baseNameB = b.filename.replace('_结果.jsonl', '').replace('.jsonl', '')
+      const baseNameA = a.filename.replace('_结果.jsonl', '').replace('.jsonl', '').replace(/^__strategy__/, '')
+      const baseNameB = b.filename.replace('_结果.jsonl', '').replace('.jsonl', '').replace(/^__strategy__/, '')
       const getIndex = (baseName: string) => {
         for (let idx = 0; idx < strategyNames.length; idx++) {
           if (baseName === strategyNames[idx]) return idx * 100
@@ -267,13 +351,35 @@ export function useHistoryResults() {
     return [...strategyFiles, ...otherFiles]
   }
 
+  /** 在文件列表前插入「按策略聚合」虚拟项（每个策略名一条） */
+  function buildFileListWithAggregated(responseFiles: ResultFile[]): ResultFile[] {
+    const strategyNameSet = new Set<string>()
+    responseFiles.forEach(file => {
+      const name = getStrategyNameFromFilename(file.filename)
+      if (name) strategyNameSet.add(name)
+    })
+    const aggregatedEntries: ResultFile[] = Array.from(strategyNameSet).sort((a, b) => {
+      const ia = strategyNames.indexOf(a)
+      const ib = strategyNames.indexOf(b)
+      if (ia !== -1 && ib !== -1) return ia - ib
+      if (ia !== -1) return -1
+      if (ib !== -1) return 1
+      return a.localeCompare(b)
+    }).map(name => ({
+      filename: `__strategy__${name}`,
+      size: 0,
+      modified: ''
+    }))
+    return sortFileList([...aggregatedEntries, ...responseFiles])
+  }
+
   async function loadFileList() {
     loadingFiles.value = true
     error.value = ''
     try {
       const response = await getResultsList()
       if (response.success) {
-        fileList.value = sortFileList(response.data)
+        fileList.value = buildFileListWithAggregated(response.data)
         if (fileList.value.length > 0) {
           const firstFile = fileList.value[0].filename
           if (!activeFile.value || !fileList.value.find(f => f.filename === activeFile.value)) {
@@ -305,9 +411,19 @@ export function useHistoryResults() {
     metaInfo.value = null
 
     try {
-      const response = await getResultsFile(filename)
+      const isAggregated = filename.startsWith('__strategy__')
+      const response = isAggregated
+        ? await getResultsByStrategy(filename.replace('__strategy__', ''))
+        : await getResultsFile(filename)
+
       if (response.success) {
+        const meta = response.data.meta || {}
         let newResults = Array.isArray(response.data.results) ? [...response.data.results] : []
+
+        if (meta.strategy_name === '筑底突破') {
+          newResults = dedupeBottomingByCode(newResults, 3)
+        }
+
         const seen = new Set<string>()
         newResults = newResults.filter(item => {
           const key = `${item.code}-${item.match_date || ''}-${item.name || ''}`
@@ -316,7 +432,7 @@ export function useHistoryResults() {
           return true
         })
         results.value = newResults
-        metaInfo.value = response.data.meta
+        metaInfo.value = meta
       } else {
         error.value = response.error || '加载文件失败'
       }

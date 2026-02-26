@@ -57,3 +57,10 @@ export function getResultsList(): Promise<ResultsListResponse> {
 export function getResultsFile(filename: string): Promise<ResultFileResponse> {
   return api.get('/results/file', { params: { filename } })
 }
+
+/**
+ * 按策略名聚合：合并该策略的主文件与所有按日文件，按 match_date 排序（用于历史结果按日期聚合展示）
+ */
+export function getResultsByStrategy(strategyName: string): Promise<ResultFileResponse> {
+  return api.get('/results/strategy', { params: { name: strategyName } })
+}

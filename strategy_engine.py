@@ -19,6 +19,22 @@ class StrategyEngine:
     
     def backtest(self, strategy, strategy_name=None):
         """执行策略回测（优化版：分阶段筛选 + 实时持久化）"""
+        return self._backtest_impl(strategy, strategy_name=strategy_name, only_t_date=None, write_results=True)
+
+    def backtest_single_day(self, strategy, strategy_name=None, trading_date=None):
+        """仅对指定交易日 T 做一次扫描，返回当日匹配结果（不写主结果文件）。
+        trading_date: str 'YYYY-MM-DD' 或 datetime。若为 None 则用最近交易日。
+        """
+        if trading_date is None:
+            trading_date = self.data_fetcher._get_last_trading_day_available()
+        if hasattr(trading_date, 'strftime'):
+            trading_date = trading_date.strftime('%Y-%m-%d')
+        return self._backtest_impl(
+            strategy, strategy_name=strategy_name, only_t_date=trading_date, write_results=False
+        )
+
+    def _backtest_impl(self, strategy, strategy_name=None, only_t_date=None, write_results=True):
+        """内部：执行回测，可选仅扫描 only_t_date 且不写文件。"""
         # 解析策略条件
         conditions = strategy.get('conditions', [])
         exclude_rules = strategy.get('exclude', {})
@@ -31,14 +47,14 @@ class StrategyEngine:
         # 打印策略信息
         print(f'策略名称: {strategy_name}')
         print(f'策略条件数量: {len(conditions)}')
-        print(f'回测时间范围: {time_range} 个交易日')
+        print(f'回测时间范围: {time_range} 个交易日' + (f'，仅扫描 T={only_t_date}' if only_t_date else ''))
         
-        # 结果文件路径（每条结果实时追加）
-        results_filepath = os.path.join(self.results_dir, f"{strategy_name}_结果.jsonl")
+        # 结果文件路径（仅全量回测时写入）
+        results_filepath = os.path.join(self.results_dir, f"{strategy_name}_结果.jsonl") if write_results else None
         
         # 在回测开始前，确保有足够的数据
         print(f'开始数据预检查，确保有足够的数据用于回测 {time_range} 个交易日...')
-        self.data_fetcher.ensure_sufficient_data(time_range, max_workers=20)
+        self.data_fetcher.ensure_sufficient_data(time_range, max_workers=100)
         
         # 获取所有股票
         stocks = self.data_fetcher.get_stock_list()
@@ -47,6 +63,11 @@ class StrategyEngine:
         # 计算回测时间范围：timeRange 为交易日数，不含周末
         # 约 1 交易日 ≈ 1.4 日历日，多取一些确保覆盖
         end_date = datetime.now()
+        if only_t_date:
+            try:
+                end_date = datetime.strptime(only_t_date[:10], '%Y-%m-%d')
+            except Exception:
+                pass
         calendar_days = int(time_range * 1.6) + 10  # 确保覆盖 timeRange 个交易日
         start_date = end_date - timedelta(days=calendar_days)
         
@@ -60,7 +81,7 @@ class StrategyEngine:
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
             # 提交所有任务（time_range=交易日数）
             future_to_stock = {
-                executor.submit(self._process_stock, stock, conditions, start_date, end_date, time_range): stock
+                executor.submit(self._process_stock, stock, conditions, start_date, end_date, time_range, only_t_date): stock
                 for stock in stocks
             }
             
@@ -85,8 +106,9 @@ class StrategyEngine:
                                     continue
                                 r['match_date'] = self._normalize_match_date(r.get('match_date'))
                                 results.append(r)
-                                self._append_result(results_filepath, strategy_name, r, len(results))
-                                print(f"✓ 找到: {r['code']} {r['name']} (匹配日期: {r.get('match_date', 'N/A')})", flush=True)
+                                if results_filepath:
+                                    self._append_result(results_filepath, strategy_name, r, len(results))
+                                    print(f"✓ 找到: {r['code']} {r['name']} (匹配日期: {r.get('match_date', 'N/A')})", flush=True)
                 except Exception as e:
                     # 输出错误信息以便调试
                     if processed_count[0] % 100 == 0:  # 每100只股票输出一次错误统计
@@ -98,8 +120,9 @@ class StrategyEngine:
             if any(c.get('type') == 'bottoming_breakout' for c in conditions):
                 results = self._dedupe_bottoming_by_code(results, trading_days=3)
             results.sort(key=lambda r: (r.get('match_date', '9999-99-99'), r.get('code', '')))
-            self._write_sorted_results(results_filepath, strategy_name, results)
-            print(f"结果已保存（按符合日期排序）: {results_filepath}")
+            if write_results and results_filepath:
+                self._write_sorted_results(results_filepath, strategy_name, results)
+                print(f"结果已保存（按符合日期排序）: {results_filepath}")
         return results
     
     def _dedupe_bottoming_by_code(self, results, trading_days=3):
@@ -164,13 +187,13 @@ class StrategyEngine:
         except Exception as e:
             print(f"[WARNING] 保存排序结果失败: {e}")
     
-    def _process_stock(self, stock, conditions, start_date, end_date, time_range=30):
-        """处理单只股票（用于并发）"""
+    def _process_stock(self, stock, conditions, start_date, end_date, time_range=30, only_t_date=None):
+        """处理单只股票（用于并发）。only_t_date 有值时仅检查该 T 日。"""
         code = stock['code']
         name = stock['name']
         
         try:
-            check_result = self._check_strategy(code, conditions, start_date, end_date, time_range)
+            check_result = self._check_strategy(code, conditions, start_date, end_date, time_range, only_t_date=only_t_date)
             if check_result:
                 # 筑底突破返回多个 match_date，其余策略返回单个
                 items = check_result if isinstance(check_result, list) else [check_result]
@@ -188,15 +211,12 @@ class StrategyEngine:
         
         return None
     
-    def _check_strategy(self, code, conditions, start_date, end_date, time_range=30):
-        """检查股票是否符合策略条件
-        
-        优化：先检查是否有涨停日，无则直接跳过；只遍历最近 time_range 个交易日作为 T
-        """
+    def _check_strategy(self, code, conditions, start_date, end_date, time_range=30, only_t_date=None):
+        """检查股票是否符合策略条件。only_t_date 有值时仅检查该日作为 T。"""
         try:
             # 筑底突破策略使用独立的检查逻辑
             if any(c.get('type') == 'bottoming_breakout' for c in conditions):
-                return self._check_bottoming_breakout(code, start_date, end_date, time_range)
+                return self._check_bottoming_breakout(code, start_date, end_date, time_range, only_t_date=only_t_date)
 
             # 获取股票数据
             df = self.data_fetcher.get_stock_data(
@@ -235,27 +255,28 @@ class StrategyEngine:
             min_required_days = max_backward_offset + 1
             
             # 只检查最近 time_range 个交易日作为 T（不含周末，df 每行即一交易日）
-            # 确保从最新日期往前遍历，但只检查最近 time_range 个交易日
-            # 这样可以保证不同日期回测时，相同日期范围的结果一致
             min_i = max(min_required_days, len(df) - time_range)
-            # 从最新日期往前遍历，找到第一个符合条件的就返回（这是策略设计：返回最近的匹配日期）
+            if only_t_date:
+                only_d = only_t_date[:10] if isinstance(only_t_date, str) else only_t_date.strftime('%Y-%m-%d')
+                for i in range(len(df) - 1, min_i - 1, -1):
+                    base_date = df.iloc[i]['日期']
+                    base_str = base_date.strftime('%Y-%m-%d') if hasattr(base_date, 'strftime') else str(base_date)[:10]
+                    if base_str == only_d:
+                        if self._check_conditions_from_date(code, conditions, base_date, df):
+                            return {'df': df, 'base_date': base_date}
+                        return False
+                return False
             for i in range(len(df) - 1, min_i - 1, -1):
-                base_date = df.iloc[i]['日期']  # 回测日期（比如1月12日）
-                
-                # 检查从base_date开始是否符合所有条件
+                base_date = df.iloc[i]['日期']
                 if self._check_conditions_from_date(code, conditions, base_date, df):
-                    # 返回df和base_date，避免重复获取数据
                     return {'df': df, 'base_date': base_date}
-            
             return False
         except Exception as e:
             # 静默处理错误
             return False
 
-    def _check_bottoming_breakout(self, code, start_date, end_date, time_range=30):
-        """二次筑底突破策略（双底/W底）：
-        形态：前面涨一波→回调形成低点1→涨一小波→再回调形成低点2（二次筑底）→放量上涨那天=买点
-        """
+    def _check_bottoming_breakout(self, code, start_date, end_date, time_range=30, only_t_date=None):
+        """二次筑底突破策略（双底/W底）。only_t_date 有值时仅检查该日是否为买点。"""
         try:
             df = self.data_fetcher.get_stock_data(
                 code, start_date.strftime('%Y%m%d'), end_date.strftime('%Y%m%d')
@@ -266,12 +287,20 @@ class StrategyEngine:
             if not all(c in df.columns for c in req):
                 return False
             df = df.sort_values('日期').reset_index(drop=True)
-            # 从最近日期往前遍历，找所有符合买点的 T 日
             matches = []
             min_i = max(30, len(df) - time_range)
-            for i in range(len(df) - 1, min_i - 1, -1):
-                if self._is_double_bottom_breakout_day(df, i):
-                    matches.append({'df': df, 'base_date': df.iloc[i]['日期']})
+            if only_t_date:
+                only_d = only_t_date[:10] if isinstance(only_t_date, str) else only_t_date.strftime('%Y-%m-%d')
+                for i in range(len(df) - 1, min_i - 1, -1):
+                    row_date = df.iloc[i]['日期']
+                    row_str = row_date.strftime('%Y-%m-%d') if hasattr(row_date, 'strftime') else str(row_date)[:10]
+                    if row_str == only_d and self._is_double_bottom_breakout_day(df, i):
+                        matches.append({'df': df, 'base_date': df.iloc[i]['日期']})
+                        break
+            else:
+                for i in range(len(df) - 1, min_i - 1, -1):
+                    if self._is_double_bottom_breakout_day(df, i):
+                        matches.append({'df': df, 'base_date': df.iloc[i]['日期']})
             return matches if matches else False
         except Exception:
             return False

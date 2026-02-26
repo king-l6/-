@@ -8,64 +8,25 @@ os.environ['NO_PROXY'] = '*'
 os.environ['no_proxy'] = '*'
 
 from datetime import datetime, timedelta
-from concurrent.futures import ThreadPoolExecutor, as_completed
-import time
 
 from data_fetcher import DataFetcher
 from strategy_engine import StrategyEngine
 
 
-def fetch_one(stock, start_date_str, end_date_str, fetcher, force_refresh=False):
-    """获取单只股票数据"""
-    code = stock['code']
-    try:
-        df = fetcher.get_stock_data(code, start_date_str, end_date_str, force_refresh=force_refresh)
-        return {'code': code, 'success': df is not None and not df.empty}
-    except Exception:
-        return {'code': code, 'success': False}
-
-
 def fetch_if_needed(fetcher):
-    """若本地缓存最新日期不是最近交易日，则拉取近一个月数据"""
+    """若本地缓存最新日期不是最近交易日，则只补齐缺失天数（增量），不全量拉取"""
     last_trade = fetcher._get_last_trading_day()
     cache_latest = fetcher.get_local_cache_latest_date()
     if not fetcher.need_fetch_recent_data():
         print(f'本地数据已是最新（缓存最新: {cache_latest} = 最近交易日: {last_trade}），跳过拉取\n')
         return
 
-    print(f'本地缓存最新: {cache_latest}，最近交易日: {last_trade}，需要拉取新数据')
+    print(f'本地缓存最新: {cache_latest}，最近交易日: {last_trade}，需要补齐缺失数据')
     print('=' * 60)
-    print('步骤1: 拉取近一个月数据')
+    print('步骤1: 增量补齐至最近交易日（只拉未拉取的天数）')
     print('=' * 60)
-
-    stocks = fetcher.get_stock_list()
-    total = len(stocks)
-    print(f'\n共 {total} 只主板股票')
-
-    today = datetime.now()
-    start_date = today - timedelta(days=50)  # 覆盖近一个月
-    start_str = start_date.strftime('%Y%m%d')
-    end_str = today.strftime('%Y%m%d')
-    print(f'日期范围: {start_str} ~ {end_str}\n')
-
-    success_count = 0
-    start_time = time.time()
-
-    with ThreadPoolExecutor(max_workers=10) as executor:
-        futures = {
-            executor.submit(fetch_one, s, start_str, end_str, fetcher, True): s  # 强制从网络拉取
-            for s in stocks
-        }
-        for i, future in enumerate(as_completed(futures)):
-            r = future.result()
-            if r['success']:
-                success_count += 1
-            if (i + 1) % 100 == 0:
-                elapsed = time.time() - start_time
-                print(f'进度: {i+1}/{total} | 成功: {success_count} | {elapsed:.1f}秒', flush=True)
-
-    elapsed = time.time() - start_time
-    print(f'\n数据拉取完成: 成功 {success_count}/{total}, 耗时 {elapsed:.1f} 秒\n')
+    fetcher.update_caches_with_today_data(max_workers=100)
+    print()
 
 
 def run_backtest(fetcher):
@@ -111,7 +72,7 @@ if __name__ == '__main__':
     fetcher.remove_duplicate_cache()
     fetcher.get_stock_list()
     print('步骤1: 拉取今日数据并入已有缓存')
-    fetcher.update_caches_with_today_data(max_workers=10)
+    fetcher.update_caches_with_today_data(max_workers=100)
     fetch_if_needed(fetcher)
     run_backtest(fetcher)
     print(f'\n[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] 每日任务完成\n')

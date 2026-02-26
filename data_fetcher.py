@@ -316,7 +316,7 @@ class DataFetcher:
         except Exception:
             return None
 
-    def update_caches_with_today_data(self, max_workers=10):
+    def update_caches_with_today_data(self, max_workers=100):
         """拉取今天（最近交易日）的数据，合并到对应的 json 缓存文件中"""
         from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -356,7 +356,7 @@ class DataFetcher:
                 return None
 
         need_update_list = []
-        with ThreadPoolExecutor(max_workers=min(20, len(files) or 1)) as ex:
+        with ThreadPoolExecutor(max_workers=min(100, len(files) or 1)) as ex:
             for r in ex.map(_check_need_update, files):
                 if r is not None:
                     need_update_list.append(r)
@@ -407,7 +407,7 @@ class DataFetcher:
             # 重新扫描缓存文件，按实际最后交易日判断是否需更新
             files = glob.glob(pattern)
             need_update_list2 = []
-            with ThreadPoolExecutor(max_workers=min(20, len(files) or 1)) as ex:
+            with ThreadPoolExecutor(max_workers=min(100, len(files) or 1)) as ex:
                 for r in ex.map(_check_need_update, files):
                     if r is not None:
                         need_update_list2.append(r)
@@ -479,7 +479,7 @@ class DataFetcher:
         if success < total and total > 0:
             print(f'[TIP] 部分股票未更新可能因 Baostock 无数据（如 ST/退市股），可忽略')
 
-    def ensure_sufficient_data(self, time_range, max_workers=20):
+    def ensure_sufficient_data(self, time_range, max_workers=100):
         """确保有足够的数据用于回测
         
         Args:
@@ -621,7 +621,91 @@ class DataFetcher:
             except Exception:
                 pass
 
+        # 增量补数：若有现有缓存，只拉取缺失的日期区间并合并，避免全量拉取
         try:
+            pattern = os.path.join(self.stock_data_cache_dir, f'{code}_*.json')
+            existing_list = glob.glob(pattern)
+            if existing_list and not force_refresh:
+                # 取该股票唯一缓存（remove_duplicate 后应只有一份；多份时取覆盖 end 最大的）
+                best_fp = None
+                best_end = ''
+                for fp in existing_list:
+                    name = os.path.basename(fp)
+                    if '_' not in name or not name.endswith('.json'):
+                        continue
+                    parts = name[:-5].split('_')
+                    if len(parts) != 3 or len(parts[1]) != 8 or len(parts[2]) != 8:
+                        continue
+                    if parts[0] != code:
+                        continue
+                    if parts[2] > best_end:
+                        best_end = parts[2]
+                        best_fp = fp
+                if best_fp and os.path.isfile(best_fp):
+                    with open(best_fp, 'r', encoding='utf-8') as f:
+                        cache_data = json.load(f)
+                    rows = cache_data.get('data') or []
+                    if rows:
+                        df_existing = pd.DataFrame(rows)
+                        df_existing['日期'] = pd.to_datetime(df_existing['日期'])
+                        cache_min = df_existing['日期'].min()
+                        cache_max = df_existing['日期'].max()
+                        cache_min_str = cache_min.strftime('%Y%m%d')
+                        cache_max_str = cache_max.strftime('%Y%m%d')
+                        need_back = start_date < cache_min_str
+                        need_front = end_date > cache_max_str
+                        if need_back or need_front:
+                            to_merge = [df_existing]
+                            new_start = cache_data.get('start_date', cache_min_str)
+                            new_end = cache_data.get('end_date', cache_max_str)
+                            if need_back:
+                                fetch_end = (cache_min - timedelta(days=1)).strftime('%Y%m%d')
+                                if start_date <= fetch_end:
+                                    df_back = self._fetch_from_api(code, start_date, fetch_end)
+                                    if df_back is not None and not df_back.empty:
+                                        to_merge.append(df_back)
+                                        new_start = start_date
+                            if need_front:
+                                fetch_start = (cache_max + timedelta(days=1)).strftime('%Y%m%d')
+                                if fetch_start <= end_date:
+                                    df_front = self._fetch_from_api(code, fetch_start, end_date)
+                                    if df_front is not None and not df_front.empty:
+                                        to_merge.append(df_front)
+                                        new_end = end_date
+                            if len(to_merge) > 1:
+                                df_merged = pd.concat(to_merge, ignore_index=True)
+                                df_merged = df_merged.drop_duplicates(subset=['日期'], keep='last')
+                                df_merged = df_merged.sort_values('日期').reset_index(drop=True)
+                                df_merged['日期'] = pd.to_datetime(df_merged['日期'])
+                                for col in ['开盘','收盘','最高','最低','成交量','成交额','涨跌幅','换手率']:
+                                    df_merged[col] = pd.to_numeric(df_merged[col], errors='coerce').fillna(0)
+                                df_merged['成交量'] = df_merged['成交量'].astype(float)
+                                df_merged['涨跌额'] = df_merged['收盘'].diff()
+                                df_merged['涨跌额'] = df_merged['涨跌额'].fillna(0)
+                                df_merged['振幅'] = ((df_merged['最高'] - df_merged['最低']) / df_merged['最低'].replace(0, float('nan')) * 100).fillna(0)
+                                df_merged = df_merged[['日期','开盘','收盘','最高','最低','成交量','成交额','振幅','涨跌幅','涨跌额','换手率']]
+                                out_path = self._get_cache_path(code, new_start, new_end)
+                                out = {
+                                    'cache_time': datetime.now().isoformat(),
+                                    'code': code, 'start_date': new_start, 'end_date': new_end,
+                                    'data': df_merged.to_dict('records')
+                                }
+                                with open(out_path, 'w', encoding='utf-8') as f:
+                                    json.dump(out, f, ensure_ascii=False, default=str)
+                                if out_path != best_fp:
+                                    try:
+                                        os.remove(best_fp)
+                                    except Exception:
+                                        pass
+                                s, e = pd.to_datetime(start_date), pd.to_datetime(end_date)
+                                df_ret = df_merged[(df_merged['日期'] >= s) & (df_merged['日期'] <= e)]
+                                if not df_ret.empty:
+                                    return df_ret.reset_index(drop=True)
+        except Exception:
+            pass
+
+        try:
+            cache_path = self._get_cache_path(code, start_date, end_date)
             with self._bs_lock:
                 self._ensure_login()
                 bs_code = self._to_bs_code(code)

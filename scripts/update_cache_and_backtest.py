@@ -14,7 +14,7 @@
   python scripts/update_cache_and_backtest.py --no-backtest
 
   # 指定并发数
-  python scripts/update_cache_and_backtest.py --workers 10
+  python scripts/update_cache_and_backtest.py --workers 100
 """
 
 import os
@@ -36,7 +36,7 @@ os.environ.setdefault('no_proxy', '*')
 def main():
     parser = argparse.ArgumentParser(description='补齐缓存差值数据并执行常用策略回测')
     parser.add_argument('--no-backtest', action='store_true', help='只补齐缓存，不执行回测')
-    parser.add_argument('--workers', type=int, default=10, help='拉取数据时的并发数（默认 10）')
+    parser.add_argument('--workers', type=int, default=100, help='拉取数据时的并发数（默认 100）')
     parser.add_argument('--config', default='common_strategies.json', help='策略配置文件路径')
     args = parser.parse_args()
 
