@@ -213,6 +213,29 @@ class DataFetcher:
             pass
         return last_trade
 
+    def get_trading_days_between(self, start_date, end_date):
+        """获取 start_date 到 end_date 之间的交易日列表（含首尾），返回 ['YYYY-MM-DD', ...]。"""
+        try:
+            start_s = start_date[:10] if isinstance(start_date, str) else start_date.strftime('%Y-%m-%d')
+            end_s = end_date[:10] if isinstance(end_date, str) else end_date.strftime('%Y-%m-%d')
+            with self._bs_lock:
+                self._ensure_login()
+                rs = bs.query_history_k_data_plus(
+                    'sz.000001', 'date',
+                    start_date=start_s, end_date=end_s,
+                    frequency='d', adjustflag='3'
+                )
+            if rs.error_code != '0':
+                return []
+            out = []
+            while rs.next():
+                row = rs.get_row_data()
+                if row and row[0]:
+                    out.append(row[0])
+            return out
+        except Exception:
+            return []
+
     def get_local_cache_latest_date(self):
         """获取本地缓存中最新一条数据的日期，无缓存返回 None"""
         try:

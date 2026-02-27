@@ -93,7 +93,20 @@ class StrategyEngine:
                 # 每10只股票显示一次进度（更频繁的进度更新）
                 if processed_count[0] % 10 == 0:
                     percentage = 100 * processed_count[0] // total_stocks if total_stocks > 0 else 0
-                    print(f"进度: {processed_count[0]}/{total_stocks} ({percentage}%) - 已找到 {len(results)} 只符合条件的股票", flush=True)
+                    if only_t_date:
+                        print(
+                            f"进度: {processed_count[0]}/{total_stocks} ({percentage}%) "
+                            f"- 策略: {strategy_name} - T日: {only_t_date} "
+                            f"- 已找到 {len(results)} 只符合条件的股票",
+                            flush=True,
+                        )
+                    else:
+                        print(
+                            f"进度: {processed_count[0]}/{total_stocks} ({percentage}%) "
+                            f"- 策略: {strategy_name} "
+                            f"- 已找到 {len(results)} 只符合条件的股票",
+                            flush=True,
+                        )
                 
                 try:
                     result = future.result(timeout=30)
