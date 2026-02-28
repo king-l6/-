@@ -124,6 +124,24 @@ def next_trading_day(date_str):
         return None
 
 
+def weekdays_between(start_yyyy_mm_dd, end_yyyy_mm_dd):
+    """生成 start 到 end 之间所有工作日（周一=0 到周五=4）的日期列表，含首尾。格式 YYYY-MM-DD。"""
+    try:
+        start_d = datetime.strptime(start_yyyy_mm_dd[:10], '%Y-%m-%d').date()
+        end_d = datetime.strptime(end_yyyy_mm_dd[:10], '%Y-%m-%d').date()
+        if start_d > end_d:
+            return []
+        out = []
+        d = start_d
+        while d <= end_d:
+            if d.weekday() < 5:  # 0-4 为周一到周五
+                out.append(d.strftime('%Y-%m-%d'))
+            d += timedelta(days=1)
+        return out
+    except Exception:
+        return []
+
+
 def load_strategies(config_file='common_strategies.json'):
     try:
         with open(config_file, 'r', encoding='utf-8') as f:
@@ -283,6 +301,12 @@ def main():
             print('[INFO] 最后日期已为最近交易日或更晚，无需回测。')
             return
         trading_days = fetcher.get_trading_days_between(start_date, last_trade)
+        fallback_days = weekdays_between(start_date, last_trade)
+        # 若 Baostock 未返回或返回天数明显少于「工作日」数，用工作日列表兜底，保证回测所有中间交易日
+        if not trading_days:
+            trading_days = fallback_days
+        elif fallback_days and len(trading_days) < len(fallback_days):
+            trading_days = fallback_days
         if not trading_days:
             print()
             print('[INFO] 未查询到需回测的交易日。')

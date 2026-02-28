@@ -134,7 +134,7 @@ export function useHistoryResults() {
 
   function formatFileName(filename: string): string {
     if (filename.startsWith('__strategy__')) {
-      return filename.replace('__strategy__', '') + ' (按日期聚合)'
+      return filename.replace('__strategy__', '')
     }
     const name = filename.replace(/\.jsonl$/, '')
     return name.length > 25 ? name.substring(0, 25) + '...' : name
@@ -351,12 +351,20 @@ export function useHistoryResults() {
     return [...strategyFiles, ...otherFiles]
   }
 
-  /** 在文件列表前插入「按策略聚合」虚拟项（每个策略名一条） */
+  /** 在文件列表前插入「按策略聚合」虚拟项（每个策略名一条），且不再重复列出策略的实体文件 */
   function buildFileListWithAggregated(responseFiles: ResultFile[]): ResultFile[] {
     const strategyNameSet = new Set<string>()
+    const otherFiles: ResultFile[] = []
     responseFiles.forEach(file => {
       const name = getStrategyNameFromFilename(file.filename)
-      if (name) strategyNameSet.add(name)
+      console.log('111',responseFiles);
+      
+      if (name) {
+        strategyNameSet.add(name)
+        // 策略文件不再单独列出，只通过「按策略聚合」入口查看
+      } else {
+        otherFiles.push(file)
+      }
     })
     const aggregatedEntries: ResultFile[] = Array.from(strategyNameSet).sort((a, b) => {
       const ia = strategyNames.indexOf(a)
@@ -370,7 +378,7 @@ export function useHistoryResults() {
       size: 0,
       modified: ''
     }))
-    return sortFileList([...aggregatedEntries, ...responseFiles])
+    return sortFileList([...aggregatedEntries, ...otherFiles])
   }
 
   async function loadFileList() {
@@ -379,7 +387,11 @@ export function useHistoryResults() {
     try {
       const response = await getResultsList()
       if (response.success) {
+        
         fileList.value = buildFileListWithAggregated(response.data)
+
+        console.log(fileList.value);
+
         if (fileList.value.length > 0) {
           const firstFile = fileList.value[0].filename
           if (!activeFile.value || !fileList.value.find(f => f.filename === activeFile.value)) {
@@ -431,6 +443,15 @@ export function useHistoryResults() {
           seen.add(key)
           return true
         })
+
+        // 按 match_date 倒序（最新在前），同一天按 code 升序
+        newResults.sort((a, b) => {
+          const dA = a.match_date || ''
+          const dB = b.match_date || ''
+          if (dB !== dA) return dB.localeCompare(dA)
+          return (a.code || '').localeCompare(b.code || '')
+        })
+
         results.value = newResults
         metaInfo.value = meta
       } else {

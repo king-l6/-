@@ -231,7 +231,12 @@ class DataFetcher:
             while rs.next():
                 row = rs.get_row_data()
                 if row and row[0]:
-                    out.append(row[0])
+                    d = row[0].strip()
+                    # 统一为 YYYY-MM-DD（Baostock 一般为该格式，少数情况为 YYYYMMDD）
+                    if len(d) == 8 and d.isdigit():
+                        d = f"{d[:4]}-{d[4:6]}-{d[6:8]}"
+                    if len(d) >= 10 and d[4] == '-' and d[7] == '-':
+                        out.append(d[:10])
             return out
         except Exception:
             return []

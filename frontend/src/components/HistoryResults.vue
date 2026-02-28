@@ -59,6 +59,7 @@
             <span class="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">共 {{ fileList.length }} 个</span>
           </div>
         </div>
+        {{ fileList }}
         <div class="overflow-y-auto" style="max-height: calc(100vh - 180px);">
           <Menu
             v-model:selectedKeys="selectedKeys"
