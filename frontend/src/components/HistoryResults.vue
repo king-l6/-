@@ -162,10 +162,13 @@
             </Card>
           </TabPane>
           <TabPane :key="'table'" :tab="`数据列表 (${filteredResults.length} 只)`">
-            <div class="mb-2 flex items-center justify-between">
+            <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
               <div class="text-sm font-semibold text-primary">
                 找到 {{ filteredResults.length }} 只符合条件的股票
               </div>
+              <Checkbox v-model:checked="filterDay2Strong" class="text-sm">
+                当日涨幅&gt;3% 或 振幅&gt;3%
+              </Checkbox>
             </div>
             <div :class="['overflow-x-auto w-full -mx-2 px-2 md:mx-0 md:px-0', { 'history-table-mobile': isNarrowScreen }]">
               <Table
@@ -218,7 +221,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
-import { Card, Table, Spin, Alert, Button, Space, Input, Menu, MenuItem, Select, Tabs, TabPane } from 'ant-design-vue'
+import { Card, Table, Spin, Alert, Button, Space, Input, Menu, MenuItem, Select, Tabs, TabPane, Checkbox } from 'ant-design-vue'
 import { SearchOutlined, PlusOutlined } from '@ant-design/icons-vue'
 import type { ColumnsType } from 'ant-design-vue/es/table'
 import type { StockResult } from '@/types'
@@ -277,7 +280,8 @@ const {
   getRowClassName,
   isStrategyFile,
   handleExport,
-  isNarrowScreen
+  isNarrowScreen,
+  filterDay2Strong
 } = useHistoryResults()
 
 const collectedColumns: ColumnsType<StockResult> = [

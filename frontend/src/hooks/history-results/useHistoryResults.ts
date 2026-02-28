@@ -19,6 +19,8 @@ export function useHistoryResults() {
   const searchText = ref('')
   const selectedKeys = ref<string[]>([])
   const collectedByFile = ref<Record<string, StockResult[]>>({})
+  /** 仅显示：次日涨幅>3% 或 次日振幅(收盘-开盘)幅度>3% */
+  const filterDay2Strong = ref(false)
 
   const isNarrowScreen = ref(typeof window !== 'undefined' && window.innerWidth < 768)
 
@@ -57,6 +59,17 @@ export function useHistoryResults() {
         item.code.toLowerCase().includes(search) ||
         item.name.toLowerCase().includes(search)
       )
+    }
+    if (filterDay2Strong.value) {
+      sourceData = sourceData.filter(item => {
+        const r = item as any
+        // 优先用匹配日当天(day1)，没有则用次日(day2)兼容老数据
+        const pct = r?.day1_change_pct ?? r?.day2_change_pct
+        const amp = r?.day1_amplitude ?? r?.day2_amplitude
+        const pctOk = typeof pct === 'number' && pct > 3
+        const ampOk = typeof amp === 'number' && Math.abs(amp) > 3
+        return pctOk || ampOk
+      })
     }
     return [...sourceData]
   })
@@ -454,6 +467,7 @@ export function useHistoryResults() {
     searchText,
     selectedKeys,
     collectedByFile,
+    filterDay2Strong,
     isNarrowScreen,
     tableScroll,
     collectedItems,

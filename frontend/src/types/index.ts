@@ -40,10 +40,12 @@ export interface StockResult {
   match_date?: string
   match_price?: number
   current_price?: number
-  day2_amplitude?: number // 次日振幅（收盘-开盘）
-  day2_change_pct?: number // 次日涨跌幅（(收盘-前收盘)/前收盘*100）
-  day3_amplitude?: number // 第三日振幅（收盘-开盘）
-  day3_change_pct?: number // 第三日涨跌幅（(收盘-前收盘)/前收盘*100）
+  day1_amplitude?: number   // 匹配日振幅（(收盘-开盘)/开盘*100）
+  day1_change_pct?: number // 匹配日涨跌幅（(收盘-前收)/前收*100）
+  day2_amplitude?: number   // 次日振幅（收盘-开盘）/开盘*100
+  day2_change_pct?: number  // 次日涨跌幅（(收盘-前收盘)/前收盘*100）
+  day3_amplitude?: number   // 第三日振幅
+  day3_change_pct?: number  // 第三日涨跌幅
 }
 
 export interface BacktestResponse {

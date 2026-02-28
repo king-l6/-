@@ -766,6 +766,29 @@ class StrategyEngine:
                 'match_price': float(date_map[base_date_str]['收盘']) if base_date_str in date_map else 0
             }
             
+            # 计算匹配日当天（T日）的振幅和涨跌幅
+            try:
+                base_idx = dates.index(base_date)
+                base_close = float(date_map[base_date_str]['收盘']) if base_date_str in date_map else None
+                base_open = float(date_map[base_date_str]['开盘']) if base_date_str in date_map and '开盘' in date_map[base_date_str] else None
+                
+                # 匹配日振幅（(收盘-开盘)/开盘*100）
+                if base_open and base_close is not None and base_open > 0:
+                    day1_amplitude = ((base_close - base_open) / base_open * 100)
+                    detail['day1_amplitude'] = round(day1_amplitude, 2)
+                
+                # 匹配日涨跌幅（(当日收盘-前收)/前收*100）
+                if base_idx >= 1 and base_close is not None:
+                    prev_date = dates[base_idx - 1]
+                    prev_str = prev_date.strftime('%Y-%m-%d')
+                    if prev_str in date_map:
+                        prev_close = float(date_map[prev_str]['收盘'])
+                        if prev_close > 0:
+                            day1_change_pct = ((base_close - prev_close) / prev_close * 100)
+                            detail['day1_change_pct'] = round(day1_change_pct, 2)
+            except (ValueError, KeyError, IndexError):
+                pass
+            
             # 计算第二天和第三天的振幅和涨跌幅
             try:
                 base_idx = dates.index(base_date)
