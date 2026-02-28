@@ -41,7 +41,7 @@
             v-model:value="activeFile"
             placeholder="请选择回测文件"
             class="flex-1 min-w-0"
-            :options="fileList.map(f => ({ label: formatFileName(f.filename), value: f.filename }))"
+            :options="fileList.map(f => ({ label: `${formatFileName(f.filename)}${typeof f.count === 'number' ? ` (${f.count}条)` : ''}`, value: f.filename }))"
             :loading="loadingFiles"
             @change="onMobileFileSelect"
             allow-clear
@@ -59,7 +59,6 @@
             <span class="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">共 {{ fileList.length }} 个</span>
           </div>
         </div>
-        {{ fileList }}
         <div class="overflow-y-auto" style="max-height: calc(100vh - 180px);">
           <Menu
             v-model:selectedKeys="selectedKeys"
@@ -76,9 +75,14 @@
                 <span class="text-xs font-medium text-gray-800 truncate" :title="file.filename">
                   {{ formatFileName(file.filename) }}
                 </span>
-                <span class="text-xs text-gray-500 mt-0.5" :title="formatFullDate(file.modified)">
-                  {{ formatFileDate(file.modified) }}
-                </span>
+                <div class="mt-0.5 flex items-center justify-between gap-2">
+                  <span class="text-xs text-gray-500 truncate" :title="formatFullDate(file.modified)">
+                    {{ formatFileDate(file.modified) }}
+                  </span>
+                  <span v-if="typeof file.count === 'number'" class="text-xs text-gray-500 whitespace-nowrap">
+                    {{ file.count }} 条
+                  </span>
+                </div>
               </div>
             </MenuItem>
           </Menu>

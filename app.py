@@ -190,6 +190,45 @@ def get_stocks():
 def get_results_list():
     """获取 results 目录下的所有文件列表"""
     try:
+        def _count_one_results_file(filepath: str) -> int:
+            """统计单个 .jsonl 结果文件的数据条数（跳过 _meta 行与无效行）。"""
+            cnt = 0
+            checked_first_non_empty = False
+            try:
+                with open(filepath, 'r', encoding='utf-8') as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        if not checked_first_non_empty:
+                            checked_first_non_empty = True
+                            try:
+                                first = json.loads(line)
+                                if isinstance(first, dict) and '_meta' in first:
+                                    continue
+                                data = first
+                            except Exception:
+                                continue
+                            if isinstance(data, dict) and 'code' in data:
+                                name = (data.get('name') or '').strip()
+                                if len(name) <= 4:
+                                    cnt += 1
+                            continue
+
+                        try:
+                            data = json.loads(line)
+                        except Exception:
+                            continue
+                        if not isinstance(data, dict) or 'code' not in data:
+                            continue
+                        name = (data.get('name') or '').strip()
+                        if len(name) > 4:
+                            continue
+                        cnt += 1
+            except Exception:
+                return 0
+            return cnt
+
         results_dir = os.path.join(os.path.dirname(__file__), 'results')
         if not os.path.exists(results_dir):
             return jsonify({
@@ -206,7 +245,8 @@ def get_results_list():
                     files.append({
                         'filename': filename,
                         'size': stat.st_size,
-                        'modified': datetime.fromtimestamp(stat.st_mtime).isoformat()
+                        'modified': datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                        'count': _count_one_results_file(filepath)
                     })
         
         # 战法名称列表（用于置顶），按优先级排序

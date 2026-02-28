@@ -28,8 +28,6 @@ export function useHistoryResults() {
   })
 
   const collectedItems = computed(() => {
-    console.log('collectedItems', activeFile.value);
-    
     const file = activeFile.value
     return file ? (collectedByFile.value[file] || []) : []
   })
@@ -354,13 +352,20 @@ export function useHistoryResults() {
   /** 在文件列表前插入「按策略聚合」虚拟项（每个策略名一条），且不再重复列出策略的实体文件 */
   function buildFileListWithAggregated(responseFiles: ResultFile[]): ResultFile[] {
     const strategyNameSet = new Set<string>()
+    const strategyAgg = new Map<string, { count: number; latestModified: string }>()
     const otherFiles: ResultFile[] = []
     responseFiles.forEach(file => {
       const name = getStrategyNameFromFilename(file.filename)
-      console.log('111',responseFiles);
-      
       if (name) {
         strategyNameSet.add(name)
+        const prev = strategyAgg.get(name) || { count: 0, latestModified: '' }
+        prev.count += typeof file.count === 'number' ? file.count : 0
+        if (file.modified) {
+          const prevTs = prev.latestModified ? new Date(prev.latestModified).getTime() : 0
+          const curTs = new Date(file.modified).getTime()
+          if (!Number.isNaN(curTs) && curTs > prevTs) prev.latestModified = file.modified
+        }
+        strategyAgg.set(name, prev)
         // 策略文件不再单独列出，只通过「按策略聚合」入口查看
       } else {
         otherFiles.push(file)
@@ -373,11 +378,15 @@ export function useHistoryResults() {
       if (ia !== -1) return -1
       if (ib !== -1) return 1
       return a.localeCompare(b)
-    }).map(name => ({
-      filename: `__strategy__${name}`,
-      size: 0,
-      modified: ''
-    }))
+    }).map(name => {
+      const agg = strategyAgg.get(name)
+      return {
+        filename: `__strategy__${name}`,
+        size: 0,
+        modified: agg?.latestModified || '',
+        count: agg?.count ?? 0
+      }
+    })
     return sortFileList([...aggregatedEntries, ...otherFiles])
   }
 
@@ -387,10 +396,7 @@ export function useHistoryResults() {
     try {
       const response = await getResultsList()
       if (response.success) {
-        
         fileList.value = buildFileListWithAggregated(response.data)
-
-        console.log(fileList.value);
 
         if (fileList.value.length > 0) {
           const firstFile = fileList.value[0].filename

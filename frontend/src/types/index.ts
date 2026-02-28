@@ -69,6 +69,7 @@ export interface ResultFile {
   filename: string
   size: number
   modified: string
+  count?: number
 }
 
 export interface ResultsListResponse {
