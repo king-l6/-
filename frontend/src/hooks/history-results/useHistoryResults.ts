@@ -173,10 +173,12 @@ export function useHistoryResults() {
 
   function formatDate(date?: string): string {
     if (!date) return '-'
+    const s = String(date).trim()
+    if (s.length >= 10 && s[4] === '-' && s[7] === '-') return s.slice(0, 10)
     try {
-      return new Date(date).toLocaleString('zh-CN')
+      return new Date(s).toISOString().slice(0, 10)
     } catch {
-      return date
+      return s
     }
   }
 
@@ -226,75 +228,6 @@ export function useHistoryResults() {
   function getAmplitudeClass(amplitude?: number): string {
     if (amplitude === undefined || amplitude === null) return ''
     return amplitude >= 0 ? 'text-red-600 font-semibold' : 'text-green-600 font-semibold'
-  }
-
-  function parseDate(value?: string): Date | null {
-    if (!value) return null
-    const s = value.slice(0, 10)
-    const d = new Date(s)
-    return Number.isNaN(d.getTime()) ? null : d
-  }
-
-  function countTradingDays(d1: Date, d2: Date): number {
-    let start = d1
-    let end = d2
-    if (start > end) {
-      const tmp = start
-      start = end
-      end = tmp
-    }
-    let n = 0
-    const cur = new Date(start.getTime())
-    while (cur < end) {
-      const wd = cur.getDay()
-      if (wd !== 0 && wd !== 6) n++
-      cur.setDate(cur.getDate() + 1)
-    }
-    return n
-  }
-
-  function dedupeBottomingByCode(source: StockResult[], tradingDays = 3): StockResult[] {
-    const byCode = new Map<string, StockResult[]>()
-    for (const item of source) {
-      const code = item.code || ''
-      if (!byCode.has(code)) byCode.set(code, [])
-      byCode.get(code)!.push(item)
-    }
-
-    const result: StockResult[] = []
-
-    byCode.forEach(rows => {
-      rows.sort((a, b) => (a.match_date || '').localeCompare(b.match_date || ''))
-      const kept: StockResult[] = []
-      for (const row of rows) {
-        const d = parseDate(row.match_date)
-        if (!d) {
-          kept.push(row)
-          continue
-        }
-        if (kept.length === 0) {
-          kept.push(row)
-          continue
-        }
-        const lastDate = parseDate(kept[kept.length - 1].match_date)
-        if (!lastDate) {
-          kept.push(row)
-          continue
-        }
-        if (countTradingDays(lastDate, d) > tradingDays) {
-          kept.push(row)
-        }
-      }
-      result.push(...kept)
-    })
-
-    result.sort((a, b) => {
-      const dateCmp = (a.match_date || '').localeCompare(b.match_date || '')
-      if (dateCmp !== 0) return dateCmp
-      return (a.code || '').localeCompare(b.code || '')
-    })
-
-    return result
   }
 
   function getRowClassName(record: StockResult): string {
@@ -395,24 +328,25 @@ export function useHistoryResults() {
     error.value = ''
     try {
       const response = await getResultsList()
-      if (response.success) {
-        fileList.value = buildFileListWithAggregated(response.data)
+      const list = response?.success && Array.isArray(response.data) ? response.data : []
+      fileList.value = buildFileListWithAggregated(list)
 
-        if (fileList.value.length > 0) {
-          const firstFile = fileList.value[0].filename
-          if (!activeFile.value || !fileList.value.find(f => f.filename === activeFile.value)) {
-            await handleFileChange(firstFile, true)
-          }
-        } else {
-          activeFile.value = ''
-          results.value = []
-          metaInfo.value = null
+      if (fileList.value.length > 0) {
+        const firstFile = fileList.value[0].filename
+        if (!activeFile.value || !fileList.value.find(f => f.filename === activeFile.value)) {
+          await handleFileChange(firstFile, true)
         }
       } else {
-        error.value = response.error || '加载文件列表失败'
+        activeFile.value = ''
+        results.value = []
+        metaInfo.value = null
+        if (response && !response.success) {
+          error.value = (response as any).error || '加载文件列表失败'
+        }
       }
     } catch (e: any) {
-      error.value = e.message || '加载文件列表失败'
+      error.value = e?.message || '加载文件列表失败'
+      fileList.value = []
     } finally {
       loadingFiles.value = false
     }
@@ -437,10 +371,6 @@ export function useHistoryResults() {
       if (response.success) {
         const meta = response.data.meta || {}
         let newResults = Array.isArray(response.data.results) ? [...response.data.results] : []
-
-        if (meta.strategy_name === '筑底突破') {
-          newResults = dedupeBottomingByCode(newResults, 3)
-        }
 
         const seen = new Set<string>()
         newResults = newResults.filter(item => {
@@ -478,22 +408,14 @@ export function useHistoryResults() {
       if (dateCompare !== 0) return dateCompare
       return (a.code || '').localeCompare(b.code || '')
     })
-    const headers = ['代码', '名称', '匹配日期', '匹配价格', '当前价格', '涨跌幅(%)', '次日振幅', '次日涨跌幅(%)', '第三日振幅', '第三日涨跌幅(%)']
-    const rows = sortedData.map(item => {
-      const pct = getPctChangeValue(item)
-      return [
-        item.code,
-        item.name,
-        item.match_date || '',
-        item.match_price?.toFixed(2) || '',
-        item.current_price?.toFixed(2) || '',
-        pct.toFixed(2),
-        item.day2_amplitude !== undefined ? item.day2_amplitude.toFixed(2) : '',
-        item.day2_change_pct !== undefined ? item.day2_change_pct.toFixed(2) : '',
-        item.day3_amplitude !== undefined ? item.day3_amplitude.toFixed(2) : '',
-        item.day3_change_pct !== undefined ? item.day3_change_pct.toFixed(2) : ''
-      ]
-    })
+    const headers = ['代码', '名称', '匹配日期', '匹配价', '当前价']
+    const rows = sortedData.map(item => [
+      item.code,
+      item.name,
+      formatDate(item.match_date),
+      item.match_price?.toFixed(2) || '',
+      item.current_price?.toFixed(2) || ''
+    ])
     const csvContent = [headers.join(','), ...rows.map(row => row.join(','))].join('\n')
     const BOM = '\uFEFF'
     const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' })

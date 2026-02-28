@@ -208,11 +208,12 @@ def _normalize_date_str(value):
         return s
 
 
-def append_results_to_main_file(results_dir, strategy_name, new_results):
+def append_results_to_main_file(results_dir, strategy_name, new_results, strategy_engine=None):
     """
     将新增结果追加到同一个 {策略名}_结果.jsonl 中：
     - 读取原文件所有记录 + 新记录
     - 按 (code, match_date, name) 去重
+    - 所有策略统一：连续三个 A 股交易日内同股只保留第一次（需传入 strategy_engine）
     - 按 match_date, code 排序
     - 重写同一个文件
     """
@@ -240,6 +241,10 @@ def append_results_to_main_file(results_dir, strategy_name, new_results):
 
     # 排序
     unique.sort(key=lambda x: (_normalize_date_str(x.get('match_date', '9999-99-99')), x.get('code', '')))
+
+    # 所有策略统一：连续三个 A 股交易日内同股只保留第一次
+    if strategy_engine is not None:
+        unique = strategy_engine._dedupe_same_stock_within_three_trading_days(unique, trading_days=3)
 
     try:
         with open(filepath, 'w', encoding='utf-8') as f:
@@ -336,7 +341,7 @@ def main():
                     strategy, strategy_name=name, trading_date=t_date
                 )
                 if results:
-                    path = append_results_to_main_file(results_dir, name, results)
+                    path = append_results_to_main_file(results_dir, name, results, strategy_engine=engine)
                     if path:
                         print(f'       -> {len(results)} 条，已写入 {os.path.basename(path)}', flush=True)
                     total_count += len(results)

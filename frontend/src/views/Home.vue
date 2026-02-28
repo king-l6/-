@@ -1,11 +1,6 @@
 <template>
   <div class="min-h-screen bg-gray-50">
     <div class="container mx-auto px-3 py-2">
-      <header class="mb-2">
-        <h1 class="text-xl font-semibold text-gray-900 mb-0.5">股票策略回测系统</h1>
-        <p class="text-xs text-gray-600">自定义策略条件，回测A股市场</p>
-      </header>
-      
       <Tabs v-model:activeKey="activeTab" type="line" size="small">
         <TabPane key="backtest" tab="策略回测">
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-2 mt-2">

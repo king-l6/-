@@ -64,3 +64,8 @@ export function getResultsFile(filename: string): Promise<ResultFileResponse> {
 export function getResultsByStrategy(strategyName: string): Promise<ResultFileResponse> {
   return api.get('/results/strategy', { params: { name: strategyName } })
 }
+
+/** 获取指定日期范围内的所有交易日（来自本地缓存），用于图表按日补全（无数据日显示 0） */
+export function getTradingDays(start: string, end: string): Promise<{ success: boolean; data: string[] }> {
+  return api.get('/trading-days', { params: { start, end } })
+}

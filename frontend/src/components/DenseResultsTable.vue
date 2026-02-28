@@ -58,15 +58,7 @@
         :row-class-name="getRowClassName"
       >
         <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'pctChange'">
-            <span 
-              :class="getPctChangeClass(record)"
-              :style="getPctChangeStyle(record)"
-            >
-              {{ getPctChange(record) }}
-            </span>
-          </template>
-          <template v-else-if="column.key === 'match_date'">
+          <template v-if="column.key === 'match_date'">
             <span class="text-xs">{{ formatDate(record.match_date) }}</span>
           </template>
           <template v-else-if="column.key === 'match_price'">
@@ -74,26 +66,6 @@
           </template>
           <template v-else-if="column.key === 'current_price'">
             <span class="font-mono text-xs">{{ formatPrice(record.current_price) }}</span>
-          </template>
-          <template v-else-if="column.key === 'day2_amplitude'">
-            <span :class="getAmplitudeClass(record.day2_amplitude)" class="text-xs">
-              {{ formatAmplitude(record.day2_amplitude) }}
-            </span>
-          </template>
-          <template v-else-if="column.key === 'day2_change_pct'">
-            <span :class="getDayPctClass(record.day2_change_pct)" class="text-xs">
-              {{ formatDayPct(record.day2_change_pct) }}
-            </span>
-          </template>
-          <template v-else-if="column.key === 'day3_amplitude'">
-            <span :class="getAmplitudeClass(record.day3_amplitude)" class="text-xs">
-              {{ formatAmplitude(record.day3_amplitude) }}
-            </span>
-          </template>
-          <template v-else-if="column.key === 'day3_change_pct'">
-            <span :class="getDayPctClass(record.day3_change_pct)" class="text-xs">
-              {{ formatDayPct(record.day3_change_pct) }}
-            </span>
           </template>
           <template v-else-if="column.key === 'code'">
             <span class="font-mono text-xs font-semibold">{{ record.code }}</span>
@@ -106,7 +78,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { Card, Table, Spin, Alert, Button, Space, Input } from 'ant-design-vue'
+import { Card, Table, Alert, Button, Space, Input } from 'ant-design-vue'
 import { SearchOutlined } from '@ant-design/icons-vue'
 import { useStrategyStore } from '@/store/modules/strategy'
 import type { ColumnsType } from 'ant-design-vue/es/table'
@@ -159,16 +131,14 @@ const columns: ColumnsType<StockResult> = [
     width: 100,
     sortDirections: ['ascend', 'descend'],
     sorter: (a, b) => {
-      console.log(a, b)
       const dateA = a.match_date || ''
       const dateB = b.match_date || ''
-      // 处理空值：空值排在最后
       if (!dateA && !dateB) return 0
       if (!dateA) return 1
       if (!dateB) return -1
-      // 使用日期字符串比较（格式：YYYY-MM-DD，可以直接用字符串比较）
       return dateA.localeCompare(dateB)
-    }
+    },
+    customRender: ({ text }) => formatDate(text ?? '')
   },
   {
     title: '匹配价',
@@ -185,56 +155,18 @@ const columns: ColumnsType<StockResult> = [
     width: 80,
     align: 'right',
     sorter: (a, b) => (a.current_price || 0) - (b.current_price || 0)
-  },
-  {
-    title: '涨跌幅',
-    key: 'pctChange',
-    width: 90,
-    align: 'right',
-    sorter: (a, b) => {
-      const pctA = getPctChangeValue(a)
-      const pctB = getPctChangeValue(b)
-      return pctA - pctB
-    }
-  },
-  {
-    title: '次日振幅',
-    dataIndex: 'day2_amplitude',
-    key: 'day2_amplitude',
-    width: 85,
-    align: 'right',
-    sorter: (a, b) => (a.day2_amplitude || 0) - (b.day2_amplitude || 0)
-  },
-  {
-    title: '次日涨跌幅',
-    dataIndex: 'day2_change_pct',
-    key: 'day2_change_pct',
-    width: 90,
-    align: 'right',
-    sorter: (a, b) => (a.day2_change_pct || 0) - (b.day2_change_pct || 0)
-  },
-  {
-    title: '第三日振幅',
-    dataIndex: 'day3_amplitude',
-    key: 'day3_amplitude',
-    width: 85,
-    align: 'right',
-    sorter: (a, b) => (a.day3_amplitude || 0) - (b.day3_amplitude || 0)
-  },
-  {
-    title: '第三日涨跌幅',
-    dataIndex: 'day3_change_pct',
-    key: 'day3_change_pct',
-    width: 90,
-    align: 'right',
-    fixed: 'right',
-    sorter: (a, b) => (a.day3_change_pct || 0) - (b.day3_change_pct || 0)
   }
 ]
 
 function formatDate(date?: string): string {
   if (!date) return '-'
-  return date
+  const s = String(date).trim()
+  if (s.length >= 10 && s[4] === '-' && s[7] === '-') return s.slice(0, 10)
+  try {
+    return new Date(s).toISOString().slice(0, 10)
+  } catch {
+    return s
+  }
 }
 
 function formatPrice(price?: number): string {
@@ -242,61 +174,7 @@ function formatPrice(price?: number): string {
   return price.toFixed(2)
 }
 
-function getPctChange(stock: StockResult): string {
-  if (!stock.current_price || !stock.match_price) {
-    return '-'
-  }
-  const pct = ((stock.current_price - stock.match_price) / stock.match_price * 100).toFixed(2)
-  return `${pct}%`
-}
-
-function getPctChangeValue(stock: StockResult): number {
-  if (!stock.current_price || !stock.match_price) {
-    return 0
-  }
-  return (stock.current_price - stock.match_price) / stock.match_price * 100
-}
-
-function getPctChangeClass(stock: StockResult): string {
-  if (!stock.current_price || !stock.match_price) {
-    return ''
-  }
-  const pct = (stock.current_price - stock.match_price) / stock.match_price
-  return pct >= 0 ? 'text-red-600 font-semibold' : 'text-green-600 font-semibold'
-}
-
-function getPctChangeStyle(stock: StockResult): Record<string, string> {
-  if (!stock.current_price || !stock.match_price) {
-    return {}
-  }
-  const pct = (stock.current_price - stock.match_price) / stock.match_price
-  return {
-    color: pct >= 0 ? '#dc2626' : '#16a34a',
-    fontWeight: '600'
-  }
-}
-
-function formatDayPct(pct?: number): string {
-  if (pct === undefined || pct === null) return '-'
-  return `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`
-}
-
-function getDayPctClass(pct?: number): string {
-  if (pct === undefined || pct === null) return ''
-  return pct >= 0 ? 'text-red-600 font-semibold' : 'text-green-600 font-semibold'
-}
-
-function formatAmplitude(amplitude?: number): string {
-  if (amplitude === undefined || amplitude === null) return '-'
-  return `${amplitude >= 0 ? '+' : ''}${amplitude.toFixed(2)}%`
-}
-
-function getAmplitudeClass(amplitude?: number): string {
-  if (amplitude === undefined || amplitude === null) return ''
-  return amplitude >= 0 ? 'text-red-600 font-semibold' : 'text-green-600 font-semibold'
-}
-
-function getRowClassName(record: StockResult, index: number): string {
+function getRowClassName(record: StockResult): string {
   if (!record.current_price || !record.match_price) {
     return ''
   }
@@ -331,22 +209,14 @@ function handleExport() {
   })
   
   // 构建 CSV 内容
-  const headers = ['代码', '名称', '匹配日期', '匹配价格', '当前价格', '涨跌幅(%)', '次日振幅', '次日涨跌幅(%)', '第三日振幅', '第三日涨跌幅(%)']
-  const rows = sortedData.map(item => {
-    const pct = getPctChangeValue(item)
-    return [
-      item.code,
-      item.name,
-      item.match_date || '',
-      item.match_price?.toFixed(2) || '',
-      item.current_price?.toFixed(2) || '',
-      pct.toFixed(2),
-      item.day2_amplitude !== undefined ? item.day2_amplitude.toFixed(2) : '',
-      item.day2_change_pct !== undefined ? item.day2_change_pct.toFixed(2) : '',
-      item.day3_amplitude !== undefined ? item.day3_amplitude.toFixed(2) : '',
-      item.day3_change_pct !== undefined ? item.day3_change_pct.toFixed(2) : ''
-    ]
-  })
+  const headers = ['代码', '名称', '匹配日期', '匹配价', '当前价']
+  const rows = sortedData.map(item => [
+    item.code,
+    item.name,
+    formatDate(item.match_date),
+    item.match_price?.toFixed(2) || '',
+    item.current_price?.toFixed(2) || ''
+  ])
   
   const csvContent = [
     headers.join(','),

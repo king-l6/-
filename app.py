@@ -186,6 +186,23 @@ def get_stocks():
             'error': str(e)
         }), 500
 
+@app.route('/api/trading-days', methods=['GET'])
+def get_trading_days():
+    """获取指定日期范围内的所有交易日（来自本地缓存 K 线），用于图表按日补全（无数据日显示 0）。"""
+    try:
+        start = request.args.get('start')
+        end = request.args.get('end')
+        if not start or not end:
+            return jsonify({'success': False, 'error': '缺少 start 或 end 参数（格式 YYYY-MM-DD）'}), 400
+        start_s = start.strip()[:10]
+        end_s = end.strip()[:10]
+        days = data_fetcher.get_trading_days_between(start_s, end_s)
+        if not days:
+            days = data_fetcher.get_trading_days_from_cache(start_s, end_s)
+        return jsonify({'success': True, 'data': days})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/api/results/list', methods=['GET'])
 def get_results_list():
     """获取 results 目录下的所有文件列表"""
@@ -394,6 +411,15 @@ def get_results_by_strategy():
             unique.append(r)
         unique.sort(key=lambda x: (x.get('match_date', '9999-99-99'), x.get('code', '')))
 
+        # 所有策略统一：连续三个 A 股交易日内同股只保留第一次出现的日期
+        try:
+            fetcher = DataFetcher()
+            engine = StrategyEngine(fetcher)
+            unique = engine._dedupe_same_stock_within_three_trading_days(unique, trading_days=3)
+            unique.sort(key=lambda x: (x.get('match_date', '9999-99-99'), x.get('code', '')))
+        except Exception:
+            pass
+
         return jsonify({
             'success': True,
             'data': {
@@ -483,7 +509,7 @@ def get_results_file():
                         results.append(data)
             except:
                 continue
-        
+
         return jsonify({
             'success': True,
             'data': {

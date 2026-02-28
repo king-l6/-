@@ -241,6 +241,36 @@ class DataFetcher:
         except Exception:
             return []
 
+    def get_trading_days_from_cache(self, start_date, end_date):
+        """从本地缓存的股票 K 线中提取交易日序列（兜底用）。返回 [start_date, end_date] 内含首尾的交易日列表。
+        「连续三个交易日」即该列表中连续的三天。"""
+        try:
+            start_s = start_date[:10] if isinstance(start_date, str) else start_date
+            end_s = end_date[:10] if isinstance(end_date, str) else end_date
+            pattern = os.path.join(self.stock_data_cache_dir, '*.json')
+            files = glob.glob(pattern)
+            all_dates = set()
+            for fp in files:
+                try:
+                    with open(fp, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                    rows = data.get('data') or []
+                    for r in rows:
+                        ds = r.get('日期')
+                        if not ds:
+                            continue
+                        if isinstance(ds, str) and len(ds) >= 10 and ds[4] == '-' and ds[7] == '-':
+                            d = ds[:10]
+                        else:
+                            d = pd.to_datetime(ds).strftime('%Y-%m-%d')
+                        if start_s <= d <= end_s:
+                            all_dates.add(d)
+                except Exception:
+                    continue
+            return sorted(all_dates) if all_dates else []
+        except Exception:
+            return []
+
     def get_local_cache_latest_date(self):
         """获取本地缓存中最新一条数据的日期，无缓存返回 None"""
         try:

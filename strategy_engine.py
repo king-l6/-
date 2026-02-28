@@ -130,18 +130,22 @@ class StrategyEngine:
         
         print(f"回测完成！共检查 {total_stocks} 只股票，找到 {len(results)} 条符合条件的记录")
         if results:
-            if any(c.get('type') == 'bottoming_breakout' for c in conditions):
-                results = self._dedupe_bottoming_by_code(results, trading_days=3)
+            # 所有策略统一规则：连续三个 A 股交易日内同一只股票只保留第一次出现的日期
+            results = self._dedupe_same_stock_within_three_trading_days(results, trading_days=3)
             results.sort(key=lambda r: (r.get('match_date', '9999-99-99'), r.get('code', '')))
             if write_results and results_filepath:
                 self._write_sorted_results(results_filepath, strategy_name, results)
                 print(f"结果已保存（按符合日期排序）: {results_filepath}")
         return results
     
-    def _dedupe_bottoming_by_code(self, results, trading_days=3):
-        """筑底突破：同股 3 个交易日内>1次时，只保留日期最早的那条"""
-        def count_trading_days(d1, d2):
-            """两日之间的交易日数（不含节假日，仅按周一到周五）"""
+    def _dedupe_same_stock_within_three_trading_days(self, results, trading_days=3):
+        """所有策略通用：连续 N 个 A 股交易日内同一只股票只能出现一次，只保留第一次出现的日期。
+        使用真实 A 股交易日历（Baostock，失败时用缓存 K 线中的日期序列）。"""
+        if not results:
+            return results
+
+        def count_trading_days_fallback(d1, d2):
+            """兜底：仅按周一到周五（无节假日数据时使用）"""
             if d1 > d2:
                 d1, d2 = d2, d1
             n = 0
@@ -151,6 +155,39 @@ class StrategyEngine:
                     n += 1
                 cur = cur + timedelta(days=1)
             return n
+
+        # 一次拉取整个结果集日期范围内的 A 股交易日历，避免对每对日期都请求 Baostock
+        dates_in_results = []
+        for r in results:
+            md = (r.get('match_date') or '')[:10]
+            if len(md) == 10 and md[4] == '-' and md[7] == '-':
+                dates_in_results.append(md)
+        if dates_in_results:
+            min_d, max_d = min(dates_in_results), max(dates_in_results)
+            full_days_list = self.data_fetcher.get_trading_days_between(min_d, max_d)
+            if not full_days_list:
+                full_days_list = self.data_fetcher.get_trading_days_from_cache(min_d, max_d)
+            # 有序列表，用于计算两日之间交易日个数（含首尾）
+            trading_day_list_sorted = sorted(full_days_list) if full_days_list else None
+        else:
+            trading_day_list_sorted = None
+
+        def count_trading_days_inclusive(d1_str, d2_str):
+            if not trading_day_list_sorted:
+                d1 = datetime.strptime(d1_str[:10], '%Y-%m-%d')
+                d2 = datetime.strptime(d2_str[:10], '%Y-%m-%d')
+                return count_trading_days_fallback(d1, d2) + 1
+            # 在已拉取的交易日列表中数 [d1_str, d2_str] 含首尾的个数
+            if d1_str > d2_str:
+                d1_str, d2_str = d2_str, d1_str
+            n = 0
+            for d in trading_day_list_sorted:
+                if d < d1_str:
+                    continue
+                if d > d2_str:
+                    break
+                n += 1
+            return n if n >= 1 else 1
 
         by_code = {}
         for r in results:
@@ -162,14 +199,17 @@ class StrategyEngine:
             for r in rows:
                 try:
                     d = datetime.strptime(r.get('match_date', '')[:10], '%Y-%m-%d')
+                    d_str = d.strftime('%Y-%m-%d')
                 except Exception:
                     kept.append(r)
                     continue
                 if not kept:
                     kept.append(r)
                     continue
-                last = datetime.strptime(kept[-1]['match_date'][:10], '%Y-%m-%d')
-                if count_trading_days(last, d) > trading_days:
+                last_str = kept[-1]['match_date'][:10]
+                n_between = count_trading_days_inclusive(last_str, d_str)
+                # 连续 3 个交易日内不能出现两次 => 保留后一条仅当 [last, d] 内交易日数 > 3
+                if n_between > trading_days:
                     kept.append(r)
             out.extend(kept)
         return out

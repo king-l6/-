@@ -56,9 +56,6 @@
             <template v-if="column.key === 'action'">
               <Button type="link" danger size="small" @click="handleRemove(record as StockResult)">删除</Button>
             </template>
-            <template v-else-if="column.key === 'pctChange'">
-              <span :class="getPctChangeClass(record as StockResult)">{{ getPctChange(record as StockResult) }}</span>
-            </template>
           </template>
         </Table>
       </Card>
@@ -94,34 +91,6 @@
               <span>{{ record.name }}</span>
             </div>
           </template>
-          <template v-else-if="column.key === 'pctChange'">
-            <span 
-              :class="getPctChangeClass(record as any as StockResult)"
-              :style="getPctChangeStyle(record as any as StockResult)"
-            >
-              {{ getPctChange(record as any as StockResult) }}
-            </span>
-          </template>
-          <template v-else-if="column.key === 'day2_amplitude'">
-            <span :class="getAmplitudeClass((record as any).day2_amplitude)">
-              {{ formatAmplitude((record as any).day2_amplitude) }}
-            </span>
-          </template>
-          <template v-else-if="column.key === 'day2_change_pct'">
-            <span :class="getDayPctClass((record as any).day2_change_pct)">
-              {{ formatDayPct((record as any).day2_change_pct) }}
-            </span>
-          </template>
-          <template v-else-if="column.key === 'day3_amplitude'">
-            <span :class="getAmplitudeClass((record as any).day3_amplitude)">
-              {{ formatAmplitude((record as any).day3_amplitude) }}
-            </span>
-          </template>
-          <template v-else-if="column.key === 'day3_change_pct'">
-            <span :class="getDayPctClass((record as any).day3_change_pct)">
-              {{ formatDayPct((record as any).day3_change_pct) }}
-            </span>
-          </template>
           <template v-else-if="isDense && column.key === 'match_date'">
             <span class="text-xs">{{ formatDate((record as any).match_date) }}</span>
           </template>
@@ -133,26 +102,6 @@
           </template>
           <template v-else-if="isDense && column.key === 'code'">
             <span class="font-mono text-xs font-semibold">{{ (record as any).code }}</span>
-          </template>
-          <template v-else-if="isDense && column.key === 'day2_amplitude'">
-            <span :class="getAmplitudeClass((record as any).day2_amplitude)" class="text-xs">
-              {{ formatAmplitude((record as any).day2_amplitude) }}
-            </span>
-          </template>
-          <template v-else-if="isDense && column.key === 'day2_change_pct'">
-            <span :class="getDayPctClass((record as any).day2_change_pct)" class="text-xs">
-              {{ formatDayPct((record as any).day2_change_pct) }}
-            </span>
-          </template>
-          <template v-else-if="isDense && column.key === 'day3_amplitude'">
-            <span :class="getAmplitudeClass((record as any).day3_amplitude)" class="text-xs">
-              {{ formatAmplitude((record as any).day3_amplitude) }}
-            </span>
-          </template>
-          <template v-else-if="isDense && column.key === 'day3_change_pct'">
-            <span :class="getDayPctClass((record as any).day3_change_pct)" class="text-xs">
-              {{ formatDayPct((record as any).day3_change_pct) }}
-            </span>
           </template>
         </template>
       </Table>
@@ -226,7 +175,6 @@ const collectedColumns: ColumnsType<StockResult> = [
   { title: '匹配日期', dataIndex: 'match_date', key: 'match_date', width: 100 },
   { title: '匹配价', dataIndex: 'match_price', key: 'match_price', width: 80, customRender: ({ text }) => text != null ? text.toFixed(2) : '-' },
   { title: '当前价', dataIndex: 'current_price', key: 'current_price', width: 80, customRender: ({ text }) => text != null ? text.toFixed(2) : '-' },
-  { title: '涨跌幅', key: 'pctChange', width: 90 },
   { title: '操作', key: 'action', width: 70, fixed: 'right' }
 ]
 
@@ -264,27 +212,18 @@ const filteredResults = computed(() => {
 
 function formatDate(date?: string): string {
   if (!date) return '-'
-  return date
+  const s = String(date).trim()
+  if (s.length >= 10 && s[4] === '-' && s[7] === '-') return s.slice(0, 10)
+  try {
+    return new Date(s).toISOString().slice(0, 10)
+  } catch {
+    return s
+  }
 }
 
 function formatPrice(price?: number): string {
   if (!price) return '-'
   return price.toFixed(2)
-}
-
-function getPctChange(stock: StockResult): string {
-  if (!stock.current_price || !stock.match_price) {
-    return '-'
-  }
-  const pct = ((stock.current_price - stock.match_price) / stock.match_price * 100).toFixed(2)
-  return `${pct}%`
-}
-
-function getPctChangeValue(stock: StockResult): number {
-  if (!stock.current_price || !stock.match_price) {
-    return 0
-  }
-  return (stock.current_price - stock.match_price) / stock.match_price * 100
 }
 
 const columns: ColumnsType<StockResult> = [
@@ -305,51 +244,22 @@ const columns: ColumnsType<StockResult> = [
     title: '匹配日期',
     dataIndex: 'match_date',
     key: 'match_date',
-    width: 120
+    width: 120,
+    customRender: ({ text }) => formatDate(text ?? '')
   },
   {
-    title: '匹配价格',
+    title: '匹配价',
     dataIndex: 'match_price',
     key: 'match_price',
     width: 120,
     customRender: ({ text }) => text ? text.toFixed(2) : '-'
   },
   {
-    title: '当前价格',
+    title: '当前价',
     dataIndex: 'current_price',
     key: 'current_price',
     width: 120,
     customRender: ({ text }) => text ? text.toFixed(2) : '-'
-  },
-  {
-    title: '涨跌幅',
-    key: 'pctChange',
-    width: 120
-  },
-  {
-    title: '次日振幅',
-    dataIndex: 'day2_amplitude',
-    key: 'day2_amplitude',
-    width: 100
-  },
-  {
-    title: '次日涨跌幅',
-    dataIndex: 'day2_change_pct',
-    key: 'day2_change_pct',
-    width: 100
-  },
-  {
-    title: '第三日振幅',
-    dataIndex: 'day3_amplitude',
-    key: 'day3_amplitude',
-    width: 100
-  },
-  {
-    title: '第三日涨跌幅',
-    dataIndex: 'day3_change_pct',
-    key: 'day3_change_pct',
-    width: 100,
-    fixed: 'right'
   }
 ]
 
@@ -378,13 +288,12 @@ const denseColumns: ColumnsType<StockResult> = [
     sorter: (a, b) => {
       const dateA = a.match_date || ''
       const dateB = b.match_date || ''
-      // 处理空值：空值排在最后
       if (!dateA && !dateB) return 0
       if (!dateA) return 1
       if (!dateB) return -1
-      // 使用日期字符串比较（格式：YYYY-MM-DD，可以直接用字符串比较）
       return dateA.localeCompare(dateB)
-    }
+    },
+    customRender: ({ text }) => formatDate(text ?? '')
   },
   {
     title: '匹配价',
@@ -401,91 +310,8 @@ const denseColumns: ColumnsType<StockResult> = [
     width: 80,
     align: 'right',
     sorter: (a, b) => (a.current_price || 0) - (b.current_price || 0)
-  },
-  {
-    title: '涨跌幅',
-    key: 'pctChange',
-    width: 90,
-    align: 'right',
-    sorter: (a, b) => {
-      const pctA = getPctChangeValue(a)
-      const pctB = getPctChangeValue(b)
-      return pctA - pctB
-    }
-  },
-  {
-    title: '次日振幅',
-    dataIndex: 'day2_amplitude',
-    key: 'day2_amplitude',
-    width: 85,
-    align: 'right',
-    sorter: (a, b) => (a.day2_amplitude || 0) - (b.day2_amplitude || 0)
-  },
-  {
-    title: '次日涨跌幅',
-    dataIndex: 'day2_change_pct',
-    key: 'day2_change_pct',
-    width: 90,
-    align: 'right',
-    sorter: (a, b) => (a.day2_change_pct || 0) - (b.day2_change_pct || 0)
-  },
-  {
-    title: '第三日振幅',
-    dataIndex: 'day3_amplitude',
-    key: 'day3_amplitude',
-    width: 85,
-    align: 'right',
-    sorter: (a, b) => (a.day3_amplitude || 0) - (b.day3_amplitude || 0)
-  },
-  {
-    title: '第三日涨跌幅',
-    dataIndex: 'day3_change_pct',
-    key: 'day3_change_pct',
-    width: 90,
-    align: 'right',
-    fixed: 'right',
-    sorter: (a, b) => (a.day3_change_pct || 0) - (b.day3_change_pct || 0)
   }
 ]
-
-function getPctChangeClass(stock: StockResult): string {
-  if (!stock.current_price || !stock.match_price) {
-    return ''
-  }
-  const pct = (stock.current_price - stock.match_price) / stock.match_price
-  return pct >= 0 ? 'text-red-600 font-semibold' : 'text-green-600 font-semibold'
-}
-
-function getPctChangeStyle(stock: StockResult): Record<string, string> {
-  if (!stock.current_price || !stock.match_price) {
-    return {}
-  }
-  const pct = (stock.current_price - stock.match_price) / stock.match_price
-  return {
-    color: pct >= 0 ? '#dc2626' : '#16a34a',
-    fontWeight: '600'
-  }
-}
-
-function formatDayPct(pct?: number): string {
-  if (pct === undefined || pct === null) return '-'
-  return `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`
-}
-
-function getDayPctClass(pct?: number): string {
-  if (pct === undefined || pct === null) return ''
-  return pct >= 0 ? 'text-red-600 font-semibold' : 'text-green-600 font-semibold'
-}
-
-function formatAmplitude(amplitude?: number): string {
-  if (amplitude === undefined || amplitude === null) return '-'
-  return `${amplitude >= 0 ? '+' : ''}${amplitude.toFixed(2)}%`
-}
-
-function getAmplitudeClass(amplitude?: number): string {
-  if (amplitude === undefined || amplitude === null) return ''
-  return amplitude >= 0 ? 'text-red-600 font-semibold' : 'text-green-600 font-semibold'
-}
 
 function getRowClassName(record: StockResult): string {
   if (!record.current_price || !record.match_price) {
@@ -514,22 +340,14 @@ function handleExport() {
   })
   
   // 构建 CSV 内容
-  const headers = ['代码', '名称', '匹配日期', '匹配价格', '当前价格', '涨跌幅(%)', '次日振幅', '次日涨跌幅(%)', '第三日振幅', '第三日涨跌幅(%)']
-  const rows = sortedData.map(item => {
-    const pct = getPctChangeValue(item)
-    return [
-      item.code,
-      item.name,
-      item.match_date || '',
-      item.match_price?.toFixed(2) || '',
-      item.current_price?.toFixed(2) || '',
-      pct.toFixed(2),
-      item.day2_amplitude !== undefined ? item.day2_amplitude.toFixed(2) : '',
-      item.day2_change_pct !== undefined ? item.day2_change_pct.toFixed(2) : '',
-      item.day3_amplitude !== undefined ? item.day3_amplitude.toFixed(2) : '',
-      item.day3_change_pct !== undefined ? item.day3_change_pct.toFixed(2) : ''
-    ]
-  })
+  const headers = ['代码', '名称', '匹配日期', '匹配价', '当前价']
+  const rows = sortedData.map(item => [
+    item.code,
+    item.name,
+    formatDate(item.match_date),
+    item.match_price?.toFixed(2) || '',
+    item.current_price?.toFixed(2) || ''
+  ])
   
   const csvContent = [
     headers.join(','),

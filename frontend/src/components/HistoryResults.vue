@@ -29,7 +29,11 @@
     </div>
     
     <div v-else-if="fileList.length === 0" class="py-6 text-center text-gray-500">
-      暂无历史回测数据文件
+      <template v-if="error">
+        <div class="text-red-600 mb-2">{{ error }}</div>
+        <div class="text-sm">请确认后端服务已启动（如 <code class="bg-gray-100 px-1">python app.py</code>），并点击「刷新列表」重试。</div>
+      </template>
+      <template v-else>暂无历史回测数据文件</template>
     </div>
     
     <div v-else class="flex flex-col md:flex-row gap-0 h-full min-h-0" style="min-height: 320px;">
@@ -122,129 +126,90 @@
         请选择一个文件查看数据
       </div>
       
-      <!-- 数据表格 -->
+      <!-- 数据区域：先展示图表，再 Tabs -->
       <div v-else>
-        <!-- 我的自选：放在表格上方，添加后一眼能看到 -->
-        <Card :title="`我的自选${collectedItems.length > 0 ? ` (${collectedItems.length} 条)` : ''}`" class="mb-3" size="small">
-          <div v-if="collectedItems.length === 0" class="py-2 text-center text-gray-500 text-sm">
-            点击下方表格「名称」列前的 ＋ 图标可加入自选
+        <!-- 每日趋势图：数据加载好后直接渲染在可见区域 -->
+        <Card title="每个交易日匹配数量" size="small" class="mb-3">
+          <div class="relative w-full min-w-0" style="height: 280px;">
+            <div :ref="setChartRef" class="w-full h-full" style="min-width: 300px;"></div>
+            <div v-if="dailyChartData.dates.length === 0" class="absolute inset-0 flex items-center justify-center bg-gray-50 text-gray-500 text-sm">
+              暂无按日数据，无法绘制趋势图
+            </div>
           </div>
-          <Table
-            v-else
-            :columns="collectedColumns"
-            :data-source="collectedItems"
-            :pagination="false"
-            :row-key="(r) => `${r.code}-${r.match_date || ''}`"
-            size="small"
-            bordered
-          >
-            <template #bodyCell="{ column, record }">
-              <template v-if="column.key === 'action'">
-                <Button type="link" danger size="small" @click="handleRemove(record as StockResult)">删除</Button>
-              </template>
-              <template v-else-if="column.key === 'pctChange'">
-                <span :class="getPctChangeClass(record as StockResult)">{{ getPctChange(record as StockResult) }}</span>
-              </template>
-            </template>
-          </Table>
         </Card>
 
-        <div class="mb-2 flex items-center justify-between">
-          <div class="text-sm font-semibold text-primary">
-            找到 {{ filteredResults.length }} 只符合条件的股票
-          </div>
-        </div>
-        
-        <!-- 小屏下整块可横向滑动，保证表格数据可见；移动端列宽按内容、最后一列不固定 -->
-        <div :class="['overflow-x-auto w-full -mx-2 px-2 md:mx-0 md:px-0', { 'history-table-mobile': isNarrowScreen }]">
-          <Table
-            :columns="isDense ? displayDenseColumns : displayColumns"
-            :data-source="filteredResults"
-            :loading="loading"
-            :pagination="isDense ? paginationDense : paginationNormal"
-            @change="(pag: any) => onTableChange(pag)"
-            :row-key="(record, index) => `${record.code}-${record.match_date || ''}-${record.name || ''}-${index}`"
-            :scroll="tableScroll"
-            :size="isDense ? 'small' : 'middle'"
-            :bordered="isDense"
-            :row-class-name="isDense ? getRowClassName : undefined"
-          >
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'name' || column.dataIndex === 'name'">
-              <div class="flex items-center gap-1.5">
-                <span
-                  class="cursor-pointer text-primary hover:opacity-80 inline-flex items-center"
-                  title="加入自选"
-                  @click.stop="handleAddToCollection(record as StockResult)"
-                >
-                  <PlusOutlined />
-                </span>
-                <span>{{ record.name }}</span>
+        <Tabs v-model:activeKey="contentTabKey" type="card" size="small" class="mb-3">
+          <TabPane key="favorites" :tab="`我的自选${collectedItems.length > 0 ? ` (${collectedItems.length})` : ''}`">
+            <Card :title="`我的自选${collectedItems.length > 0 ? ` (${collectedItems.length} 条)` : ''}`" size="small" class="mb-0">
+              <div v-if="collectedItems.length === 0" class="py-6 text-center text-gray-500 text-sm">
+                点击「数据列表」中表格「名称」列前的 ＋ 图标可加入自选
               </div>
-            </template>
-            <template v-else-if="column.key === 'pctChange'">
-              <span 
-                :class="getPctChangeClass(record as any as StockResult)"
-                :style="getPctChangeStyle(record as any as StockResult)"
+              <Table
+                v-else
+                :columns="collectedColumns"
+                :data-source="collectedItems"
+                :pagination="false"
+                :row-key="(r) => `${r.code}-${r.match_date || ''}`"
+                size="small"
+                bordered
               >
-                {{ getPctChange(record as any as StockResult) }}
-              </span>
-            </template>
-            <template v-else-if="column.key === 'day2_amplitude'">
-              <span :class="getAmplitudeClass((record as any).day2_amplitude)">
-                {{ formatAmplitude((record as any).day2_amplitude) }}
-              </span>
-            </template>
-            <template v-else-if="column.key === 'day2_change_pct'">
-              <span :class="getDayPctClass((record as any).day2_change_pct)">
-                {{ formatDayPct((record as any).day2_change_pct) }}
-              </span>
-            </template>
-            <template v-else-if="column.key === 'day3_amplitude'">
-              <span :class="getAmplitudeClass((record as any).day3_amplitude)">
-                {{ formatAmplitude((record as any).day3_amplitude) }}
-              </span>
-            </template>
-            <template v-else-if="column.key === 'day3_change_pct'">
-              <span :class="getDayPctClass((record as any).day3_change_pct)">
-                {{ formatDayPct((record as any).day3_change_pct) }}
-              </span>
-            </template>
-            <template v-else-if="isDense && column.key === 'match_date'">
-              <span class="text-xs">{{ formatDate((record as any).match_date) }}</span>
-            </template>
-            <template v-else-if="isDense && column.key === 'match_price'">
-              <span class="font-mono text-xs">{{ formatPrice((record as any).match_price) }}</span>
-            </template>
-            <template v-else-if="isDense && column.key === 'current_price'">
-              <span class="font-mono text-xs">{{ formatPrice((record as any).current_price) }}</span>
-            </template>
-            <template v-else-if="isDense && column.key === 'day2_amplitude'">
-              <span :class="getAmplitudeClass((record as any).day2_amplitude)" class="text-xs">
-                {{ formatAmplitude((record as any).day2_amplitude) }}
-              </span>
-            </template>
-            <template v-else-if="isDense && column.key === 'day2_change_pct'">
-              <span :class="getDayPctClass((record as any).day2_change_pct)" class="text-xs">
-                {{ formatDayPct((record as any).day2_change_pct) }}
-              </span>
-            </template>
-            <template v-else-if="isDense && column.key === 'day3_amplitude'">
-              <span :class="getAmplitudeClass((record as any).day3_amplitude)" class="text-xs">
-                {{ formatAmplitude((record as any).day3_amplitude) }}
-              </span>
-            </template>
-            <template v-else-if="isDense && column.key === 'day3_change_pct'">
-              <span :class="getDayPctClass((record as any).day3_change_pct)" class="text-xs">
-                {{ formatDayPct((record as any).day3_change_pct) }}
-              </span>
-            </template>
-            <template v-else-if="isDense && column.key === 'code'">
-              <span class="font-mono text-xs font-semibold">{{ (record as any).code }}</span>
-            </template>
-          </template>
-          </Table>
-        </div>
+                <template #bodyCell="{ column, record }">
+                  <template v-if="column.key === 'action'">
+                    <Button type="link" danger size="small" @click="handleRemove(record as StockResult)">删除</Button>
+                  </template>
+                </template>
+              </Table>
+            </Card>
+          </TabPane>
+          <TabPane :key="'table'" :tab="`数据列表 (${filteredResults.length} 只)`">
+            <div class="mb-2 flex items-center justify-between">
+              <div class="text-sm font-semibold text-primary">
+                找到 {{ filteredResults.length }} 只符合条件的股票
+              </div>
+            </div>
+            <div :class="['overflow-x-auto w-full -mx-2 px-2 md:mx-0 md:px-0', { 'history-table-mobile': isNarrowScreen }]">
+              <Table
+                :columns="isDense ? displayDenseColumns : displayColumns"
+                :data-source="filteredResults"
+                :loading="loading"
+                :pagination="isDense ? paginationDense : paginationNormal"
+                @change="(pag: any) => onTableChange(pag)"
+                :row-key="(record, index) => `${record.code}-${record.match_date || ''}-${record.name || ''}-${index}`"
+                :scroll="tableScroll"
+                :size="isDense ? 'small' : 'middle'"
+                :bordered="isDense"
+                :row-class-name="isDense ? getRowClassName : undefined"
+              >
+                <template #bodyCell="{ column, record }">
+                  <template v-if="column.key === 'name' || column.dataIndex === 'name'">
+                    <div class="flex items-center gap-1.5">
+                      <span
+                        class="cursor-pointer text-primary hover:opacity-80 inline-flex items-center"
+                        title="加入自选"
+                        @click.stop="handleAddToCollection(record as StockResult)"
+                      >
+                        <PlusOutlined />
+                      </span>
+                      <span>{{ record.name }}</span>
+                    </div>
+                  </template>
+                  <template v-else-if="isDense && column.key === 'match_date'">
+                    <span class="text-xs">{{ formatDate((record as any).match_date) }}</span>
+                  </template>
+                  <template v-else-if="isDense && column.key === 'match_price'">
+                    <span class="font-mono text-xs">{{ formatPrice((record as any).match_price) }}</span>
+                  </template>
+                  <template v-else-if="isDense && column.key === 'current_price'">
+                    <span class="font-mono text-xs">{{ formatPrice((record as any).current_price) }}</span>
+                  </template>
+                  <template v-else-if="isDense && column.key === 'code'">
+                    <span class="font-mono text-xs font-semibold">{{ (record as any).code }}</span>
+                  </template>
+                </template>
+              </Table>
+            </div>
+          </TabPane>
+        </Tabs>
       </div>
       </div>
     </div>
@@ -252,12 +217,34 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { Card, Table, Spin, Alert, Button, Space, Input, Menu, MenuItem, Select } from 'ant-design-vue'
+import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
+import { Card, Table, Spin, Alert, Button, Space, Input, Menu, MenuItem, Select, Tabs, TabPane } from 'ant-design-vue'
 import { SearchOutlined, PlusOutlined } from '@ant-design/icons-vue'
 import type { ColumnsType } from 'ant-design-vue/es/table'
 import type { StockResult } from '@/types'
 import { useHistoryResults } from '@/hooks/history-results/useHistoryResults'
+import { getTradingDays } from '@/api'
+import * as echarts from 'echarts'
+
+const contentTabKey = ref<'favorites' | 'table'>('table')
+const chartRef = ref<HTMLElement | null>(null)
+const tradingDaysList = ref<string[]>([]) // 当前结果日期范围内的全部交易日（来自后端缓存），用于图表无数据日显示 0
+let chartInstance: echarts.ECharts | null = null
+
+function setChartRef(el: unknown) {
+  const div = el instanceof HTMLElement ? el : null
+  chartRef.value = div
+  if (div && hasResults.value) {
+    if (chartInstance) chartInstance.dispose()
+    chartInstance = echarts.init(div)
+    updateChart()
+    setTimeout(() => chartInstance?.resize(), 50)
+  }
+  if (!div && chartInstance) {
+    chartInstance.dispose()
+    chartInstance = null
+  }
+}
 
 const {
   loadingFiles,
@@ -287,14 +274,6 @@ const {
   formatFullDate,
   formatDate,
   formatPrice,
-  getPctChange,
-  getPctChangeValue,
-  getPctChangeClass,
-  getPctChangeStyle,
-  formatDayPct,
-  getDayPctClass,
-  formatAmplitude,
-  getAmplitudeClass,
   getRowClassName,
   isStrategyFile,
   handleExport,
@@ -304,37 +283,26 @@ const {
 const collectedColumns: ColumnsType<StockResult> = [
   { title: '代码', dataIndex: 'code', key: 'code', width: 80 },
   { title: '名称', dataIndex: 'name', key: 'name', width: 100 },
-  { title: '匹配日期', dataIndex: 'match_date', key: 'match_date', width: 100 },
+  { title: '匹配日期', dataIndex: 'match_date', key: 'match_date', width: 100, customRender: ({ text }) => formatDate(text ?? '') },
   { title: '匹配价', dataIndex: 'match_price', key: 'match_price', width: 80, customRender: ({ text }) => text != null ? text.toFixed(2) : '-' },
   { title: '当前价', dataIndex: 'current_price', key: 'current_price', width: 80, customRender: ({ text }) => text != null ? text.toFixed(2) : '-' },
-  { title: '涨跌幅', key: 'pctChange', width: 90 },
   { title: '操作', key: 'action', width: 70, fixed: 'right' }
 ]
 
 const columns: ColumnsType<StockResult> = [
   { title: '代码', dataIndex: 'code', key: 'code', width: 100, fixed: 'left' },
   { title: '名称', dataIndex: 'name', key: 'name', width: 120 },
-  { title: '匹配日期', dataIndex: 'match_date', key: 'match_date', width: 120 },
-  { title: '匹配价格', dataIndex: 'match_price', key: 'match_price', width: 120, customRender: ({ text }) => text ? text.toFixed(2) : '-' },
-  { title: '当前价格', dataIndex: 'current_price', key: 'current_price', width: 120, customRender: ({ text }) => text ? text.toFixed(2) : '-' },
-  { title: '涨跌幅', key: 'pctChange', width: 120 },
-  { title: '次日振幅', dataIndex: 'day2_amplitude', key: 'day2_amplitude', width: 100 },
-  { title: '次日涨跌幅', dataIndex: 'day2_change_pct', key: 'day2_change_pct', width: 100 },
-  { title: '第三日振幅', dataIndex: 'day3_amplitude', key: 'day3_amplitude', width: 100 },
-  { title: '第三日涨跌幅', dataIndex: 'day3_change_pct', key: 'day3_change_pct', width: 100, fixed: 'right' }
+  { title: '匹配日期', dataIndex: 'match_date', key: 'match_date', width: 120, customRender: ({ text }) => formatDate(text ?? '') },
+  { title: '匹配价', dataIndex: 'match_price', key: 'match_price', width: 120, customRender: ({ text }) => text ? text.toFixed(2) : '-' },
+  { title: '当前价', dataIndex: 'current_price', key: 'current_price', width: 120, customRender: ({ text }) => text ? text.toFixed(2) : '-' }
 ]
 
 const denseColumns: ColumnsType<StockResult> = [
   { title: '代码', dataIndex: 'code', key: 'code', width: 80, fixed: 'left', sorter: (a, b) => a.code.localeCompare(b.code) },
   { title: '名称', dataIndex: 'name', key: 'name', width: 100, sorter: (a, b) => a.name.localeCompare(b.name) },
-  { title: '匹配日期', dataIndex: 'match_date', key: 'match_date', width: 100, sortDirections: ['ascend', 'descend'], sorter: (a, b) => ((a.match_date || '').trim()).localeCompare((b.match_date || '').trim()) },
+  { title: '匹配日期', dataIndex: 'match_date', key: 'match_date', width: 100, sortDirections: ['ascend', 'descend'], sorter: (a, b) => ((a.match_date || '').trim()).localeCompare((b.match_date || '').trim()), customRender: ({ text }) => formatDate(text ?? '') },
   { title: '匹配价', dataIndex: 'match_price', key: 'match_price', width: 80, align: 'right', sorter: (a, b) => (a.match_price || 0) - (b.match_price || 0) },
-  { title: '当前价', dataIndex: 'current_price', key: 'current_price', width: 80, align: 'right', sorter: (a, b) => (a.current_price || 0) - (b.current_price || 0) },
-  { title: '涨跌幅', key: 'pctChange', width: 90, align: 'right', sorter: (a, b) => getPctChangeValue(a) - getPctChangeValue(b) },
-  { title: '次日振幅', dataIndex: 'day2_amplitude', key: 'day2_amplitude', width: 85, align: 'right', sorter: (a, b) => (a.day2_amplitude || 0) - (b.day2_amplitude || 0) },
-  { title: '次日涨跌幅', dataIndex: 'day2_change_pct', key: 'day2_change_pct', width: 90, align: 'right', sorter: (a, b) => (a.day2_change_pct || 0) - (b.day2_change_pct || 0) },
-  { title: '第三日振幅', dataIndex: 'day3_amplitude', key: 'day3_amplitude', width: 85, align: 'right', sorter: (a, b) => (a.day3_amplitude || 0) - (b.day3_amplitude || 0) },
-  { title: '第三日涨跌幅', dataIndex: 'day3_change_pct', key: 'day3_change_pct', width: 90, align: 'right', fixed: 'right', sorter: (a, b) => (a.day3_change_pct || 0) - (b.day3_change_pct || 0) }
+  { title: '当前价', dataIndex: 'current_price', key: 'current_price', width: 80, align: 'right', sorter: (a, b) => (a.current_price || 0) - (b.current_price || 0) }
 ]
 
 const displayColumns = computed(() => {
@@ -351,6 +319,116 @@ const displayDenseColumns = computed(() => {
     return { ...rest, fixed: undefined, width: undefined }
   })
 })
+
+// 按 match_date 聚合每日匹配数量，用于趋势图；若有交易日列表则按全部交易日展示，无数据日显示 0
+const dailyChartData = computed(() => {
+  const list = results.value || []
+  const map = new Map<string, number>()
+  for (const r of list) {
+    const raw = (r as any).match_date ?? (r as any).matchDate ?? (r as any).date
+    if (raw == null) continue
+    const date = String(raw).trim().slice(0, 10)
+    if (!date || date.length < 10) continue
+    map.set(date, (map.get(date) ?? 0) + 1)
+  }
+  const allDays = tradingDaysList.value
+  if (allDays.length > 0) {
+    return { dates: allDays, counts: allDays.map(d => map.get(d) ?? 0) }
+  }
+  const dates = Array.from(map.keys()).sort()
+  const counts = dates.map(d => map.get(d)!)
+  return { dates, counts }
+})
+
+function updateChart() {
+  if (!chartInstance) return
+  const { dates, counts } = dailyChartData.value
+  if (dates.length === 0) {
+    chartInstance.setOption({
+      graphic: {
+        type: 'text',
+        left: 'center',
+        top: 'middle',
+        style: { text: '暂无按日数据', fontSize: 14, fill: '#999' }
+      }
+    }, { notMerge: true })
+    return
+  }
+  const option: echarts.EChartsOption = {
+    title: { text: '每个交易日匹配数量', left: 'center', textStyle: { fontSize: 14 } },
+    tooltip: { trigger: 'axis' },
+    grid: { left: 48, right: 24, top: 40, bottom: 48 },
+    xAxis: {
+      type: 'category',
+      data: dates,
+      axisLabel: { rotate: dates.length > 12 ? 45 : 0, fontSize: 11 }
+    },
+    yAxis: { type: 'value', name: '数量', minInterval: 1 },
+    series: [
+      { type: 'line', smooth: true, data: counts, areaStyle: {}, symbol: 'circle', symbolSize: 6 }
+    ]
+  }
+  chartInstance.setOption(option, { notMerge: true })
+}
+
+onMounted(() => {})
+
+onUnmounted(() => {
+  if (chartInstance) {
+    chartInstance.dispose()
+    chartInstance = null
+  }
+})
+
+// 数据变化时更新图表（创建在 setChartRef 里完成）
+watch(
+  () => ({ dates: dailyChartData.value.dates, counts: dailyChartData.value.counts }),
+  () => {
+    if (chartInstance) {
+      updateChart()
+      setTimeout(() => chartInstance?.resize(), 50)
+    }
+  },
+  { deep: true }
+)
+
+// 有结果时拉取该日期范围内的全部交易日，用于图表按日补全（无数据日显示 0）
+watch(
+  () => results.value,
+  async (list) => {
+    const arr = list || []
+    if (arr.length === 0) {
+      tradingDaysList.value = []
+      return
+    }
+    let minD = ''
+    let maxD = ''
+    for (const r of arr) {
+      const raw = (r as any).match_date ?? (r as any).matchDate ?? (r as any).date
+      if (raw == null) continue
+      const date = String(raw).trim().slice(0, 10)
+      if (date.length >= 10 && date[4] === '-' && date[7] === '-') {
+        if (!minD || date < minD) minD = date
+        if (!maxD || date > maxD) maxD = date
+      }
+    }
+    if (!minD || !maxD) {
+      tradingDaysList.value = []
+      return
+    }
+    try {
+      const res = await getTradingDays(minD, maxD)
+      if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+        tradingDaysList.value = res.data
+      } else {
+        tradingDaysList.value = []
+      }
+    } catch {
+      tradingDaysList.value = []
+    }
+  },
+  { immediate: true, deep: true }
+)
 </script>
 
 <style scoped>
