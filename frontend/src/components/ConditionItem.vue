@@ -19,6 +19,7 @@
         <SelectOption value="pct_change_lt">涨幅小于</SelectOption>
         <SelectOption value="pct_change_between">涨幅大于且小于</SelectOption>
         <SelectOption value="three_limit_up">三连板</SelectOption>
+        <SelectOption value="recent_limit_up">近N日有涨停</SelectOption>
         <SelectOption value="ma_cross_up">均线上穿</SelectOption>
         <SelectOption value="volume_ratio">成交量比例</SelectOption>
       </Select>
@@ -68,8 +69,8 @@
       </Tooltip>
     </template>
     
-    <template v-if="localCondition.type === 'three_limit_up'">
-      <Tooltip title="检查天数范围：从指定日期往前检查多少个交易日（默认30）">
+    <template v-if="localCondition.type === 'three_limit_up' || localCondition.type === 'recent_limit_up'">
+      <Tooltip title="检查天数范围：从指定日期往前检查多少个交易日（三连板/近期有涨停）">
         <InputNumber
           v-model:value="localCondition.days"
           placeholder="检查天数"
@@ -192,13 +193,13 @@ function handleTypeChange() {
     delete localCondition.value.days
     delete localCondition.value.shortPeriod
     delete localCondition.value.longPeriod
-  } else if (localCondition.value.type === 'three_limit_up') {
+  } else if (localCondition.value.type === 'three_limit_up' || localCondition.value.type === 'recent_limit_up') {
     delete localCondition.value.value
     delete localCondition.value.minValue
     delete localCondition.value.maxValue
     delete localCondition.value.date2
     delete localCondition.value.ratio
-    localCondition.value.days = localCondition.value.days || 30
+    localCondition.value.days = localCondition.value.days || (localCondition.value.type === 'three_limit_up' ? 30 : 10)
     delete localCondition.value.shortPeriod
     delete localCondition.value.longPeriod
   } else if (localCondition.value.type === 'ma_cross_up') {
@@ -246,6 +247,10 @@ watch(() => localCondition.value.type, (type) => {
       break
     case 'three_limit_up':
       date1Tooltip.value = '起始日期偏移：负数表示往前推N个交易日，0表示回测日期当天。从该日期往前检查是否出现三连板'
+      date1Placeholder.value = '起始日期'
+      break
+    case 'recent_limit_up':
+      date1Tooltip.value = '起始日期偏移：负数表示往前推N个交易日，0表示回测日期当天。从该日期往前的若干个交易日内是否至少有涨停'
       date1Placeholder.value = '起始日期'
       break
     case 'ma_cross_up':

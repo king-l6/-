@@ -51,6 +51,61 @@ export function useHistoryResults() {
 
   const hasResults = computed(() => results.value.length > 0)
 
+  /** 每个交易日只高亮一只：当日按涨幅优先、振幅次之排序取第一；并记录是该日涨幅最高/振幅最高/两者 */
+  const dayLeaderInfo = computed(() => {
+    const list = filteredResults.value
+    const info = new Map<string, { isMaxPct: boolean; isMaxAmp: boolean }>()
+    if (!list.length) return info
+    const byDate = new Map<string, typeof list>()
+    for (const r of list) {
+      const d = (r as any).match_date || ''
+      if (!d) continue
+      if (!byDate.has(d)) byDate.set(d, [])
+      byDate.get(d)!.push(r)
+    }
+    byDate.forEach((rows) => {
+      let maxPct = -Infinity
+      let maxAmp = -Infinity
+      for (const r of rows) {
+        const pct = (r as any).day1_change_pct ?? (r as any).day2_change_pct
+        const amp = (r as any).day1_amplitude ?? (r as any).day2_amplitude
+        if (typeof pct === 'number' && pct > maxPct) maxPct = pct
+        if (typeof amp === 'number' && Math.abs(amp) > maxAmp) maxAmp = Math.abs(amp)
+      }
+      const sorted = [...rows].sort((a, b) => {
+        const pctA = (a as any).day1_change_pct ?? (a as any).day2_change_pct ?? -Infinity
+        const pctB = (b as any).day1_change_pct ?? (b as any).day2_change_pct ?? -Infinity
+        if (pctB !== pctA) return pctB - pctA
+        const ampA = Math.abs((a as any).day1_amplitude ?? (a as any).day2_amplitude ?? -Infinity)
+        const ampB = Math.abs((b as any).day1_amplitude ?? (b as any).day2_amplitude ?? -Infinity)
+        return ampB - ampA
+      })
+      const winner = sorted[0]
+      if (!winner) return
+      const key = `${(winner as any).match_date}-${(winner as any).code}`
+      const pct = (winner as any).day1_change_pct ?? (winner as any).day2_change_pct
+      const amp = (winner as any).day1_amplitude ?? (winner as any).day2_amplitude
+      const isMaxPct = typeof pct === 'number' && pct === maxPct && maxPct !== -Infinity
+      const isMaxAmp = typeof amp === 'number' && Math.abs(amp) === maxAmp && maxAmp !== -Infinity
+      info.set(key, { isMaxPct, isMaxAmp })
+    })
+    return info
+  })
+
+  function isDayLeader(record: StockResult): boolean {
+    return dayLeaderInfo.value.has(`${record.match_date || ''}-${record.code || ''}`)
+  }
+
+  /** 仅对当日高亮的那一只返回标签：涨幅最高 / 振幅最高 / 涨幅&振幅最高 */
+  function getDayLeaderLabel(record: StockResult): '' | '涨幅最高' | '振幅最高' | '涨幅&振幅最高' {
+    const v = dayLeaderInfo.value.get(`${record.match_date || ''}-${record.code || ''}`)
+    if (!v) return ''
+    if (v.isMaxPct && v.isMaxAmp) return '涨幅&振幅最高'
+    if (v.isMaxPct) return '涨幅最高'
+    if (v.isMaxAmp) return '振幅最高'
+    return ''
+  }
+
   const filteredResults = computed(() => {
     let sourceData = results.value
     if (isDense.value && searchText.value) {
@@ -393,11 +448,17 @@ export function useHistoryResults() {
           return true
         })
 
-        // 按 match_date 倒序（最新在前），同一天按 code 升序
+        // 按 match_date 倒序（最新在前），同一天内按涨幅、振幅降序，再按 code 升序
         newResults.sort((a, b) => {
           const dA = a.match_date || ''
           const dB = b.match_date || ''
           if (dB !== dA) return dB.localeCompare(dA)
+          const pctA = (a as any).day1_change_pct ?? (a as any).day2_change_pct ?? -9999
+          const pctB = (b as any).day1_change_pct ?? (b as any).day2_change_pct ?? -9999
+          if (pctB !== pctA) return pctB - pctA
+          const ampA = (a as any).day1_amplitude ?? (a as any).day2_amplitude ?? -9999
+          const ampB = (b as any).day1_amplitude ?? (b as any).day2_amplitude ?? -9999
+          if (ampB !== ampA) return ampB - ampA
           return (a.code || '').localeCompare(b.code || '')
         })
 
@@ -496,6 +557,8 @@ export function useHistoryResults() {
     getAmplitudeClass,
     getRowClassName,
     isStrategyFile,
+    isDayLeader,
+    getDayLeaderLabel,
     handleExport
   }
 }

@@ -53,7 +53,7 @@ if launchctl list | grep -q "$PLIST_NAME"; then
     echo ""
     echo "任务信息:"
     echo "  - 名称: $PLIST_NAME"
-    echo "  - 执行时间: 每天 15:30"
+    echo "  - 执行时间: 每天 18:00"
     echo "  - 日志文件: $SCRIPT_DIR/logs/scheduled_task.log"
     echo ""
     echo "管理命令:"

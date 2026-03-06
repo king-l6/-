@@ -181,11 +181,15 @@
                 :scroll="tableScroll"
                 :size="isDense ? 'small' : 'middle'"
                 :bordered="isDense"
-                :row-class-name="isDense ? getRowClassName : undefined"
+                :row-class-name="(record) => {
+                  const base = isDense ? getRowClassName(record as StockResult) : ''
+                  const leader = isDayLeader(record as StockResult) ? 'row-day-leader' : ''
+                  return [base, leader].filter(Boolean).join(' ') || ''
+                }"
               >
                 <template #bodyCell="{ column, record }">
                   <template v-if="column.key === 'name' || column.dataIndex === 'name'">
-                    <div class="flex items-center gap-1.5">
+                    <div class="flex items-center gap-1.5 flex-wrap">
                       <span
                         class="cursor-pointer text-primary hover:opacity-80 inline-flex items-center"
                         title="加入自选"
@@ -193,6 +197,7 @@
                       >
                         <PlusOutlined />
                       </span>
+                      <span v-if="getDayLeaderLabel(record as StockResult)" class="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-700 font-medium" :title="getDayLeaderLabel(record as StockResult)">{{ getDayLeaderLabel(record as StockResult) }}</span>
                       <span>{{ record.name }}</span>
                     </div>
                   </template>
@@ -279,6 +284,8 @@ const {
   formatPrice,
   getRowClassName,
   isStrategyFile,
+  isDayLeader,
+  getDayLeaderLabel,
   handleExport,
   isNarrowScreen,
   filterDay2Strong
@@ -471,6 +478,18 @@ watch(
 
 :deep(.bg-red-50) {
   background-color: #fef2f2;
+}
+
+/* 当日涨幅或振幅最高：左侧强调条 + 浅琥珀底 */
+:deep(.row-day-leader) {
+  border-left: 3px solid #f59e0b !important;
+  background-color: #fffbeb !important;
+}
+:deep(.row-day-leader.bg-red-50) {
+  background-color: #fef3e8 !important;
+}
+:deep(.row-day-leader.bg-green-50) {
+  background-color: #f0fdf0 !important;
 }
 
 /* 涨跌幅颜色样式 */

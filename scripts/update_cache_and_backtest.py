@@ -55,16 +55,14 @@ def main():
     fetcher = DataFetcher()
     cache_latest = fetcher.get_local_cache_latest_date()
     last_trade = fetcher._get_last_trading_day_available()
-    print(f'缓存最新日期: {cache_latest or "无"}')
-    print(f'最近交易日:   {last_trade}')
+    print(f'缓存最新日期(代表股票): {cache_latest or "无"}')
+    print(f'最近交易日:             {last_trade}')
+    print('[INFO] 将按股票逐个检查缓存是否缺少最近交易日数据，如有缺失则补齐。')
 
-    if cache_latest and cache_latest >= last_trade:
-        print('[INFO] 缓存已是最新，无需拉取差值数据。')
-    else:
-        fetcher.remove_duplicate_cache()
-        fetcher.get_stock_list()
-        fetcher.update_caches_with_today_data(max_workers=args.workers)
-        print('[INFO] 差值数据已写入缓存。')
+    fetcher.remove_duplicate_cache()
+    fetcher.get_stock_list()
+    fetcher.update_caches_with_today_data(max_workers=args.workers)
+    print('[INFO] 差值数据检查与写入已完成（仅对确实缺数据的股票进行了更新）。')
     print()
 
     if args.no_backtest:

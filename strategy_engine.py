@@ -33,6 +33,40 @@ class StrategyEngine:
             strategy, strategy_name=strategy_name, only_t_date=trading_date, write_results=False
         )
 
+    def run_incremental_for_stock(self, stock, trading_days, strategies_list):
+        """对单只股票只加载一次 K 线，在多个交易日×多个策略上检查，返回 {strategy_name: [result_rows]}。
+        用于增量回测脚本，避免「每 T 日×每策略」都全量扫一遍股票。
+        strategies_list: [(strategy_name, strategy_dict), ...]
+        """
+        if not trading_days or not strategies_list:
+            return {}
+        code = stock['code']
+        name = stock['name']
+        max_time_range = max((s.get('timeRange', 30) for _, s in strategies_list))
+        end_d = max(datetime.strptime(d[:10], '%Y-%m-%d') for d in trading_days)
+        start_d = min(datetime.strptime(d[:10], '%Y-%m-%d') for d in trading_days) - timedelta(days=int(max_time_range * 1.6) + 10)
+        df = self.data_fetcher.get_stock_data(code, start_d.strftime('%Y%m%d'), end_d.strftime('%Y%m%d'))
+        if df is None or df.empty:
+            return {}
+        out = {}
+        for strategy_name, strategy in strategies_list:
+            conditions = strategy.get('conditions', [])
+            time_range = strategy.get('timeRange', 30)
+            for t_date in trading_days:
+                if any(c.get('type') == 'bottoming_breakout' for c in conditions):
+                    check = self._check_bottoming_breakout(code, start_d, end_d, time_range, only_t_date=t_date, df=df)
+                else:
+                    check = self._check_strategy(code, conditions, start_d, end_d, time_range, only_t_date=t_date, df=df)
+                if check:
+                    items = check if isinstance(check, list) else [check]
+                    for item in items:
+                        detail = self._get_stock_detail_from_check(code, name, conditions, item)
+                        if detail:
+                            if strategy_name not in out:
+                                out[strategy_name] = []
+                            out[strategy_name].append({'code': code, 'name': name, **detail})
+        return out
+
     def _backtest_impl(self, strategy, strategy_name=None, only_t_date=None, write_results=True):
         """内部：执行回测，可选仅扫描 only_t_date 且不写文件。"""
         # 解析策略条件
@@ -264,20 +298,18 @@ class StrategyEngine:
         
         return None
     
-    def _check_strategy(self, code, conditions, start_date, end_date, time_range=30, only_t_date=None):
-        """检查股票是否符合策略条件。only_t_date 有值时仅检查该日作为 T。"""
+    def _check_strategy(self, code, conditions, start_date, end_date, time_range=30, only_t_date=None, df=None):
+        """检查股票是否符合策略条件。only_t_date 有值时仅检查该日作为 T。df 可选，传入时不再拉取数据。"""
         try:
-            # 筑底突破策略使用独立的检查逻辑
             if any(c.get('type') == 'bottoming_breakout' for c in conditions):
-                return self._check_bottoming_breakout(code, start_date, end_date, time_range, only_t_date=only_t_date)
+                return self._check_bottoming_breakout(code, start_date, end_date, time_range, only_t_date=only_t_date, df=df)
 
-            # 获取股票数据
-            df = self.data_fetcher.get_stock_data(
-                code, 
-                start_date.strftime('%Y%m%d'), 
-                end_date.strftime('%Y%m%d')
-            )
-            
+            if df is None:
+                df = self.data_fetcher.get_stock_data(
+                    code,
+                    start_date.strftime('%Y%m%d'),
+                    end_date.strftime('%Y%m%d')
+                )
             if df is None or df.empty:
                 return False
             
@@ -289,8 +321,11 @@ class StrategyEngine:
             # 按日期排序（从早到晚）
             df = df.sort_values('日期').reset_index(drop=True)
             
-            # 优化：检查是否有涨停条件，如果有，则检查是否有涨停日
-            has_limit_up_condition = any(c.get('type') == 'limit_up' for c in conditions)
+            # 优化：检查是否有依赖涨停的条件，如果有，则检查是否有涨停日
+            has_limit_up_condition = any(
+                c.get('type') in ('limit_up', 'three_limit_up', 'recent_limit_up')
+                for c in conditions
+            )
             if has_limit_up_condition:
                 # 如果有涨停条件但没有任何涨停日，直接跳过
                 if (df['涨跌幅'] >= 9.8).sum() == 0:
@@ -328,12 +363,13 @@ class StrategyEngine:
             # 静默处理错误
             return False
 
-    def _check_bottoming_breakout(self, code, start_date, end_date, time_range=30, only_t_date=None):
-        """二次筑底突破策略（双底/W底）。only_t_date 有值时仅检查该日是否为买点。"""
+    def _check_bottoming_breakout(self, code, start_date, end_date, time_range=30, only_t_date=None, df=None):
+        """二次筑底突破策略（双底/W底）。only_t_date 有值时仅检查该日是否为买点。df 可选，传入时不再拉取数据。"""
         try:
-            df = self.data_fetcher.get_stock_data(
-                code, start_date.strftime('%Y%m%d'), end_date.strftime('%Y%m%d')
-            )
+            if df is None:
+                df = self.data_fetcher.get_stock_data(
+                    code, start_date.strftime('%Y%m%d'), end_date.strftime('%Y%m%d')
+                )
             if df is None or df.empty or len(df) < 40:
                 return False
             req = ['日期', '开盘', '收盘', '最高', '最低', '成交量']
@@ -597,6 +633,45 @@ class StrategyEngine:
                         if (row1['涨跌幅'] >= 9.8 and 
                             row2['涨跌幅'] >= 9.8 and 
                             row3['涨跌幅'] >= 9.8):
+                            return True
+                
+                return False
+
+            elif cond_type == 'recent_limit_up':
+                # 近期有涨停：从指定起始日期往前检查若干个交易日内，是否至少有一天涨停
+                # date1: 起始日期偏移（默认-1，即从T-1日开始往前数）
+                # days: 检查的天数范围（默认10个交易日）
+                check_days_raw = condition.get('days', 10)
+                try:
+                    check_days = int(check_days_raw)
+                except Exception:
+                    check_days = 10
+                if check_days <= 0:
+                    return False
+
+                start_offset = condition.get('date1', -1)
+                
+                # 获取起始日期
+                start_date = self._get_date_offset(base_date, start_offset, df)
+                if start_date is None:
+                    return False
+                
+                # 获取所有交易日并排序
+                dates = sorted([pd.to_datetime(d).to_pydatetime() for d in df['日期'].unique()])
+                
+                try:
+                    start_idx = dates.index(start_date)
+                except ValueError:
+                    return False
+                
+                # 从起始日期往前查找，最多检查 check_days 个交易日
+                end_idx = max(0, start_idx - check_days + 1)
+                
+                for i in range(start_idx, end_idx - 1, -1):
+                    d_str = dates[i].strftime('%Y-%m-%d')
+                    if d_str in date_map:
+                        row = date_map[d_str]
+                        if row['涨跌幅'] >= 9.8:
                             return True
                 
                 return False

@@ -1,5 +1,14 @@
 // 策略条件类型
-export type ConditionType = 'limit_up' | 'pct_change_gt' | 'pct_change_lt' | 'pct_change_between' | 'volume_ratio' | 'three_limit_up' | 'ma_cross_up' | 'bottoming_breakout'
+export type ConditionType =
+  | 'limit_up'
+  | 'pct_change_gt'
+  | 'pct_change_lt'
+  | 'pct_change_between'
+  | 'volume_ratio'
+  | 'three_limit_up'
+  | 'recent_limit_up'
+  | 'ma_cross_up'
+  | 'bottoming_breakout'
 
 export interface StrategyCondition {
   type: ConditionType
@@ -9,7 +18,7 @@ export interface StrategyCondition {
   maxValue?: number // 最大涨幅值（用于 pct_change_between）
   date2?: number // 交易日偏移2（用于 volume_ratio）
   ratio?: number // 比例（用于 volume_ratio）
-  days?: number // 检查天数范围（用于 three_limit_up，默认30）
+  days?: number // 检查天数范围（用于 three_limit_up/recent_limit_up，默认30/10）
   shortPeriod?: number // 短期均线周期（用于 ma_cross_up，默认5）
   longPeriod?: number // 长期均线周期（用于 ma_cross_up，默认10）
 }

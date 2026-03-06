@@ -159,7 +159,8 @@ def process_file(filepath, dry_run=False):
     if not lines:
         return 0, 0
 
-    out_lines = []
+    meta_lines = []  # _meta 及前面的空行、非数据行
+    data_objs = []   # 数据行对象
     total = 0
     enriched = 0
     cache_by_code = {}  # code -> cache_rows
@@ -167,30 +168,40 @@ def process_file(filepath, dry_run=False):
     for raw in lines:
         line = raw.strip()
         if not line:
-            out_lines.append(raw)
+            meta_lines.append(raw)
             continue
         try:
             obj = json.loads(line)
         except json.JSONDecodeError:
-            out_lines.append(raw)
+            meta_lines.append(raw)
             continue
         if isinstance(obj, dict) and obj.get('_meta') is not None:
-            out_lines.append(line + '\n' if not line.endswith('\n') else line)
+            meta_lines.append(line + '\n' if not line.endswith('\n') else line)
             continue
         if not isinstance(obj, dict) or 'code' not in obj:
-            out_lines.append(raw)
+            meta_lines.append(raw)
             continue
         total += 1
         code = (obj.get('code') or '').strip()
-        if not code:
-            out_lines.append(raw)
-            continue
         if code not in cache_by_code:
-            cache_by_code[code] = _load_cache_rows_for_code(code)
-        ok = enrich_one_record(obj, cache_by_code[code])
-        if ok:
-            enriched += 1
-        out_lines.append(json.dumps(obj, ensure_ascii=False) + '\n')
+            cache_by_code[code] = _load_cache_rows_for_code(code) if code else []
+        if code:
+            ok = enrich_one_record(obj, cache_by_code[code])
+            if ok:
+                enriched += 1
+        data_objs.append(obj)
+
+    # 同一交易日内按涨幅、振幅降序：match_date 升序，同日按 day1_change_pct 降序、day1_amplitude 降序、code 升序
+    def _sort_key(o):
+        d = o.get('match_date') or ''
+        pct = o.get('day1_change_pct') if o.get('day1_change_pct') is not None else o.get('day2_change_pct')
+        amp = o.get('day1_amplitude') if o.get('day1_amplitude') is not None else o.get('day2_amplitude')
+        pct = pct if pct is not None else -9999
+        amp = amp if amp is not None else -9999
+        return (d, -float(pct), -float(amp), (o.get('code') or ''))
+    data_objs.sort(key=_sort_key)
+
+    out_lines = meta_lines + [json.dumps(obj, ensure_ascii=False) + '\n' for obj in data_objs]
 
     if not dry_run and out_lines:
         try:

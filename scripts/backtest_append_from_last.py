@@ -9,7 +9,7 @@
 2. 取每个策略中最大的 match_date，再取这六个日期中的最小值作为「最后日期」
    （若某策略无数据则视为无，只从有数据的策略中取最小最后日期）
 3. 若存在最后日期，则只回测 [最后日期+1 日, 今天] 之间的所有交易日 T
-4. 每个 T 日、每个策略跑一次单日回测，结果写入同一个 策略名_结果.jsonl 文件（不同日期聚合在一个战法文件中）
+4. **按股票并发**：每只股票只加载一次 K 线，在该数据上对所有 T 日×所有策略做检查，再按策略聚合写回各自 策略名_结果.jsonl（比「每 T 日×每策略」全量扫一遍快得多）。
 
 使用方法（在项目根目录）：
   python scripts/backtest_append_from_last.py              # 自动检测最后日期并回测补齐
@@ -23,6 +23,7 @@ import json
 import re
 import argparse
 from datetime import datetime, timedelta
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.chdir(PROJECT_ROOT)
@@ -272,6 +273,8 @@ def main():
     parser.add_argument('--config', default='common_strategies.json', help='策略配置文件路径')
     parser.add_argument('--workers', type=int, default=50, help='并发线程数')
     parser.add_argument('--no-check-cache', action='store_true', help='不检查缓存是否最新，直接跑')
+    parser.add_argument('--skip-ensure-data', action='store_true',
+                        help='跳过预拉取 ensure_sufficient_data，仅使用已有缓存（适合每日轻量回测）')
     args = parser.parse_args()
 
     from data_fetcher import DataFetcher
@@ -328,27 +331,53 @@ def main():
     strategies = load_strategies(args.config)
     if len(strategies) != len(STRATEGY_NAMES):
         print(f'[WARN] 配置中六个战法不完整，仅回测: {[s["name"] for s in strategies]}')
+    # [(strategy_name, strategy_dict), ...] 供「按股票只加载一次」的增量接口使用
+    strategies_list = [(s['name'], s['strategy']) for s in strategies]
+
+    if not args.skip_ensure_data:
+        fetcher.ensure_sufficient_data(
+            max((s['strategy'].get('timeRange', 30) for s in strategies), default=30),
+            max_workers=100
+        )
+    stocks = fetcher.get_stock_list()
+    print(f'共 {len(stocks)} 只股票，{len(trading_days)} 个 T 日 × {len(strategies)} 个策略 → 按股票并发（每只股票只加载一次 K 线）')
+    print()
+
     engine = StrategyEngine(fetcher, max_workers=args.workers)
+    # 按策略名聚合：all_results[name] = [result_rows]
+    all_results = {s['name']: [] for s in strategies}
+    total_stocks = len(stocks)
+    processed = [0]  # 闭包用
+
+    with ThreadPoolExecutor(max_workers=args.workers) as executor:
+        future_to_stock = {
+            executor.submit(engine.run_incremental_for_stock, stock, trading_days, strategies_list): stock
+            for stock in stocks
+        }
+        for future in as_completed(future_to_stock):
+            processed[0] += 1
+            if processed[0] % 100 == 0 or processed[0] == total_stocks:
+                pct = 100 * processed[0] // total_stocks if total_stocks else 0
+                print(f'进度: {processed[0]}/{total_stocks} ({pct}%)', flush=True)
+            try:
+                per_stock = future.result(timeout=60)
+                for name, rows in per_stock.items():
+                    all_results[name].extend(rows)
+            except Exception as e:
+                if processed[0] % 500 == 0:
+                    print(f'[WARN] 某只股票处理异常: {e}', flush=True)
 
     total_count = 0
-    for t_date in trading_days:
-        for idx, strategy_config in enumerate(strategies, 1):
-            name = strategy_config['name']
-            strategy = strategy_config['strategy']
-            print(f'[{t_date}] [{idx}/{len(strategies)}] {name} ...', flush=True)
-            try:
-                results = engine.backtest_single_day(
-                    strategy, strategy_name=name, trading_date=t_date
-                )
-                if results:
-                    path = append_results_to_main_file(results_dir, name, results, strategy_engine=engine)
-                    if path:
-                        print(f'       -> {len(results)} 条，已写入 {os.path.basename(path)}', flush=True)
-                    total_count += len(results)
-                else:
-                    print(f'       -> 0 条', flush=True)
-            except Exception as e:
-                print(f'       -> 失败: {e}', flush=True)
+    for s in strategies:
+        name = s['name']
+        rows = all_results.get(name, [])
+        if rows:
+            path = append_results_to_main_file(results_dir, name, rows, strategy_engine=engine)
+            if path:
+                print(f'{name}: {len(rows)} 条 → {os.path.basename(path)}')
+            total_count += len(rows)
+        else:
+            print(f'{name}: 0 条')
 
     print()
     print('=' * 60)

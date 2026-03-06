@@ -31,6 +31,8 @@ export function useCommonStrategies() {
       }
       case 'three_limit_up':
         return `近${condition.days ?? 30}个交易日内三连板`
+      case 'recent_limit_up':
+        return `近${condition.days ?? 10}个交易日内有涨停`
       case 'ma_cross_up':
         return `${dateStr}${condition.shortPeriod ?? 5}日均线上穿${condition.longPeriod ?? 10}日均线`
       case 'bottoming_breakout':

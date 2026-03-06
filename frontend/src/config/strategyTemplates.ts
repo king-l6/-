@@ -136,6 +136,32 @@ export const threeLimitUpStrategy: StrategyTemplate = {
 }
 
 /**
+ * 月内三连板 + 首板涨停策略
+ * 特征：
+ * 1. T日前一个月内（近30个交易日）出现过三连板
+ * 2. T日为首板涨停（T日涨停，且T-1日非涨停）
+ */
+export const monthThreeLimitUpWithFirstBoardStrategy: StrategyTemplate = {
+  id: 'month_three_limit_up_first_board',
+  name: '月内三连板+首板涨停',
+  description: 'T日前一个月内出现过三连板，且T日为首板涨停（T日涨停且T-1日非涨停）。',
+  timeRange: 90,
+  conditions: [
+    { type: 'limit_up', date1: 0 }, // T日涨停（首板）
+    { type: 'pct_change_lt', date1: -1, value: 9.8 }, // T-1日非涨停（涨幅<9.8%）
+    { type: 'three_limit_up', date1: -1, days: 30 }, // 从T-1日往前30个交易日内出现三连板
+    { type: 'recent_limit_up', date1: -1, days: 10 } // 从T-1日往前10个交易日内至少有1天涨停
+  ],
+  exclude: {
+    kcb: true,
+    cyb: true,
+    bjs: true,
+    st: true,
+    delist: true
+  }
+}
+
+/**
  * 均线上穿策略
  * 特征：
  * 1. T-1日涨停（启动）
@@ -190,5 +216,6 @@ export const allStrategyTemplates: StrategyTemplate[] = [
   maCrossUpStrategy,         // 均线上穿
   emotionCycleStrategy,      // 情绪周期
   threeLimitUpStrategy,      // 三连板
+  monthThreeLimitUpWithFirstBoardStrategy, // 月内三连板+首板涨停
   bottomingBreakoutStrategy  // 筑底突破
 ]
