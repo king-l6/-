@@ -106,11 +106,51 @@
       }
     },
     {
+      "name": "月内三连板+首板涨停",
+      "description": "T日前一个月内出现过三连板，且T日为首板涨停（T日涨停且T-1日非涨停），结合情绪周期与龙头战法的强度和安全性。",
+      "strategy": {
+        "conditions": [
+          { "type": "limit_up", "date1": 0 },
+          { "type": "pct_change_lt", "date1": -1, "value": 9.8 },
+          { "type": "three_limit_up", "date1": -1, "days": 30 },
+          { "type": "recent_limit_up", "date1": -1, "days": 10 }
+        ],
+        "exclude": {
+          "kcb": true,
+          "cyb": true,
+          "bjs": true,
+          "st": true,
+          "delist": true
+        },
+        "timeRange": 90
+      }
+    },
+    {
       "name": "筑底突破",
       "description": "捕捉双底形态突破买点。形态：涨一波→回调低点1→涨一小波→二次筑底→放量上涨=买点。",
       "strategy": {
         "conditions": [
           { "type": "bottoming_breakout" }
+        ],
+        "exclude": {
+          "kcb": true,
+          "cyb": true,
+          "bjs": true,
+          "st": true,
+          "delist": true
+        },
+        "timeRange": 90
+      }
+    },
+    {
+      "name": "摸板首板",
+      "description": "T日最高价摸到涨停但收盘未涨停，且前一日非涨停、近月内走出过三连板的强势股首板机会。",
+      "strategy": {
+        "conditions": [
+          { "type": "touch_limit_not_close", "date1": 0 },
+          { "type": "pct_change_lt", "date1": -1, "value": 9.8 },
+          { "type": "three_limit_up", "date1": -1, "days": 30 },
+          { "type": "recent_limit_up", "date1": -1, "days": 10 }
         ],
         "exclude": {
           "kcb": true,

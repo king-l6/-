@@ -9,6 +9,7 @@ export type ConditionType =
   | 'recent_limit_up'
   | 'ma_cross_up'
   | 'bottoming_breakout'
+  | 'touch_limit_not_close'
 
 export interface StrategyCondition {
   type: ConditionType
@@ -55,6 +56,8 @@ export interface StockResult {
   day2_change_pct?: number  // 次日涨跌幅（(收盘-前收盘)/前收盘*100）
   day3_amplitude?: number   // 第三日振幅
   day3_change_pct?: number  // 第三日涨跌幅
+  /** 月内三连板+首板策略中特殊标记：T日最高价触及涨停但收盘未涨停 */
+  touch_limit_not_close?: boolean
 }
 
 export interface BacktestResponse {

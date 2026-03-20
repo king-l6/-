@@ -197,7 +197,20 @@
                       >
                         <PlusOutlined />
                       </span>
-                      <span v-if="getDayLeaderLabel(record as StockResult)" class="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-700 font-medium" :title="getDayLeaderLabel(record as StockResult)">{{ getDayLeaderLabel(record as StockResult) }}</span>
+                      <span
+                        v-if="getDayLeaderLabel(record as StockResult)"
+                        class="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-700 font-medium"
+                        :title="getDayLeaderLabel(record as StockResult)"
+                      >
+                        {{ getDayLeaderLabel(record as StockResult) }}
+                      </span>
+                      <span
+                        v-if="(record as any).touch_limit_not_close"
+                        class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-700 font-medium"
+                        title="T日最高价到涨停，收盘未封板；且近30日三连板、近10日有涨停"
+                      >
+                        摸板未封
+                      </span>
                       <span>{{ record.name }}</span>
                     </div>
                   </template>

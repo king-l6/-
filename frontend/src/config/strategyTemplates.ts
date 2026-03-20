@@ -1,18 +1,18 @@
-import type { StrategyCondition } from '@/types'
+import type { StrategyCondition } from '@/types';
 
 export interface StrategyTemplate {
-  id: string
-  name: string
-  description: string
-  conditions: StrategyCondition[]
-  timeRange: number
+  id: string;
+  name: string;
+  description: string;
+  conditions: StrategyCondition[];
+  timeRange: number;
   exclude?: {
-    kcb?: boolean
-    cyb?: boolean
-    bjs?: boolean
-    st?: boolean
-    delist?: boolean
-  }
+    kcb?: boolean;
+    cyb?: boolean;
+    bjs?: boolean;
+    st?: boolean;
+    delist?: boolean;
+  };
 }
 
 /**
@@ -27,23 +27,24 @@ export interface StrategyTemplate {
 export const dragonHeadStrategy: StrategyTemplate = {
   id: 'dragon_head',
   name: '龙头战法',
-  description: '捕捉连续涨停的龙头股，适合追涨策略。要求T-2日和T-1日连续涨停，T日继续上涨，成交量持续放大。',
+  description:
+    '捕捉连续涨停的龙头股，适合追涨策略。要求T-2日和T-1日连续涨停，T日继续上涨，成交量持续放大。',
   timeRange: 90,
   conditions: [
     { type: 'limit_up', date1: -2 }, // T-2日涨停
     { type: 'limit_up', date1: -1 }, // T-1日涨停
     { type: 'pct_change_gt', date1: 0, value: 0 }, // T日涨幅>0
     { type: 'volume_ratio', date1: -1, date2: -2, ratio: 1.2 }, // T-1日成交量/T-2日成交量>1.2
-    { type: 'volume_ratio', date1: 0, date2: -2, ratio: 1.5 } // T日成交量/T-2日成交量>1.5
+    { type: 'volume_ratio', date1: 0, date2: -2, ratio: 1.5 }, // T日成交量/T-2日成交量>1.5
   ],
   exclude: {
     kcb: true,
     cyb: true,
     bjs: true,
     st: true,
-    delist: true
-  }
-}
+    delist: true,
+  },
+};
 
 /**
  * 断板反包策略
@@ -57,23 +58,24 @@ export const dragonHeadStrategy: StrategyTemplate = {
 export const breakAndRecoverStrategy: StrategyTemplate = {
   id: 'break_and_recover',
   name: '断板反包',
-  description: '捕捉涨停后回调再反包的股票，适合低吸策略。要求T-2日涨停，T-1日回调，T日反包涨停。',
+  description:
+    '捕捉涨停后回调再反包的股票，适合低吸策略。要求T-2日涨停，T-1日回调，T日反包涨停。',
   timeRange: 90,
   conditions: [
     { type: 'limit_up', date1: -2 }, // T-2日涨停
     { type: 'pct_change_lt', date1: -1, value: 0 }, // T-1日涨幅<0（断板）
     { type: 'limit_up', date1: 0 }, // T日涨停（反包）
     { type: 'volume_ratio', date1: -1, date2: -2, ratio: 1.1 }, // T-1日成交量/T-2日成交量>1.1
-    { type: 'volume_ratio', date1: 0, date2: -2, ratio: 1.3 } // T日成交量/T-2日成交量>1.3
+    { type: 'volume_ratio', date1: 0, date2: -2, ratio: 1.3 }, // T日成交量/T-2日成交量>1.3
   ],
   exclude: {
     kcb: true,
     cyb: true,
     bjs: true,
     st: true,
-    delist: true
-  }
-}
+    delist: true,
+  },
+};
 
 /**
  * 情绪周期策略
@@ -87,7 +89,8 @@ export const breakAndRecoverStrategy: StrategyTemplate = {
 export const emotionCycleStrategy: StrategyTemplate = {
   id: 'emotion_cycle',
   name: '情绪周期',
-  description: '捕捉情绪周期中的上涨股票，适合情绪追涨策略。要求连续上涨，成交量放大，T日涨停。',
+  description:
+    '捕捉情绪周期中的上涨股票，适合情绪追涨策略。要求连续上涨，成交量放大，T日涨停。',
   timeRange: 90,
   conditions: [
     { type: 'limit_up', date1: -3 }, // T-3日涨停
@@ -95,16 +98,16 @@ export const emotionCycleStrategy: StrategyTemplate = {
     { type: 'pct_change_gt', date1: -1, value: 0 }, // T-1日涨幅>0
     { type: 'limit_up', date1: 0 }, // T日涨停
     { type: 'volume_ratio', date1: -1, date2: -3, ratio: 1.2 }, // T-1日成交量/T-3日成交量>1.2
-    { type: 'volume_ratio', date1: 0, date2: -3, ratio: 1.5 } // T日成交量/T-3日成交量>1.5
+    { type: 'volume_ratio', date1: 0, date2: -3, ratio: 1.5 }, // T日成交量/T-3日成交量>1.5
   ],
   exclude: {
     kcb: true,
     cyb: true,
     bjs: true,
     st: true,
-    delist: true
-  }
-}
+    delist: true,
+  },
+};
 
 /**
  * 三连板策略
@@ -124,16 +127,45 @@ export const threeLimitUpStrategy: StrategyTemplate = {
     { type: 'limit_up', date1: -1 }, // T-1日涨停
     { type: 'limit_up', date1: 0 }, // T日涨停
     { type: 'volume_ratio', date1: -1, date2: -2, ratio: 1.1 }, // T-1日成交量/T-2日成交量>1.1
-    { type: 'volume_ratio', date1: 0, date2: -2, ratio: 1.2 } // T日成交量/T-2日成交量>1.2
+    { type: 'volume_ratio', date1: 0, date2: -2, ratio: 1.2 }, // T日成交量/T-2日成交量>1.2
   ],
   exclude: {
     kcb: true,
     cyb: true,
     bjs: true,
     st: true,
-    delist: true
-  }
-}
+    delist: true,
+  },
+};
+
+/**
+ * 摸板首板策略
+ * 特征：
+ * 1. T日最高价触及涨停价，但收盘未涨停（摸板未封）
+ * 2. T-1日涨幅<9.8%（前一日不是涨停）
+ * 3. 近30个交易日内出现过三连板
+ * 4. 近10个交易日内至少有1天涨停
+ */
+export const touchLimitNotCloseWithThreeLimitStrategy: StrategyTemplate = {
+  id: 'touch_limit_not_close_with_three_limit',
+  name: '摸板首板',
+  description:
+    'T日最高价摸到涨停价但收盘未涨停，T-1日非涨停，且近30个交易日内走出过三连板、近10个交易日内有涨停，用于捕捉强势股的摸板首板机会。',
+  timeRange: 90,
+  conditions: [
+    { type: 'touch_limit_not_close', date1: 0 }, // T日最高价是涨停价，T日未涨停
+    { type: 'pct_change_lt', date1: -1, value: 9.8 }, // T-1日涨幅<9.8%
+    { type: 'three_limit_up', date1: -1, days: 30 }, // 近30个交易日内三连板
+    { type: 'recent_limit_up', date1: -1, days: 10 }, // 近10个交易日内有涨停
+  ],
+  exclude: {
+    kcb: true,
+    cyb: true,
+    bjs: true,
+    st: true,
+    delist: true,
+  },
+};
 
 /**
  * 月内三连板 + 首板涨停策略
@@ -144,22 +176,23 @@ export const threeLimitUpStrategy: StrategyTemplate = {
 export const monthThreeLimitUpWithFirstBoardStrategy: StrategyTemplate = {
   id: 'month_three_limit_up_first_board',
   name: '月内三连板+首板涨停',
-  description: 'T日前一个月内出现过三连板，且T日为首板涨停（T日涨停且T-1日非涨停）。',
+  description:
+    'T日前一个月内出现过三连板，且T日为首板涨停（T日涨停且T-1日非涨停）。',
   timeRange: 90,
   conditions: [
     { type: 'limit_up', date1: 0 }, // T日涨停（首板）
     { type: 'pct_change_lt', date1: -1, value: 9.8 }, // T-1日非涨停（涨幅<9.8%）
     { type: 'three_limit_up', date1: -1, days: 30 }, // 从T-1日往前30个交易日内出现三连板
-    { type: 'recent_limit_up', date1: -1, days: 10 } // 从T-1日往前10个交易日内至少有1天涨停
+    { type: 'recent_limit_up', date1: -1, days: 10 }, // 从T-1日往前10个交易日内至少有1天涨停
   ],
   exclude: {
     kcb: true,
     cyb: true,
     bjs: true,
     st: true,
-    delist: true
-  }
-}
+    delist: true,
+  },
+};
 
 /**
  * 均线上穿策略
@@ -172,22 +205,23 @@ export const monthThreeLimitUpWithFirstBoardStrategy: StrategyTemplate = {
 export const maCrossUpStrategy: StrategyTemplate = {
   id: 'ma_cross_up',
   name: '均线上穿',
-  description: '捕捉涨停后均线上穿的股票，结合技术面确认。要求T-1日涨停，T日5日均线上穿10日均线。',
+  description:
+    '捕捉涨停后均线上穿的股票，结合技术面确认。要求T-1日涨停，T日5日均线上穿10日均线。',
   timeRange: 90,
   conditions: [
     { type: 'limit_up', date1: -1 }, // T-1日涨停
     { type: 'ma_cross_up', date1: 0, shortPeriod: 5, longPeriod: 10 }, // T日5日均线上穿10日均线
     { type: 'pct_change_gt', date1: 0, value: 0 }, // T日涨幅>0
-    { type: 'volume_ratio', date1: 0, date2: -1, ratio: 1.1 } // T日成交量/T-1日成交量>1.1
+    { type: 'volume_ratio', date1: 0, date2: -1, ratio: 1.1 }, // T日成交量/T-1日成交量>1.1
   ],
   exclude: {
     kcb: true,
     cyb: true,
     bjs: true,
     st: true,
-    delist: true
-  }
-}
+    delist: true,
+  },
+};
 
 /**
  * 二次筑底突破策略（双底/W底）
@@ -196,7 +230,8 @@ export const maCrossUpStrategy: StrategyTemplate = {
 export const bottomingBreakoutStrategy: StrategyTemplate = {
   id: 'bottoming_breakout',
   name: '筑底突破',
-  description: '捕捉双底形态突破买点。形态：前面涨一波→回调形成低点→涨一小波→再回调形成二次筑底→放量上涨那天符合买点。',
+  description:
+    '捕捉双底形态突破买点。形态：前面涨一波→回调形成低点→涨一小波→再回调形成二次筑底→放量上涨那天符合买点。',
   timeRange: 90,
   conditions: [{ type: 'bottoming_breakout' }],
   exclude: {
@@ -204,18 +239,19 @@ export const bottomingBreakoutStrategy: StrategyTemplate = {
     cyb: true,
     bjs: true,
     st: true,
-    delist: true
-  }
-}
+    delist: true,
+  },
+};
 
 // 所有策略模板（所有战法置顶）
 export const allStrategyTemplates: StrategyTemplate[] = [
   // 所有战法策略（置顶）
-  dragonHeadStrategy,        // 龙头战法
-  breakAndRecoverStrategy,   // 断板反包
-  maCrossUpStrategy,         // 均线上穿
-  emotionCycleStrategy,      // 情绪周期
-  threeLimitUpStrategy,      // 三连板
+  dragonHeadStrategy, // 龙头战法
+  breakAndRecoverStrategy, // 断板反包
+  maCrossUpStrategy, // 均线上穿
+  emotionCycleStrategy, // 情绪周期
+  threeLimitUpStrategy, // 三连板
   monthThreeLimitUpWithFirstBoardStrategy, // 月内三连板+首板涨停
-  bottomingBreakoutStrategy  // 筑底突破
-]
+  bottomingBreakoutStrategy, // 筑底突破
+  touchLimitNotCloseWithThreeLimitStrategy, // 摸板首板
+];

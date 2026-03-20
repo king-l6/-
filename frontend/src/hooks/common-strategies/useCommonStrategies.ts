@@ -37,6 +37,8 @@ export function useCommonStrategies() {
         return `${dateStr}${condition.shortPeriod ?? 5}日均线上穿${condition.longPeriod ?? 10}日均线`
       case 'bottoming_breakout':
         return '涨一波→回调低点1→涨一小波→二次筑底→放量上涨=买点'
+      case 'touch_limit_not_close':
+        return `${dateStr}最高价触及涨停但收盘未涨停`
       default:
         return `${dateStr}未知条件`
     }

@@ -637,6 +637,65 @@ class StrategyEngine:
                 
                 return False
 
+            elif cond_type == 'touch_limit_not_close':
+                """
+                摸板未封条件：
+                - 目标日（date1 偏移后的交易日）最高价相对前一交易日收盘涨幅 >= 9.8%
+                - 但当日收盘涨跌幅 < 9.8%（即当日未收盘涨停）
+
+                注意：这里的 9.8% 与涨停判断保持一致。
+                """
+                # 1. 找到目标交易日（通常是 T 日：date1=0）
+                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df)
+                if date1 is None:
+                    return False
+
+                target_str = date1.strftime('%Y-%m-%d')
+                if target_str not in date_map:
+                    return False
+
+                # 2. 准备所需字段
+                row_t = date_map[target_str]
+                try:
+                    pct_change_t = float(row_t.get('涨跌幅') or 0)
+                    high_t = float(row_t.get('最高') or 0)
+                except Exception:
+                    return False
+
+                # 如果缺少关键列，直接认为不满足
+                if high_t <= 0:
+                    return False
+
+                # 3. 找到 T 日在交易日序列中的位置，获取前一交易日收盘价
+                dates_sorted = sorted([pd.to_datetime(d).to_pydatetime() for d in df['日期'].unique()])
+                try:
+                    idx = dates_sorted.index(date1)
+                except ValueError:
+                    return False
+
+                if idx == 0:
+                    # 没有前一交易日，无法判断是否摸板
+                    return False
+
+                prev_date = dates_sorted[idx - 1]
+                prev_str = prev_date.strftime('%Y-%m-%d')
+                if prev_str not in date_map:
+                    return False
+
+                try:
+                    prev_close = float(date_map[prev_str].get('收盘') or 0)
+                except Exception:
+                    return False
+
+                if prev_close <= 0:
+                    return False
+
+                # 4. 计算最高价相对前收盘的涨幅
+                high_pct = (high_t - prev_close) / prev_close * 100
+
+                # 5. 满足：最高价达到或超过“涨停”阈值，但收盘未涨停
+                return high_pct >= 9.8 and pct_change_t < 9.8
+
             elif cond_type == 'recent_limit_up':
                 # 近期有涨停：从指定起始日期往前检查若干个交易日内，是否至少有一天涨停
                 # date1: 起始日期偏移（默认-1，即从T-1日开始往前数）
@@ -809,6 +868,44 @@ class StrategyEngine:
         except Exception:
             return s[:10] if len(s) >= 10 else s
     
+    def _is_month_three_limit_first_board(self, conditions):
+        """判断条件组合是否为「月内三连板+首板涨停」策略。
+
+        该策略的特征条件：
+        - T 日涨停: {'type': 'limit_up', 'date1': 0}
+        - T-1 日非涨停: {'type': 'pct_change_lt', 'date1': -1, 'value': 9.8}
+        - 近 30 个交易日内三连板: {'type': 'three_limit_up', 'date1': -1, 'days': 30}
+        - 近 10 个交易日内有涨停: {'type': 'recent_limit_up', 'date1': -1, 'days': 10}
+        """
+        if not conditions:
+            return False
+        try:
+            has_limit_up_t = any(
+                c.get("type") == "limit_up" and c.get("date1", 0) == 0
+                for c in conditions
+            )
+            has_t1_not_limit = any(
+                c.get("type") == "pct_change_lt"
+                and c.get("date1", 0) == -1
+                and float(c.get("value", 9.8)) == 9.8
+                for c in conditions
+            )
+            has_three_limit = any(
+                c.get("type") == "three_limit_up"
+                and c.get("date1", 0) == -1
+                and int(c.get("days", 30)) == 30
+                for c in conditions
+            )
+            has_recent_limit = any(
+                c.get("type") == "recent_limit_up"
+                and c.get("date1", 0) == -1
+                and int(c.get("days", 10)) == 10
+                for c in conditions
+            )
+            return has_limit_up_t and has_t1_not_limit and has_three_limit and has_recent_limit
+        except Exception:
+            return False
+
     def _get_stock_detail_from_check(self, code, name, conditions, check_result):
         """从check结果获取股票详细信息（避免重复获取数据）"""
         try:
@@ -863,6 +960,30 @@ class StrategyEngine:
                             detail['day1_change_pct'] = round(day1_change_pct, 2)
             except (ValueError, KeyError, IndexError):
                 pass
+
+            # 额外标记：月内三连板+首板策略中，T 日最高价触及涨停价但收盘未涨停
+            try:
+                if self._is_month_three_limit_first_board(conditions):
+                    base_idx = dates.index(base_date)
+                    if base_idx >= 1 and base_date_str in date_map:
+                        prev_date = dates[base_idx - 1]
+                        prev_str = prev_date.strftime('%Y-%m-%d')
+                        if prev_str in date_map:
+                            prev_close = float(date_map[prev_str]['收盘'])
+                            row_t = date_map[base_date_str]
+                            high_t = float(row_t.get('最高') or 0)
+                            pct_change_t = float(row_t.get('涨跌幅') or 0)
+                            # 计算最高价相对前收盘的涨幅
+                            touch_limit_not_close = False
+                            if prev_close > 0 and high_t > 0:
+                                high_pct = (high_t - prev_close) / prev_close * 100
+                                # 最高价达到或超过 9.8%，但收盘未涨停（<9.8%）
+                                if high_pct >= 9.8 and pct_change_t < 9.8:
+                                    touch_limit_not_close = True
+                            detail['touch_limit_not_close'] = touch_limit_not_close
+            except Exception:
+                # 标记失败不影响主流程
+                pass
             
             # 计算第二天和第三天的振幅和涨跌幅
             try:
@@ -915,6 +1036,6 @@ class StrategyEngine:
                 pass
             
             return detail
-        except Exception as e:
+        except Exception:
             return None
     

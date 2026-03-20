@@ -374,8 +374,14 @@ class DataFetcher:
         except Exception:
             return None
 
-    def update_caches_with_today_data(self, max_workers=100):
-        """拉取今天（最近交易日）的数据，合并到对应的 json 缓存文件中"""
+    def update_caches_with_today_data(self, max_workers=100, task_index=None, task_count=None):
+        """拉取今天（最近交易日）的数据，合并到对应的 json 缓存文件中
+        
+        Args:
+            max_workers: 线程池最大并发数
+            task_index: 多任务分片的当前任务下标（从 0 开始），默认为 None 表示不分片
+            task_count: 多任务分片的总任务数（>1 时生效），默认为 None 表示不分片
+        """
         from concurrent.futures import ThreadPoolExecutor, as_completed
 
         # 先清理重复缓存，避免更新时出现重复数据
@@ -430,9 +436,33 @@ class DataFetcher:
 
         print(f'[INFO] 扫描 {len(files)} 个缓存，其中 {len(by_code)} 个需补齐至 {last_trade}')
 
-        # 检查是否有股票没有缓存文件，需要创建新缓存
+        # 获取股票列表，并根据 task_index / task_count 进行分片（若启用）
         all_stocks = self.get_stock_list()
+        selected_codes = None
+        if task_index is not None and task_count is not None and task_count > 1:
+            try:
+                stocks_sorted = sorted(all_stocks, key=lambda s: s['code'])
+                n = len(stocks_sorted)
+                if n == 0:
+                    selected_codes = set()
+                else:
+                    size = (n + task_count - 1) // task_count  # 向上取整分片大小
+                    start = task_index * size
+                    end = min(n, (task_index + 1) * size)
+                    if start >= n:
+                        selected_codes = set()
+                    else:
+                        selected_codes = {s['code'] for s in stocks_sorted[start:end]}
+                print(f'[INFO] 多任务分片模式：task_index={task_index}, task_count={task_count}, 本任务负责 {len(selected_codes)} 只股票')
+            except Exception as e:
+                print(f'[WARNING] 计算多任务分片范围失败，将退回为全量模式: {e}')
+                selected_codes = None
+        else:
+            print('[INFO] 未启用多任务分片（处理全部股票）')
+
         all_codes = {s['code'] for s in all_stocks}
+        if selected_codes is not None:
+            all_codes = all_codes & selected_codes
         cached_codes = set(by_code.keys())
         missing_codes = all_codes - cached_codes
         
@@ -478,8 +508,14 @@ class DataFetcher:
                     if start_str < existing_start:
                         by_code[code] = (start_str, end_str, fp)
 
+        # 若启用了分片，只保留当前任务负责的股票代码
+        if selected_codes is not None:
+            before = len(by_code)
+            by_code = {code: v for code, v in by_code.items() if code in selected_codes}
+            print(f'[INFO] 分片过滤：原待更新 {before} 只股票，本任务负责 {len(by_code)} 只')
+
         if not by_code:
-            print('[INFO] 所有缓存已含最近交易日数据，无需更新')
+            print('[INFO] 所有缓存已含最近交易日数据，或当前分片无待更新股票')
             return
 
         def update_one(code_start_end_path):

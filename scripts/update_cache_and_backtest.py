@@ -18,6 +18,16 @@
 
   # 指定并发数
   python scripts/update_cache_and_backtest.py --workers 100
+
+  # 多任务分片：将全部股票均匀切成 N 份，本进程只处理其中一份（适合开多个进程并行补缓存）
+  # 例如：开启 4 个终端，分别执行下面 4 条命令（注意 task-index 从 0 开始）：
+  #  终端1: python scripts/update_cache_and_backtest.py --no-backtest --task-index 0 --task-count 4
+  #  ...
+  # 所有分片都完成后，再单独跑一遍不分片的回测命令。
+  #
+  # 一条命令自动分片（推荐）：补缓存与增量回测使用同一分片数，只改 --auto-shard-count 即可
+  #  仅补缓存（4 分片）：     python scripts/update_cache_and_backtest.py --no-backtest --auto-shard-count 4
+  #  补缓存 + 增量回测（均为 4 分片）： python scripts/update_cache_and_backtest.py --incremental --auto-shard-count 4
 """
 
 import os
@@ -42,15 +52,90 @@ def main():
     parser.add_argument('--incremental', action='store_true',
                         help='回测用增量：先看六策略结果最后日期，只回测该日期之后到今天的 T 日并追加（不跑全量）')
     parser.add_argument('--workers', type=int, default=100, help='拉取数据时的并发数（默认 100）')
+    parser.add_argument('--task-index', type=int, default=None,
+                        help='多任务分片的当前任务下标（从 0 开始）；与 --task-count 搭配使用')
+    parser.add_argument('--task-count', type=int, default=None,
+                        help='多任务分片的总任务数（>1 生效）；与 --task-index 搭配使用')
+    parser.add_argument('--auto-shard-count', type=int, default=None,
+                        help='自动多进程分片数量（>=2）：补缓存与增量回测均用该分片数，只改一次即可')
     parser.add_argument('--config', default='common_strategies.json', help='策略配置文件路径')
     args = parser.parse_args()
 
     from data_fetcher import DataFetcher
 
+    # 自动分片模式：父进程只负责起子进程，不直接补缓存
+    if args.auto_shard_count is not None:
+        if args.auto_shard_count <= 1:
+            parser.error('--auto-shard-count 必须大于 1')
+        if args.task_index is not None or args.task_count is not None:
+            parser.error('--auto-shard-count 不能与 --task-index / --task-count 同时使用')
+
+        script = os.path.join(PROJECT_ROOT, 'scripts', 'update_cache_and_backtest.py')
+        print()
+        print('=' * 60)
+        print(f'步骤 1：补齐缓存（自动 {args.auto_shard_count} 分片并行）')
+        print('=' * 60)
+        procs = []
+        for idx in range(args.auto_shard_count):
+            cmd = [
+                sys.executable, script,
+                '--no-backtest',
+                '--task-index', str(idx),
+                '--task-count', str(args.auto_shard_count),
+                '--workers', str(args.workers),
+                '--config', args.config,
+            ]
+            print(f'[INFO] 启动分片 {idx + 1}/{args.auto_shard_count}: task-index={idx}')
+            procs.append(subprocess.Popen(cmd))
+
+        fail = False
+        for idx, p in enumerate(procs):
+            code = p.wait()
+            if code != 0:
+                print(f'[ERROR] 分片 task-index={idx} 退出码: {code}')
+                fail = True
+        if fail:
+            sys.exit(1)
+        print('[INFO] 所有分片补缓存已完成。')
+        print()
+
+        if args.no_backtest:
+            print('[INFO] 已跳过回测（--no-backtest）')
+            return
+        print('=' * 60)
+        if args.incremental:
+            print(f'步骤 2：按结果最后日期增量回测（{args.auto_shard_count} 分片并行，六策略只补 T 日并追加）')
+        else:
+            print('步骤 2：执行常用策略回测（全量）')
+        print('=' * 60)
+        if args.incremental:
+            cmd = [
+                sys.executable, os.path.join(PROJECT_ROOT, 'scripts', 'backtest_append_from_last.py'),
+                '--workers', str(args.workers), '--config', args.config,
+                '--auto-shard-count', str(args.auto_shard_count),
+            ]
+        else:
+            cmd = [sys.executable, 'batch_backtest.py', '--config', args.config]
+        print(f'执行: {" ".join(cmd)}\n')
+        code = subprocess.run(cmd)
+        if code.returncode != 0:
+            sys.exit(code.returncode)
+        print()
+        print(f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] 全部完成')
+        return
+
     print()
     print('=' * 60)
     print('步骤 1：补齐缓存差值数据')
     print('=' * 60)
+
+    # 参数合法性检查（分片参数）
+    if (args.task_index is None) ^ (args.task_count is None):
+        parser.error('使用多任务分片时，必须同时提供 --task-index 与 --task-count，或都不提供')
+    if args.task_count is not None and args.task_count <= 1:
+        parser.error('--task-count 必须大于 1')
+    if args.task_index is not None and args.task_index < 0:
+        parser.error('--task-index 不能为负数')
 
     fetcher = DataFetcher()
     cache_latest = fetcher.get_local_cache_latest_date()
@@ -61,9 +146,20 @@ def main():
 
     fetcher.remove_duplicate_cache()
     fetcher.get_stock_list()
-    fetcher.update_caches_with_today_data(max_workers=args.workers)
+    fetcher.update_caches_with_today_data(
+        max_workers=args.workers,
+        task_index=args.task_index,
+        task_count=args.task_count,
+    )
     print('[INFO] 差值数据检查与写入已完成（仅对确实缺数据的股票进行了更新）。')
     print()
+
+    # 分片模式下默认不在每个分片里跑回测，避免重复计算
+    if args.task_index is not None and args.task_count is not None:
+        if not args.no_backtest and not args.incremental:
+            print('[INFO] 检测到多任务分片参数，当前分片仅负责补缓存，已自动跳过回测。')
+        print('[INFO] 多任务分片模式：建议在所有分片补缓存完成后，再单独跑一次回测脚本。')
+        return
 
     if args.no_backtest:
         print('[INFO] 已跳过回测（--no-backtest）')

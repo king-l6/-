@@ -377,35 +377,36 @@ onMounted(() => {
 </script>
 
 <style scoped>
-:deep(.ant-table-small) {
+::deep(.ant-table-small) {
   font-size: 12px;
 }
 
-:deep(.ant-table-small .ant-table-thead > tr > th) {
+::deep(.ant-table-small .ant-table-thead > tr > th) {
   padding: 8px 4px;
   font-size: 12px;
   font-weight: 600;
 }
 
-:deep(.ant-table-small .ant-table-tbody > tr > td) {
+::deep(.ant-table-small .ant-table-tbody > tr > td) {
   padding: 4px;
   font-size: 12px;
 }
 
-:deep(.bg-green-50) {
+::deep(.bg-green-50) {
   background-color: #f0fdf4;
 }
 
-:deep(.bg-red-50) {
+::deep(.bg-red-50) {
   background-color: #fef2f2;
 }
 
 /* 涨跌幅颜色样式 */
-:deep(.text-red-600) {
+::deep(.text-red-600) {
   color: #dc2626 !important;
 }
 
-:deep(.text-green-600) {
+::deep(.text-green-600) {
   color: #16a34a !important;
 }
 </style>
+
