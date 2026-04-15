@@ -39,6 +39,18 @@ export function useCommonStrategies() {
         return '涨一波→回调低点1→涨一小波→二次筑底→放量上涨=买点'
       case 'touch_limit_not_close':
         return `${dateStr}最高价触及涨停但收盘未涨停`
+      case 'recent_n_day_pct_change_lt':
+        return `近${condition.days ?? 5}日累计涨跌幅<=${condition.value ?? -12}%`
+      case 'close_below_ma_deviation':
+        return `${dateStr}收盘低于${condition.period ?? 20}日均线${((condition.deviation ?? 0.06) * 100).toFixed(1)}%`
+      case 'rsi_lt':
+        return `${dateStr}RSI(${condition.period ?? 6})<${condition.value ?? 25}`
+      case 'stop_fall_signal':
+        return `${dateStr}止跌迹象（长下影或量能>${condition.volumeDays ?? 5}日均量x${condition.volumeRatio ?? 1.3}）`
+      case 'listed_days_gte':
+        return `上市天数>=${condition.days ?? 120}日`
+      case 'avg_amount_gte':
+        return `${dateStr}近${condition.days ?? 20}日日均成交额>=${((condition.value ?? 200000000) / 100000000).toFixed(1)}亿`
       default:
         return `${dateStr}未知条件`
     }

@@ -42,7 +42,7 @@ fi
 
 # 安装Python依赖
 echo "安装Python依赖包..."
-pip3 install -r requirements.txt -q
+python -m pip install -r requirements.txt -q
 
 # 构建前端
 echo ""
@@ -68,4 +68,4 @@ echo "访问地址: http://localhost:8086"
 echo "按 Ctrl+C 停止服务"
 echo ""
 
-python3 app.py
+python app.py

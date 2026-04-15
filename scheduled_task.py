@@ -10,6 +10,13 @@ import os
 os.environ['NO_PROXY'] = '*'
 os.environ['no_proxy'] = '*'
 
+# 尝试从.env文件加载环境变量
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # 如果没有安装python-dotenv，跳过
+
 import schedule
 import time
 import subprocess
@@ -18,10 +25,22 @@ import json
 from datetime import datetime
 from urllib import request, error
 
-WECHAT_WEBHOOK = "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=61b004af-549d-48bb-bf9d-af9ca210f832"
+# 从环境变量读取企业微信 Webhook URL
+WECHAT_WEBHOOK = os.getenv('WECHAT_WEBHOOK_URL', '')
 
-# 六个战法名称（与 backtest_append_from_last 保持一致）
-STRATEGY_NAMES = ['龙头战法', '断板反包', '均线上穿', '情绪周期', '三连板', '筑底突破']
+# 从配置文件动态加载策略名称
+def _load_strategy_names():
+    """从 common_strategies.json 加载策略名称列表"""
+    config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'common_strategies.json')
+    try:
+        with open(config_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        return [s['name'] for s in data.get('strategies', [])]
+    except Exception:
+        # 如果加载失败，返回默认列表
+        return ['龙头战法', '断板反包', '均线上穿', '情绪周期', '三连板', '筑底突破']
+
+STRATEGY_NAMES = _load_strategy_names()
 
 
 def _detect_latest_match_date(script_dir, strategy_name):

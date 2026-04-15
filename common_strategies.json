@@ -126,6 +126,28 @@
       }
     },
     {
+      "name": "超跌反弹+量能确认",
+      "description": "近5日急跌后，收盘显著偏离20日线，且出现止跌迹象（长下影或放量）并处于RSI超卖区，适合T+1短线反抽。",
+      "strategy": {
+        "conditions": [
+          { "type": "listed_days_gte", "days": 120 },
+          { "type": "avg_amount_gte", "date1": 0, "days": 20, "value": 200000000 },
+          { "type": "recent_n_day_pct_change_lt", "date1": 0, "days": 5, "value": -12 },
+          { "type": "close_below_ma_deviation", "date1": 0, "period": 20, "deviation": 0.06 },
+          { "type": "stop_fall_signal", "date1": 0, "lowerShadowRatio": 0.4, "volumeDays": 5, "volumeRatio": 1.3 },
+          { "type": "rsi_lt", "date1": 0, "period": 6, "value": 25 }
+        ],
+        "exclude": {
+          "kcb": true,
+          "cyb": true,
+          "bjs": true,
+          "st": true,
+          "delist": true
+        },
+        "timeRange": 90
+      }
+    },
+    {
       "name": "筑底突破",
       "description": "捕捉双底形态突破买点。形态：涨一波→回调低点1→涨一小波→二次筑底→放量上涨=买点。",
       "strategy": {
@@ -151,6 +173,25 @@
           { "type": "pct_change_lt", "date1": -1, "value": 9.8 },
           { "type": "three_limit_up", "date1": -1, "days": 30 },
           { "type": "recent_limit_up", "date1": -1, "days": 10 }
+        ],
+        "exclude": {
+          "kcb": true,
+          "cyb": true,
+          "bjs": true,
+          "st": true,
+          "delist": true
+        },
+        "timeRange": 90
+      }
+    },
+    {
+      "name": "打板二版",
+      "description": "上个交易日首板涨停，今天最高价触及涨停价。T-1日首板涨停（T-2日非涨停），T日最高价触及涨停价，观察次日涨跌幅。",
+      "strategy": {
+        "conditions": [
+          { "type": "limit_up", "date1": -1 },
+          { "type": "pct_change_lt", "date1": -2, "value": 9.8 },
+          { "type": "high_is_limit_up", "date1": 0 }
         ],
         "exclude": {
           "kcb": true,

@@ -29,6 +29,16 @@ class DataFetcher:
         self._bs_logged_in = False
         self._bs_lock = Lock()  # Baostock 非线程安全
 
+        # 缓存文件索引机制（性能优化）
+        self._cache_index = None  # {code: [(start, end, path), ...]}
+        self._cache_index_time = None  # 索引构建时间
+        self._cache_index_ttl = 300  # 索引有效期（秒）
+
+        # 交易日缓存机制（性能优化）
+        self._trading_days_cache = {}  # {(start, end): [dates]}
+        self._trading_days_full_cache = None  # 近N年完整交易日历
+        self._trading_days_cache_time = None
+
     def _ensure_login(self):
         if not self._bs_logged_in:
             lg = bs.login()
@@ -213,11 +223,57 @@ class DataFetcher:
             pass
         return last_trade
 
-    def get_trading_days_between(self, start_date, end_date):
-        """获取 start_date 到 end_date 之间的交易日列表（含首尾），返回 ['YYYY-MM-DD', ...]。"""
+    # ==================== 缓存文件索引机制（性能优化）====================
+
+    def _build_cache_index(self):
+        """构建或更新缓存索引，返回 {code: [(start, end, path), ...]}"""
+        now = time.time()
+        # 如果索引有效，直接返回
+        if self._cache_index is not None and self._cache_index_time is not None:
+            if now - self._cache_index_time< self._cache_index_ttl:
+                return self._cache_index
+
+        # 扫描缓存目录构建索引
+        pattern = os.path.join(self.stock_data_cache_dir, '*.json')
+        files = glob.glob(pattern)
+
+        index = {}
+        for fp in files:
+            name = os.path.basename(fp)
+            if '_' not in name or not name.endswith('.json'):
+                continue
+            parts = name[:-5].split('_')
+            if len(parts) != 3:
+                continue
+            code, start_str, end_str = parts
+            if len(code) != 6 or len(start_str) != 8 or len(end_str) != 8:
+                continue
+            index.setdefault(code, []).append((start_str, end_str, fp))
+
+        self._cache_index = index
+        self._cache_index_time = now
+        return index
+
+    def get_cache_files_for_code(self, code):
+        """获取指定股票的缓存文件列表 [(start, end, path), ...]"""
+        index = self._build_cache_index()
+        return index.get(code, [])
+
+    def get_all_cache_codes(self):
+        """获取所有已缓存的股票代码集合"""
+        index = self._build_cache_index()
+        return set(index.keys())
+
+    def invalidate_cache_index(self):
+        """使缓存索引失效（在新增/删除缓存文件后调用）"""
+        self._cache_index = None
+        self._cache_index_time = None
+
+    # ==================== 交易日缓存机制（性能优化）====================
+
+    def _fetch_trading_days_from_api(self, start_s, end_s):
+        """从 Baostock API 拉取交易日列表"""
         try:
-            start_s = start_date[:10] if isinstance(start_date, str) else start_date.strftime('%Y-%m-%d')
-            end_s = end_date[:10] if isinstance(end_date, str) else end_date.strftime('%Y-%m-%d')
             with self._bs_lock:
                 self._ensure_login()
                 rs = bs.query_history_k_data_plus(
@@ -232,12 +288,62 @@ class DataFetcher:
                 row = rs.get_row_data()
                 if row and row[0]:
                     d = row[0].strip()
-                    # 统一为 YYYY-MM-DD（Baostock 一般为该格式，少数情况为 YYYYMMDD）
                     if len(d) == 8 and d.isdigit():
                         d = f"{d[:4]}-{d[4:6]}-{d[6:8]}"
                     if len(d) >= 10 and d[4] == '-' and d[7] == '-':
                         out.append(d[:10])
             return out
+        except Exception:
+            return []
+
+    def preload_trading_days_calendar(self, years=3):
+        """预加载近N年的交易日历到内存"""
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=years * 366)
+        start_s = start_date.strftime('%Y-%m-%d')
+        end_s = end_date.strftime('%Y-%m-%d')
+
+        # 检查是否已有缓存
+        if self._trading_days_full_cache is not None:
+            cache_age = (datetime.now() - self._trading_days_cache_time).total_seconds() if self._trading_days_cache_time else float('inf')
+            if cache_age< 86400:  # 1天内有效
+                return self._trading_days_full_cache
+
+        print(f'[INFO] 预加载交易日历: {start_s} 至 {end_s}')
+        result = self._fetch_trading_days_from_api(start_s, end_s)
+        if result:
+            self._trading_days_full_cache = result
+            self._trading_days_cache_time = datetime.now()
+            print(f'[INFO] 交易日历已缓存，共 {len(result)} 个交易日')
+        return result
+
+    def get_trading_days_between(self, start_date, end_date):
+        """获取 start_date 到 end_date 之间的交易日列表（含首尾），返回 ['YYYY-MM-DD', ...]。
+
+        优化：优先使用内存缓存，避免重复网络请求。
+        """
+        try:
+            start_s = start_date[:10] if isinstance(start_date, str) else start_date.strftime('%Y-%m-%d')
+            end_s = end_date[:10] if isinstance(end_date, str) else end_date.strftime('%Y-%m-%d')
+
+            # 1. 检查内存缓存
+            cache_key = (start_s, end_s)
+            if cache_key in self._trading_days_cache:
+                return self._trading_days_cache[cache_key]
+
+            # 2. 尝试从完整日历中截取
+            if self._trading_days_full_cache is not None:
+                full = self._trading_days_full_cache
+                if full and full[0] <= start_s <= full[-1] and full[0] <= end_s <= full[-1]:
+                    result = [d for d in full if start_s <= d <= end_s]
+                    self._trading_days_cache[cache_key] = result
+                    return result
+
+            # 3. 调用 API 获取
+            result = self._fetch_trading_days_from_api(start_s, end_s)
+            if result:
+                self._trading_days_cache[cache_key] = result
+            return result
         except Exception:
             return []
 

@@ -95,14 +95,35 @@ class StrategyEngine:
         print(f'获取到 {len(stocks)} 只股票')
         
         # 计算回测时间范围：timeRange 为交易日数，不含周末
-        # 约 1 交易日 ≈ 1.4 日历日，多取一些确保覆盖
+        # 若策略依赖较长历史（如上市天数/长周期指标），需要拉取更长数据窗口
+        max_backward_offset = 0
+        for c in conditions:
+            date1 = c.get('date1', 0)
+            date2 = c.get('date2', 0)
+            if isinstance(date1, (int, float)) and date1 < 0:
+                max_backward_offset = max(max_backward_offset, abs(int(date1)))
+            if isinstance(date2, (int, float)) and date2 < 0:
+                max_backward_offset = max(max_backward_offset, abs(int(date2)))
+            cond_type = c.get('type')
+            if cond_type in ('recent_n_day_pct_change_lt', 'avg_amount_gte'):
+                max_backward_offset = max(max_backward_offset, int(c.get('days', 5)) - 1)
+            elif cond_type == 'close_below_ma_deviation':
+                max_backward_offset = max(max_backward_offset, int(c.get('period', 20)) - 1)
+            elif cond_type == 'rsi_lt':
+                max_backward_offset = max(max_backward_offset, int(c.get('period', 6)) + 1)
+            elif cond_type == 'stop_fall_signal':
+                max_backward_offset = max(max_backward_offset, int(c.get('volumeDays', 5)) - 1)
+            elif cond_type == 'listed_days_gte':
+                max_backward_offset = max(max_backward_offset, int(c.get('days', 120)) - 1)
+
         end_date = datetime.now()
         if only_t_date:
             try:
                 end_date = datetime.strptime(only_t_date[:10], '%Y-%m-%d')
             except Exception:
                 pass
-        calendar_days = int(time_range * 1.6) + 10  # 确保覆盖 timeRange 个交易日
+        required_trading_days = time_range + max_backward_offset + 1
+        calendar_days = int(required_trading_days * 1.6) + 10  # 覆盖 timeRange + 历史依赖窗口
         start_date = end_date - timedelta(days=calendar_days)
         
         results = []
@@ -340,10 +361,19 @@ class StrategyEngine:
                     max_backward_offset = max(max_backward_offset, abs(date1))
                 if date2 < 0:
                     max_backward_offset = max(max_backward_offset, abs(date2))
-            min_required_days = max_backward_offset + 1
+                cond_type = c.get('type')
+                if cond_type in ('recent_n_day_pct_change_lt', 'avg_amount_gte'):
+                    max_backward_offset = max(max_backward_offset, int(c.get('days', 5)) - 1)
+                elif cond_type == 'close_below_ma_deviation':
+                    max_backward_offset = max(max_backward_offset, int(c.get('period', 20)) - 1)
+                elif cond_type == 'rsi_lt':
+                    max_backward_offset = max(max_backward_offset, int(c.get('period', 6)) + 1)
+                elif cond_type == 'stop_fall_signal':
+                    max_backward_offset = max(max_backward_offset, int(c.get('volumeDays', 5)) - 1)
+            min_required_idx = max_backward_offset
             
             # 只检查最近 time_range 个交易日作为 T（不含周末，df 每行即一交易日）
-            min_i = max(min_required_days, len(df) - time_range)
+            min_i = max(min_required_idx, len(df) - time_range)
             if only_t_date:
                 only_d = only_t_date[:10] if isinstance(only_t_date, str) else only_t_date.strftime('%Y-%m-%d')
                 for i in range(len(df) - 1, min_i - 1, -1):
@@ -368,7 +398,9 @@ class StrategyEngine:
         try:
             if df is None:
                 df = self.data_fetcher.get_stock_data(
-                    code, start_date.strftime('%Y%m%d'), end_date.strftime('%Y%m%d')
+                    code,
+                    start_date.strftime('%Y%m%d'),
+                    end_date.strftime('%Y%m%d')
                 )
             if df is None or df.empty or len(df) < 40:
                 return False
@@ -696,6 +728,64 @@ class StrategyEngine:
                 # 5. 满足：最高价达到或超过“涨停”阈值，但收盘未涨停
                 return high_pct >= 9.8 and pct_change_t < 9.8
 
+            elif cond_type == 'high_is_limit_up':
+                """
+                最高价触及涨停价条件：
+                - 目标日（date1 偏移后的交易日）最高价相对前一交易日收盘涨幅 >= 9.8%
+                - 用于识别当日最高价触及涨停价的情况（无论收盘是否涨停）
+
+                注意：这里的 9.8% 与涨停判断保持一致。
+                """
+                # 1. 找到目标交易日
+                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df)
+                if date1 is None:
+                    return False
+
+                target_str = date1.strftime('%Y-%m-%d')
+                if target_str not in date_map:
+                    return False
+
+                # 2. 准备所需字段
+                row_t = date_map[target_str]
+                try:
+                    high_t = float(row_t.get('最高') or 0)
+                except Exception:
+                    return False
+
+                # 如果缺少关键列，直接认为不满足
+                if high_t <= 0:
+                    return False
+
+                # 3. 找到 T 日在交易日序列中的位置，获取前一交易日收盘价
+                dates_sorted = sorted([pd.to_datetime(d).to_pydatetime() for d in df['日期'].unique()])
+                try:
+                    idx = dates_sorted.index(date1)
+                except ValueError:
+                    return False
+
+                if idx == 0:
+                    # 没有前一交易日，无法判断
+                    return False
+
+                prev_date = dates_sorted[idx - 1]
+                prev_str = prev_date.strftime('%Y-%m-%d')
+                if prev_str not in date_map:
+                    return False
+
+                try:
+                    prev_close = float(date_map[prev_str].get('收盘') or 0)
+                except Exception:
+                    return False
+
+                if prev_close <= 0:
+                    return False
+
+                # 4. 计算最高价相对前收盘的涨幅
+                high_pct = (high_t - prev_close) / prev_close * 100
+
+                # 5. 满足：最高价达到或超过涨停阈值
+                return high_pct >= 9.8
+
             elif cond_type == 'recent_limit_up':
                 # 近期有涨停：从指定起始日期往前检查若干个交易日内，是否至少有一天涨停
                 # date1: 起始日期偏移（默认-1，即从T-1日开始往前数）
@@ -781,6 +871,154 @@ class StrategyEngine:
                 
                 # 上穿条件：当前 ma_short > ma_long，且前一日 ma_short <= ma_long
                 return current_ma_short > current_ma_long and prev_ma_short <= prev_ma_long
+
+            elif cond_type == 'recent_n_day_pct_change_lt':
+                # 近 N 个交易日累计涨跌幅 <= value（例如近5日 <= -12%）
+                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df)
+                if date1 is None:
+                    return False
+                days = int(condition.get('days', 5))
+                if days <= 1:
+                    return False
+                dates_sorted = sorted([pd.to_datetime(d).to_pydatetime() for d in df['日期'].unique()])
+                try:
+                    end_idx = dates_sorted.index(date1)
+                except ValueError:
+                    return False
+                start_idx = end_idx - days + 1
+                if start_idx < 0:
+                    return False
+                start_str = dates_sorted[start_idx].strftime('%Y-%m-%d')
+                end_str = dates_sorted[end_idx].strftime('%Y-%m-%d')
+                if start_str not in date_map or end_str not in date_map:
+                    return False
+                start_close = float(date_map[start_str].get('收盘') or 0)
+                end_close = float(date_map[end_str].get('收盘') or 0)
+                if start_close <= 0:
+                    return False
+                pct = (end_close - start_close) / start_close * 100
+                return pct <= float(condition.get('value', -12))
+
+            elif cond_type == 'close_below_ma_deviation':
+                # 收盘价低于 N 日均线一定乖离（默认低于20日线6%）
+                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df)
+                if date1 is None:
+                    return False
+                period = int(condition.get('period', 20))
+                deviation = float(condition.get('deviation', 0.06))
+                if period <= 1:
+                    return False
+                df_sorted = df.sort_values('日期').reset_index(drop=True).copy()
+                df_sorted['ma_tmp'] = df_sorted['收盘'].rolling(window=period, min_periods=period).mean()
+                date1_str = date1.strftime('%Y-%m-%d')
+                row = df_sorted[pd.to_datetime(df_sorted['日期']).dt.strftime('%Y-%m-%d') == date1_str]
+                if row.empty:
+                    return False
+                close_v = float(row.iloc[0]['收盘'])
+                ma_v = float(row.iloc[0]['ma_tmp']) if not pd.isna(row.iloc[0]['ma_tmp']) else 0
+                if ma_v <= 0:
+                    return False
+                return close_v <= ma_v * (1 - deviation)
+
+            elif cond_type == 'rsi_lt':
+                # RSI(period) < value（默认 RSI(6) < 25）
+                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df)
+                if date1 is None:
+                    return False
+                period = int(condition.get('period', 6))
+                threshold = float(condition.get('value', 25))
+                if period <= 1:
+                    return False
+                df_sorted = df.sort_values('日期').reset_index(drop=True).copy()
+                close = pd.to_numeric(df_sorted['收盘'], errors='coerce')
+                delta = close.diff()
+                gain = delta.clip(lower=0).rolling(window=period, min_periods=period).mean()
+                loss = (-delta.clip(upper=0)).rolling(window=period, min_periods=period).mean()
+                rs = gain / loss.replace(0, pd.NA)
+                rsi = 100 - (100 / (1 + rs))
+                df_sorted['rsi_tmp'] = rsi.fillna(100)
+                date1_str = date1.strftime('%Y-%m-%d')
+                row = df_sorted[pd.to_datetime(df_sorted['日期']).dt.strftime('%Y-%m-%d') == date1_str]
+                if row.empty:
+                    return False
+                rsi_v = float(row.iloc[0]['rsi_tmp'])
+                return rsi_v < threshold
+
+            elif cond_type == 'stop_fall_signal':
+                # 止跌迹象：长下影 或 放量（二选一）
+                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df)
+                if date1 is None:
+                    return False
+                date1_str = date1.strftime('%Y-%m-%d')
+                if date1_str not in date_map:
+                    return False
+                row = date_map[date1_str]
+                open_v = float(row.get('开盘') or 0)
+                close_v = float(row.get('收盘') or 0)
+                high_v = float(row.get('最高') or 0)
+                low_v = float(row.get('最低') or 0)
+                volume_v = float(row.get('成交量') or 0)
+                lower_shadow_ratio = float(condition.get('lowerShadowRatio', 0.4))
+                volume_days = int(condition.get('volumeDays', 5))
+                volume_ratio = float(condition.get('volumeRatio', 1.3))
+
+                long_lower_shadow = False
+                full_range = high_v - low_v
+                if full_range > 0:
+                    lower_shadow = min(open_v, close_v) - low_v
+                    long_lower_shadow = (lower_shadow / full_range) >= lower_shadow_ratio
+
+                vol_spike = False
+                dates_sorted = sorted([pd.to_datetime(d).to_pydatetime() for d in df['日期'].unique()])
+                try:
+                    idx = dates_sorted.index(date1)
+                except ValueError:
+                    idx = -1
+                start_idx = idx - volume_days + 1
+                if idx >= 0 and start_idx >= 0:
+                    win_dates = dates_sorted[start_idx:idx + 1]
+                    vols = []
+                    for d in win_dates:
+                        ds = d.strftime('%Y-%m-%d')
+                        if ds in date_map:
+                            vols.append(float(date_map[ds].get('成交量') or 0))
+                    if len(vols) == volume_days:
+                        ma_vol = sum(vols) / volume_days
+                        if ma_vol > 0:
+                            vol_spike = volume_v > ma_vol * volume_ratio
+
+                return long_lower_shadow or vol_spike
+
+            elif cond_type == 'listed_days_gte':
+                # 上市满 N 天（以可获取交易日数量近似）
+                min_days = int(condition.get('days', 120))
+                return len(df) >= min_days
+
+            elif cond_type == 'avg_amount_gte':
+                # 近 N 日日均成交额 >= value
+                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df)
+                if date1 is None:
+                    return False
+                days = int(condition.get('days', 20))
+                threshold = float(condition.get('value', 200000000))
+                if days <= 1:
+                    return False
+                dates_sorted = sorted([pd.to_datetime(d).to_pydatetime() for d in df['日期'].unique()])
+                try:
+                    end_idx = dates_sorted.index(date1)
+                except ValueError:
+                    return False
+                start_idx = end_idx - days + 1
+                if start_idx < 0:
+                    return False
+                amounts = []
+                for d in dates_sorted[start_idx:end_idx + 1]:
+                    ds = d.strftime('%Y-%m-%d')
+                    if ds in date_map:
+                        amounts.append(float(date_map[ds].get('成交额') or 0))
+                if len(amounts) != days:
+                    return False
+                return (sum(amounts) / days) >= threshold
             
             return False
         except Exception as e:

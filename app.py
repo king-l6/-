@@ -38,6 +38,10 @@ strategy_engine = StrategyEngine(data_fetcher, max_workers=50)
 _backtest_cache = {}
 _BACKTEST_CACHE_TTL = 300  # 秒
 
+# 结果文件缓存：减少文件I/O
+_results_cache = {}
+_RESULTS_CACHE_TTL = 300  # 5分钟缓存
+
 @app.route('/')
 def index():
     """主页面"""
@@ -186,6 +190,23 @@ def get_stocks():
             'error': str(e)
         }), 500
 
+@app.route('/api/strategies', methods=['GET'])
+def get_strategies():
+    """获取所有策略配置（从 common_strategies.json 读取）"""
+    try:
+        config_file = os.path.join(os.path.dirname(__file__), 'common_strategies.json')
+        with open(config_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        return jsonify({
+            'success': True,
+            'data': data.get('strategies', [])
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @app.route('/api/trading-days', methods=['GET'])
 def get_trading_days():
     """获取指定日期范围内的所有交易日（来自本地缓存 K 线），用于图表按日补全（无数据日显示 0）。"""
@@ -267,7 +288,7 @@ def get_results_list():
                     })
         
         # 战法名称列表（用于置顶），按优先级排序
-        strategy_names = ['龙头战法', '断板反包', '均线上穿', '情绪周期', '三连板']
+        strategy_names = ['龙头战法', '断板反包', '均线上穿', '情绪周期', '三连板', '超跌反弹+量能确认']
         
         # 判断文件是否属于战法策略（精确匹配，避免匹配到组合名称）
         def is_strategy_file(filename):
@@ -320,6 +341,27 @@ def get_results_list():
             'error': str(e)
         }), 500
 
+# 结果文件缓存获取函数
+def _get_results_with_cache(cache_key, fetch_func):
+    """带缓存的结果获取，减少文件I/O"""
+    if cache_key in _results_cache:
+        data, ts = _results_cache[cache_key]
+        if (datetime.now() - ts).total_seconds() < _RESULTS_CACHE_TTL:
+            return data, True  # 返回数据和缓存命中标记
+
+    data = fetch_func()
+    _results_cache[cache_key] = (data, datetime.now())
+
+    # 缓存大小控制
+    if len(_results_cache) > 20:
+        # 清理最旧的10个
+        sorted_keys = sorted(_results_cache.keys(),
+                           key=lambda k: _results_cache[k][1])
+        for k in sorted_keys[:10]:
+            del _results_cache[k]
+
+    return data, False
+
 def _read_one_results_file(filepath):
     """读取单个 .jsonl 结果文件，返回 (meta_dict, results_list)。"""
     meta = None
@@ -363,7 +405,7 @@ def _read_one_results_file(filepath):
 
 @app.route('/api/results/strategy', methods=['GET'])
 def get_results_by_strategy():
-    """按策略名聚合：合并「策略名_结果.jsonl」与所有「策略名_YYYYMMDD_结果.jsonl」，按 match_date 排序返回。"""
+    """按策略名聚合：合并「策略名_结果.jsonl」与所有「策略名_YYYYMMDD_结果.jsonl」，按 match_date 排序返回。（带缓存）"""
     try:
         name = request.args.get('name')
         if not name or not name.strip():
@@ -373,67 +415,72 @@ def get_results_by_strategy():
         if '..' in strategy_name or '/' in strategy_name or '\\' in strategy_name:
             return jsonify({'success': False, 'error': '无效的策略名'}), 400
 
-        results_dir = os.path.join(os.path.dirname(__file__), 'results')
-        if not os.path.isdir(results_dir):
-            return jsonify({'success': True, 'data': {'meta': {'strategy_name': strategy_name}, 'results': [], 'count': 0}})
+        # 使用缓存
+        cache_key = f"strategy:{strategy_name}"
 
-        import re
-        # 主文件：策略名_结果.jsonl
-        main_file = os.path.join(results_dir, f"{strategy_name}_结果.jsonl")
-        # 按日文件：策略名_YYYYMMDD_结果.jsonl
-        pattern = re.compile(re.escape(strategy_name) + r'_(\d{8})_结果\.jsonl$')
-        all_results = []
-        meta_merged = {'strategy_name': strategy_name, 'aggregated': True}
+        def fetch():
+            results_dir = os.path.join(os.path.dirname(__file__), 'results')
+            if not os.path.isdir(results_dir):
+                return {'meta': {'strategy_name': strategy_name}, 'results': [], 'count': 0}
 
-        if os.path.isfile(main_file):
-            m, rows = _read_one_results_file(main_file)
-            if m:
-                meta_merged.update({k: v for k, v in m.items() if k != 'strategy_name'})
-            all_results.extend(rows)
+            import re
+            # 主文件：策略名_结果.jsonl
+            main_file = os.path.join(results_dir, f"{strategy_name}_结果.jsonl")
+            # 按日文件：策略名_YYYYMMDD_结果.jsonl
+            pattern = re.compile(re.escape(strategy_name) + r'_(\d{8})_结果\.jsonl$')
+            all_results = []
+            meta_merged = {'strategy_name': strategy_name, 'aggregated': True}
 
-        for filename in os.listdir(results_dir):
-            if not filename.endswith('.jsonl'):
-                continue
-            if pattern.match(filename):
-                filepath = os.path.join(results_dir, filename)
-                if os.path.isfile(filepath):
-                    m, rows = _read_one_results_file(filepath)
-                    all_results.extend(rows)
+            if os.path.isfile(main_file):
+                m, rows = _read_one_results_file(main_file)
+                if m:
+                    meta_merged.update({k: v for k, v in m.items() if k != 'strategy_name'})
+                all_results.extend(rows)
 
-        # 去重：code + match_date + name
-        seen = set()
-        unique = []
-        for r in all_results:
-            key = (r.get('code', ''), r.get('match_date', ''), r.get('name', ''))
-            if key in seen:
-                continue
-            seen.add(key)
-            unique.append(r)
-        unique.sort(key=lambda x: (x.get('match_date', '9999-99-99'), x.get('code', '')))
+            for filename in os.listdir(results_dir):
+                if not filename.endswith('.jsonl'):
+                    continue
+                if pattern.match(filename):
+                    filepath = os.path.join(results_dir, filename)
+                    if os.path.isfile(filepath):
+                        m, rows = _read_one_results_file(filepath)
+                        all_results.extend(rows)
 
-        # 所有策略统一：连续三个 A 股交易日内同股只保留第一次出现的日期
-        try:
-            fetcher = DataFetcher()
-            engine = StrategyEngine(fetcher)
-            unique = engine._dedupe_same_stock_within_three_trading_days(unique, trading_days=3)
+            # 去重：code + match_date + name
+            seen = set()
+            unique = []
+            for r in all_results:
+                key = (r.get('code', ''), r.get('match_date', ''), r.get('name', ''))
+                if key in seen:
+                    continue
+                seen.add(key)
+                unique.append(r)
             unique.sort(key=lambda x: (x.get('match_date', '9999-99-99'), x.get('code', '')))
-        except Exception:
-            pass
+
+            # 所有策略统一：连续三个 A 股交易日内同股只保留第一次出现的日期
+            try:
+                fetcher = DataFetcher()
+                engine = StrategyEngine(fetcher)
+                unique = engine._dedupe_same_stock_within_three_trading_days(unique, trading_days=3)
+                unique.sort(key=lambda x: (x.get('match_date', '9999-99-99'), x.get('code', '')))
+            except Exception:
+                pass
+
+            return {'meta': meta_merged, 'results': unique, 'count': len(unique)}
+
+        data, cached = _get_results_with_cache(cache_key, fetch)
 
         return jsonify({
             'success': True,
-            'data': {
-                'meta': meta_merged,
-                'results': unique,
-                'count': len(unique)
-            }
+            'data': data,
+            '_cached': cached
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/results/file', methods=['GET'])
 def get_results_file():
-    """获取指定 results 文件的内容"""
+    """获取指定 results 文件的内容（带缓存）"""
     try:
         filename = request.args.get('filename')
         if not filename:
@@ -441,82 +488,40 @@ def get_results_file():
                 'success': False,
                 'error': '缺少 filename 参数'
             }), 400
-        
+
         # 安全检查：防止路径遍历攻击
         if '..' in filename or '/' in filename or '\\' in filename:
             return jsonify({
                 'success': False,
                 'error': '无效的文件名'
             }), 400
-        
+
         if not filename.endswith('.jsonl'):
             return jsonify({
                 'success': False,
                 'error': '只支持 .jsonl 文件'
             }), 400
-        
+
         results_dir = os.path.join(os.path.dirname(__file__), 'results')
         filepath = os.path.join(results_dir, filename)
-        
+
         if not os.path.exists(filepath):
             return jsonify({
                 'success': False,
                 'error': '文件不存在'
             }), 404
-        
-        # 读取文件内容
-        meta = None
-        results = []
-        
-        with open(filepath, 'r', encoding='utf-8') as f:
-            lines = f.readlines()
-            
-            # 解析第一行（可能是元数据）
-            if lines:
-                try:
-                    first_line = json.loads(lines[0].strip())
-                    if '_meta' in first_line:
-                        meta = first_line['_meta']
-                        lines = lines[1:]
-                except:
-                    pass
-            
-        # 解析数据行
-        seen_keys = set()  # 用于去重：code + match_date + name
-        for line in lines:
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                data = json.loads(line)
-                if 'code' in data:
-                    name = (data.get('name') or '').strip()
-                    if len(name) > 4:
-                        continue
-                    match_date = data.get('match_date')
-                    if match_date is not None:
-                        if hasattr(match_date, 'strftime'):
-                            data = dict(data)
-                            data['match_date'] = match_date.strftime('%Y-%m-%d')
-                        else:
-                            s = str(match_date).strip()
-                            if len(s) >= 10 and s[4] == '-' and s[7] == '-':
-                                data = dict(data)
-                                data['match_date'] = s[:10]
-                    key = f"{data.get('code', '')}-{data.get('match_date', '')}-{data.get('name', '')}"
-                    if key not in seen_keys:
-                        seen_keys.add(key)
-                        results.append(data)
-            except:
-                continue
+
+        # 使用缓存读取文件
+        def fetch():
+            meta, results = _read_one_results_file(filepath)
+            return {'meta': meta, 'results': results, 'count': len(results)}
+
+        data, cached = _get_results_with_cache(filename, fetch)
 
         return jsonify({
             'success': True,
-            'data': {
-                'meta': meta,
-                'results': results,
-                'count': len(results)
-            }
+            'data': data,
+            '_cached': cached
         })
     except Exception as e:
         return jsonify({

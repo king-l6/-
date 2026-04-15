@@ -243,6 +243,65 @@ export const bottomingBreakoutStrategy: StrategyTemplate = {
   },
 };
 
+/**
+ * 超跌反弹 + 量能确认策略（T+1）
+ * 特征：
+ * 1. 近5日累计跌幅 <= -12%
+ * 2. T日收盘显著低于20日均线（默认乖离 >= 6%）
+ * 3. 出现止跌迹象：长下影或放量（成交量 > 5日均量 * 1.3）
+ * 4. RSI(6) < 25（超卖）
+ * 5. 上市满120天，近20日日均成交额 >= 2亿
+ */
+export const oversoldReboundVolumeConfirmStrategy: StrategyTemplate = {
+  id: 'oversold_rebound_volume_confirm',
+  name: '超跌反弹+量能确认',
+  description:
+    '急跌后的技术性反抽策略：近5日大跌、收盘偏离20日线、出现长下影或放量止跌且RSI超卖，偏向T+1快进快出。',
+  timeRange: 90,
+  conditions: [
+    { type: 'listed_days_gte', date1: 0, days: 120 },
+    { type: 'avg_amount_gte', date1: 0, days: 20, value: 200000000 },
+    { type: 'recent_n_day_pct_change_lt', date1: 0, days: 5, value: -12 },
+    { type: 'close_below_ma_deviation', date1: 0, period: 20, deviation: 0.06 },
+    { type: 'stop_fall_signal', date1: 0, lowerShadowRatio: 0.4, volumeDays: 5, volumeRatio: 1.3 },
+    { type: 'rsi_lt', date1: 0, period: 6, value: 25 },
+  ],
+  exclude: {
+    kcb: true,
+    cyb: true,
+    bjs: true,
+    st: true,
+    delist: true,
+  },
+};
+
+/**
+ * 打板二版策略
+ * 特征：
+ * 1. T-1日首板涨停（T-2日非涨停）
+ * 2. T日最高价触及涨停价
+ * 用于观察次日涨跌幅
+ */
+export const secondBoardStrategy: StrategyTemplate = {
+  id: 'second_board',
+  name: '打板二版',
+  description:
+    '上个交易日首板涨停，今天最高价触及涨停价。T-1日首板涨停（T-2日非涨停），T日最高价触及涨停价，观察次日涨跌幅。',
+  timeRange: 90,
+  conditions: [
+    { type: 'limit_up', date1: -1 }, // T-1日涨停（首板）
+    { type: 'pct_change_lt', date1: -2, value: 9.8 }, // T-2日非涨停
+    { type: 'high_is_limit_up', date1: 0 }, // T日最高价触及涨停价
+  ],
+  exclude: {
+    kcb: true,
+    cyb: true,
+    bjs: true,
+    st: true,
+    delist: true,
+  },
+};
+
 // 所有策略模板（所有战法置顶）
 export const allStrategyTemplates: StrategyTemplate[] = [
   // 所有战法策略（置顶）
@@ -252,6 +311,8 @@ export const allStrategyTemplates: StrategyTemplate[] = [
   emotionCycleStrategy, // 情绪周期
   threeLimitUpStrategy, // 三连板
   monthThreeLimitUpWithFirstBoardStrategy, // 月内三连板+首板涨停
+  oversoldReboundVolumeConfirmStrategy, // 超跌反弹+量能确认
   bottomingBreakoutStrategy, // 筑底突破
   touchLimitNotCloseWithThreeLimitStrategy, // 摸板首板
+  secondBoardStrategy, // 打板二版
 ];

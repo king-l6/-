@@ -10,10 +10,17 @@ export type ConditionType =
   | 'ma_cross_up'
   | 'bottoming_breakout'
   | 'touch_limit_not_close'
+  | 'high_is_limit_up'
+  | 'recent_n_day_pct_change_lt'
+  | 'close_below_ma_deviation'
+  | 'rsi_lt'
+  | 'stop_fall_signal'
+  | 'listed_days_gte'
+  | 'avg_amount_gte'
 
 export interface StrategyCondition {
   type: ConditionType
-  date1: number // 交易日偏移（负数=往前推）
+  date1?: number // 交易日偏移（负数=往前推）
   value?: number // 涨幅值（用于 pct_change_gt/lt）
   minValue?: number // 最小涨幅值（用于 pct_change_between）
   maxValue?: number // 最大涨幅值（用于 pct_change_between）
@@ -22,6 +29,11 @@ export interface StrategyCondition {
   days?: number // 检查天数范围（用于 three_limit_up/recent_limit_up，默认30/10）
   shortPeriod?: number // 短期均线周期（用于 ma_cross_up，默认5）
   longPeriod?: number // 长期均线周期（用于 ma_cross_up，默认10）
+  period?: number // 周期参数（用于 close_below_ma_deviation / rsi_lt）
+  deviation?: number // 乖离比例（用于 close_below_ma_deviation，如 0.06）
+  lowerShadowRatio?: number // 下影线占比阈值（用于 stop_fall_signal）
+  volumeDays?: number // 成交量均线周期（用于 stop_fall_signal）
+  volumeRatio?: number // 放量阈值（用于 stop_fall_signal）
 }
 
 export interface ExcludeRules {
