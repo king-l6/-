@@ -260,6 +260,40 @@ const columns: ColumnsType<StockResult> = [
     key: 'current_price',
     width: 120,
     customRender: ({ text }) => text ? text.toFixed(2) : '-'
+  },
+  {
+    title: '次日涨跌',
+    dataIndex: 'day2_change_pct',
+    key: 'day2_change_pct',
+    width: 100,
+    fixed: 'right',
+    align: 'right',
+    sorter: (a, b) => (a.day2_change_pct || 0) - (b.day2_change_pct || 0),
+    customRender: ({ text }) => {
+      if (text == null) return '-'
+      const val = text.toFixed(2)
+      return {
+        children: `${val >= 0 ? '+' : ''}${val}%`,
+        props: { style: { color: text >= 0 ? '#dc2626' : '#16a34a', fontWeight: 600 } }
+      }
+    }
+  },
+  {
+    title: '第三日涨跌',
+    dataIndex: 'day3_change_pct',
+    key: 'day3_change_pct',
+    width: 100,
+    fixed: 'right',
+    align: 'right',
+    sorter: (a, b) => (a.day3_change_pct || 0) - (b.day3_change_pct || 0),
+    customRender: ({ text }) => {
+      if (text == null) return '-'
+      const val = text.toFixed(2)
+      return {
+        children: `${val >= 0 ? '+' : ''}${val}%`,
+        props: { style: { color: text >= 0 ? '#dc2626' : '#16a34a', fontWeight: 600 } }
+      }
+    }
   }
 ]
 
@@ -310,6 +344,40 @@ const denseColumns: ColumnsType<StockResult> = [
     width: 80,
     align: 'right',
     sorter: (a, b) => (a.current_price || 0) - (b.current_price || 0)
+  },
+  {
+    title: '次日涨跌',
+    dataIndex: 'day2_change_pct',
+    key: 'day2_change_pct',
+    width: 85,
+    fixed: 'right',
+    align: 'right',
+    sorter: (a, b) => (a.day2_change_pct || 0) - (b.day2_change_pct || 0),
+    customRender: ({ text }) => {
+      if (text == null) return '-'
+      const val = text.toFixed(2)
+      return {
+        children: `${val >= 0 ? '+' : ''}${val}%`,
+        props: { style: { color: text >= 0 ? '#dc2626' : '#16a34a', fontWeight: 600 } }
+      }
+    }
+  },
+  {
+    title: '第三日涨跌',
+    dataIndex: 'day3_change_pct',
+    key: 'day3_change_pct',
+    width: 85,
+    fixed: 'right',
+    align: 'right',
+    sorter: (a, b) => (a.day3_change_pct || 0) - (b.day3_change_pct || 0),
+    customRender: ({ text }) => {
+      if (text == null) return '-'
+      const val = text.toFixed(2)
+      return {
+        children: `${val >= 0 ? '+' : ''}${val}%`,
+        props: { style: { color: text >= 0 ? '#dc2626' : '#16a34a', fontWeight: 600 } }
+      }
+    }
   }
 ]
 
@@ -326,7 +394,7 @@ function handleExport() {
   if (data.length === 0) {
     return
   }
-  
+
   // 按日期排序（日期早的在前，同日期按代码排序）
   const sortedData = [...data].sort((a, b) => {
     const dateA = a.match_date || ''
@@ -338,22 +406,24 @@ function handleExport() {
     // 日期相同，按代码排序
     return (a.code || '').localeCompare(b.code || '')
   })
-  
+
   // 构建 CSV 内容
-  const headers = ['代码', '名称', '匹配日期', '匹配价', '当前价']
+  const headers = ['代码', '名称', '匹配日期', '匹配价', '当前价', '次日涨跌%', '第三日涨跌%']
   const rows = sortedData.map(item => [
     item.code,
     item.name,
     formatDate(item.match_date),
     item.match_price?.toFixed(2) || '',
-    item.current_price?.toFixed(2) || ''
+    item.current_price?.toFixed(2) || '',
+    item.day2_change_pct != null ? item.day2_change_pct.toFixed(2) : '',
+    item.day3_change_pct != null ? item.day3_change_pct.toFixed(2) : ''
   ])
-  
+
   const csvContent = [
     headers.join(','),
     ...rows.map(row => row.join(','))
   ].join('\n')
-  
+
   // 添加 BOM 以支持中文
   const BOM = '\uFEFF'
   const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' })

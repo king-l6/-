@@ -48,6 +48,13 @@ class StrategyEngine:
         df = self.data_fetcher.get_stock_data(code, start_d.strftime('%Y%m%d'), end_d.strftime('%Y%m%d'))
         if df is None or df.empty:
             return {}
+
+        # 预处理：排序并创建 date_map（只做一次，大幅提升性能）
+        df = df.sort_values('日期').reset_index(drop=True)
+        df['_ds'] = pd.to_datetime(df['日期']).dt.strftime('%Y-%m-%d')
+        date_map = df.set_index('_ds').to_dict('index')
+        dates_sorted = sorted([pd.to_datetime(d).to_pydatetime() for d in df['日期'].unique()])
+
         out = {}
         for strategy_name, strategy in strategies_list:
             conditions = strategy.get('conditions', [])
@@ -56,7 +63,7 @@ class StrategyEngine:
                 if any(c.get('type') == 'bottoming_breakout' for c in conditions):
                     check = self._check_bottoming_breakout(code, start_d, end_d, time_range, only_t_date=t_date, df=df)
                 else:
-                    check = self._check_strategy(code, conditions, start_d, end_d, time_range, only_t_date=t_date, df=df)
+                    check = self._check_strategy_fast(code, conditions, start_d, end_d, time_range, only_t_date=t_date, df=df, date_map=date_map, dates_sorted=dates_sorted)
                 if check:
                     items = check if isinstance(check, list) else [check]
                     for item in items:
@@ -391,6 +398,78 @@ class StrategyEngine:
             return False
         except Exception as e:
             # 静默处理错误
+            return False
+
+    def _check_strategy_fast(self, code, conditions, start_date, end_date, time_range=30, only_t_date=None, df=None, date_map=None, dates_sorted=None):
+        """快速检查股票是否符合策略条件（使用预创建的 date_map 和 dates_sorted）。"""
+        try:
+            if df is None or df.empty:
+                return False
+
+            # 确保有足够的列
+            required_columns = ['日期', '涨跌幅', '成交量']
+            if not all(col in df.columns for col in required_columns):
+                return False
+
+            # 优化：检查是否有依赖涨停的条件，如果有，则检查是否有涨停日
+            has_limit_up_condition = any(
+                c.get('type') in ('limit_up', 'three_limit_up', 'recent_limit_up')
+                for c in conditions
+            )
+            if has_limit_up_condition:
+                # 如果有涨停条件但没有任何涨停日，直接跳过
+                if (df['涨跌幅'] >= 9.8).sum() == 0:
+                    return False
+
+            # 计算需要的最少交易日数
+            max_backward_offset = 0
+            for c in conditions:
+                date1 = c.get('date1', 0)
+                date2 = c.get('date2', 0)
+                if date1< 0:
+                    max_backward_offset = max(max_backward_offset, abs(date1))
+                if date2< 0:
+                    max_backward_offset = max(max_backward_offset, abs(date2))
+                cond_type = c.get('type')
+                if cond_type in ('recent_n_day_pct_change_lt', 'avg_amount_gte'):
+                    max_backward_offset = max(max_backward_offset, int(c.get('days', 5)) - 1)
+                elif cond_type == 'close_below_ma_deviation':
+                    max_backward_offset = max(max_backward_offset, int(c.get('period', 20)) - 1)
+                elif cond_type == 'rsi_lt':
+                    max_backward_offset = max(max_backward_offset, int(c.get('period', 6)) + 1)
+                elif cond_type == 'stop_fall_signal':
+                    max_backward_offset = max(max_backward_offset, int(c.get('volumeDays', 5)) - 1)
+            min_required_idx = max_backward_offset
+
+            # 只检查最近 time_range 个交易日作为 T
+            min_i = max(min_required_idx, len(df) - time_range)
+            if only_t_date:
+                only_d = only_t_date[:10] if isinstance(only_t_date, str) else only_t_date.strftime('%Y-%m-%d')
+                for i in range(len(df) - 1, min_i - 1, -1):
+                    base_date = df.iloc[i]['日期']
+                    base_str = base_date.strftime('%Y-%m-%d') if hasattr(base_date, 'strftime') else str(base_date)[:10]
+                    if base_str == only_d:
+                        if self._check_conditions_from_date_fast(conditions, base_date, df, date_map, dates_sorted):
+                            return {'df': df, 'base_date': base_date}
+                        return False
+                return False
+            for i in range(len(df) - 1, min_i - 1, -1):
+                base_date = df.iloc[i]['日期']
+                if self._check_conditions_from_date_fast(conditions, base_date, df, date_map, dates_sorted):
+                    return {'df': df, 'base_date': base_date}
+            return False
+        except Exception as e:
+            return False
+
+    def _check_conditions_from_date_fast(self, conditions, base_date, df, date_map, dates_sorted):
+        """快速检查条件（使用预创建的 date_map 和 dates_sorted）。"""
+        try:
+            for condition in conditions:
+                result = self._evaluate_condition(condition, base_date, date_map, df)
+                if not result:
+                    return False
+            return True
+        except Exception as e:
             return False
 
     def _check_bottoming_breakout(self, code, start_date, end_date, time_range=30, only_t_date=None, df=None):

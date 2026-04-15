@@ -318,7 +318,41 @@ const columns: ColumnsType<StockResult> = [
   { title: '名称', dataIndex: 'name', key: 'name', width: 120 },
   { title: '匹配日期', dataIndex: 'match_date', key: 'match_date', width: 120, customRender: ({ text }) => formatDate(text ?? '') },
   { title: '匹配价', dataIndex: 'match_price', key: 'match_price', width: 120, customRender: ({ text }) => text ? text.toFixed(2) : '-' },
-  { title: '当前价', dataIndex: 'current_price', key: 'current_price', width: 120, customRender: ({ text }) => text ? text.toFixed(2) : '-' }
+  { title: '当前价', dataIndex: 'current_price', key: 'current_price', width: 120, customRender: ({ text }) => text ? text.toFixed(2) : '-' },
+  {
+    title: '次日涨跌',
+    dataIndex: 'day2_change_pct',
+    key: 'day2_change_pct',
+    width: 100,
+    fixed: 'right',
+    align: 'right',
+    sorter: (a, b) => (a.day2_change_pct || 0) - (b.day2_change_pct || 0),
+    customRender: ({ text }) => {
+      if (text == null) return '-'
+      const val = text.toFixed(2)
+      return {
+        children: `${val >= 0 ? '+' : ''}${val}%`,
+        props: { style: { color: text >= 0 ? '#dc2626' : '#16a34a', fontWeight: 600 } }
+      }
+    }
+  },
+  {
+    title: '第三日涨跌',
+    dataIndex: 'day3_change_pct',
+    key: 'day3_change_pct',
+    width: 100,
+    fixed: 'right',
+    align: 'right',
+    sorter: (a, b) => (a.day3_change_pct || 0) - (b.day3_change_pct || 0),
+    customRender: ({ text }) => {
+      if (text == null) return '-'
+      const val = text.toFixed(2)
+      return {
+        children: `${val >= 0 ? '+' : ''}${val}%`,
+        props: { style: { color: text >= 0 ? '#dc2626' : '#16a34a', fontWeight: 600 } }
+      }
+    }
+  }
 ]
 
 const denseColumns: ColumnsType<StockResult> = [
@@ -326,7 +360,41 @@ const denseColumns: ColumnsType<StockResult> = [
   { title: '名称', dataIndex: 'name', key: 'name', width: 100, sorter: (a, b) => a.name.localeCompare(b.name) },
   { title: '匹配日期', dataIndex: 'match_date', key: 'match_date', width: 100, sortDirections: ['ascend', 'descend'], sorter: (a, b) => ((a.match_date || '').trim()).localeCompare((b.match_date || '').trim()), customRender: ({ text }) => formatDate(text ?? '') },
   { title: '匹配价', dataIndex: 'match_price', key: 'match_price', width: 80, align: 'right', sorter: (a, b) => (a.match_price || 0) - (b.match_price || 0) },
-  { title: '当前价', dataIndex: 'current_price', key: 'current_price', width: 80, align: 'right', sorter: (a, b) => (a.current_price || 0) - (b.current_price || 0) }
+  { title: '当前价', dataIndex: 'current_price', key: 'current_price', width: 80, align: 'right', sorter: (a, b) => (a.current_price || 0) - (b.current_price || 0) },
+  {
+    title: '次日涨跌',
+    dataIndex: 'day2_change_pct',
+    key: 'day2_change_pct',
+    width: 85,
+    fixed: 'right',
+    align: 'right',
+    sorter: (a, b) => (a.day2_change_pct || 0) - (b.day2_change_pct || 0),
+    customRender: ({ text }) => {
+      if (text == null) return '-'
+      const val = text.toFixed(2)
+      return {
+        children: `${val >= 0 ? '+' : ''}${val}%`,
+        props: { style: { color: text >= 0 ? '#dc2626' : '#16a34a', fontWeight: 600 } }
+      }
+    }
+  },
+  {
+    title: '第三日涨跌',
+    dataIndex: 'day3_change_pct',
+    key: 'day3_change_pct',
+    width: 85,
+    fixed: 'right',
+    align: 'right',
+    sorter: (a, b) => (a.day3_change_pct || 0) - (b.day3_change_pct || 0),
+    customRender: ({ text }) => {
+      if (text == null) return '-'
+      const val = text.toFixed(2)
+      return {
+        children: `${val >= 0 ? '+' : ''}${val}%`,
+        props: { style: { color: text >= 0 ? '#dc2626' : '#16a34a', fontWeight: 600 } }
+      }
+    }
+  }
 ]
 
 const displayColumns = computed(() => {
