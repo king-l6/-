@@ -68,6 +68,9 @@ export interface StockResult {
   day2_change_pct?: number  // 次日涨跌幅（(收盘-前收盘)/前收盘*100）
   day3_amplitude?: number   // 第三日振幅
   day3_change_pct?: number  // 第三日涨跌幅
+  day2_buy_10d_max_gain_pct?: number | null // 次日开盘买入后，10个交易日内最高涨幅(%)
+  day2_buy_10d_close_pct?: number | null // 次日开盘买入后，第10个交易日收盘涨跌幅(%)
+  day2_buy_hit_5pct_day?: number | null // 次日开盘买入后，首次达到5%是第几天（买入日=1）
   /** 月内三连板+首板策略中特殊标记：T日最高价触及涨停但收盘未涨停 */
   touch_limit_not_close?: boolean
 }
@@ -117,5 +120,163 @@ export interface ResultFileData {
 export interface ResultFileResponse {
   success: boolean
   data: ResultFileData
+  error?: string
+}
+
+export interface MarketLeaderDayRow {
+  date: string
+  limit_up_count: number
+  top1: { code: string; name: string; consecutive_boards: number; pct_change: number; volume: number } | null
+  leaders: Array<{ code: string; name: string; consecutive_boards: number; pct_change: number; volume: number }>
+}
+
+export interface MarketLeaderSegmentRow {
+  start_date: string
+  end_date: string
+  code: string
+  name: string
+  days: number
+  /** 该段内主线标的出现的最高连板数 */
+  max_consecutive_boards?: number
+}
+
+export interface MarketLeaderRotation {
+  daily: MarketLeaderDayRow[]
+  segments: MarketLeaderSegmentRow[]
+  limit_pct: number
+  top_k: number
+  note?: string
+}
+
+export interface EmotionCycleReport {
+  date: string
+  market_metrics: {
+    total: number
+    limit_up_count: number
+    strong_count: number
+    big_drop_count: number
+    avg_pct_change: number
+    limit_up_ratio_pct: number
+    strong_ratio_pct: number
+    big_drop_ratio_pct: number
+  }
+  scores: {
+    market_score: number
+    total_score: number
+  }
+  cycle: string
+  timeline: Array<{
+    date: string
+    market_score: number
+    total_score: number
+    cycle: string
+    limit_up_count: number
+    strong_count: number
+    big_drop_count: number
+    avg_pct_change: number
+  }>
+  /** 仅当请求带 stock_code 时返回个股 K 线周期（页面已改用市场龙头周期） */
+  stock_cycle?: {
+    code: string
+    name?: string
+    periods: Array<{
+      start_date: string
+      end_date: string
+      days: number
+      gain_pct: number
+      label: string
+    }>
+    phase_segments: Array<{
+      start_date: string
+      end_date: string
+      label: string
+      kind: 'rally' | 'warmup' | 'range' | 'cooldown'
+    }>
+    series: Array<{
+      date: string
+      pct_change: number
+      open: number
+      high: number
+      low: number
+      close: number
+      volume: number
+    }>
+  }
+  market_leader_rotation?: MarketLeaderRotation
+  generated_at: string
+  /** 温度图按日快照：磁盘滚动缓存命中情况（由后端 emotion_cycle_rolling.json 维护） */
+  timeline_rolling_meta?: {
+    rolling_file: string
+    files_merged: number
+    files_skipped: number
+    force_refresh: boolean
+    dates_in_store: number
+  }
+}
+
+export interface EmotionCycleResponse {
+  success: boolean
+  data?: EmotionCycleReport
+  error?: string
+}
+
+export interface EmotionCycleHealth {
+  cache_dir: string
+  cache_file_count: number
+  latest_date: string
+  latest_snapshot_size: number
+  sample_codes: string[]
+  sample_stocks?: Array<{
+    code: string
+    name: string
+  }>
+}
+
+export interface EmotionCycleHealthResponse {
+  success: boolean
+  data?: EmotionCycleHealth
+  error?: string
+}
+
+export interface CacheUpdateTaskStatus {
+  running: boolean
+  started_at: string | null
+  ended_at: string | null
+  exit_code: number | null
+  last_lines: string[]
+  progress: {
+    current: number
+    total: number
+    percent: number
+    line: string
+  } | null
+  error: string | null
+}
+
+export interface CacheUpdateTaskResponse {
+  success: boolean
+  data?: {
+    message: string
+    task: CacheUpdateTaskStatus
+  } | CacheUpdateTaskStatus
+  error?: string
+}
+
+/** 日 K 单行（/api/stock-daily） */
+export interface StockDailyBar {
+  date: string
+  open: number
+  high: number
+  low: number
+  close: number
+  volume: number
+}
+
+export interface StockDailyResponse {
+  success: boolean
+  data?: {
+    code: string
+    rows: StockDailyBar[]
+  }
   error?: string
 }

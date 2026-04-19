@@ -11,8 +11,12 @@ from flask_cors import CORS
 from datetime import datetime, timedelta
 import json
 import os
+import threading
+import subprocess
+import re
 from strategy_engine import StrategyEngine
 from data_fetcher import DataFetcher
+from emotion_cycle_service import analyze_emotion_cycle, get_emotion_cycle_health
 
 # 使用前端构建产物（构建到 static 目录）
 FRONTEND_DIST_PATH = os.path.join(os.path.dirname(__file__), 'static')
@@ -41,6 +45,83 @@ _BACKTEST_CACHE_TTL = 300  # 秒
 # 结果文件缓存：减少文件I/O
 _results_cache = {}
 _RESULTS_CACHE_TTL = 300  # 5分钟缓存
+
+# 缓存补齐后台任务状态（单任务）
+_cache_update_lock = threading.Lock()
+_cache_update_task = {
+    'running': False,
+    'started_at': None,
+    'ended_at': None,
+    'exit_code': None,
+    'last_lines': [],
+    'progress': None,
+    'error': None,
+}
+
+
+def _append_cache_update_line(line: str):
+    line = (line or '').rstrip('\n')
+    if not line:
+        return
+    _cache_update_task['last_lines'].append(line)
+    if len(_cache_update_task['last_lines']) > 200:
+        _cache_update_task['last_lines'] = _cache_update_task['last_lines'][-200:]
+
+    # 解析常见进度格式：进度: 123/456 | 已更新: 100
+    m = re.search(r'进度[:：]\s*(\d+)\s*/\s*(\d+)', line)
+    if m:
+        try:
+            cur = int(m.group(1))
+            total = int(m.group(2))
+            percent = round(cur / total * 100, 2) if total > 0 else 0.0
+            _cache_update_task['progress'] = {
+                'current': cur,
+                'total': total,
+                'percent': percent,
+                'line': line,
+            }
+        except Exception:
+            pass
+
+
+def _run_cache_update_task():
+    project_dir = os.path.dirname(__file__)
+    cmd = ['python3', 'scripts/update_cache_and_backtest.py', '--no-backtest']
+    proc = None
+    try:
+        proc = subprocess.Popen(
+            cmd,
+            cwd=project_dir,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            encoding='utf-8',
+            errors='replace',
+            bufsize=1,
+        )
+        if proc.stdout:
+            for line in proc.stdout:
+                with _cache_update_lock:
+                    _append_cache_update_line(line)
+        code = proc.wait()
+        with _cache_update_lock:
+            _cache_update_task['running'] = False
+            _cache_update_task['ended_at'] = datetime.now().isoformat()
+            _cache_update_task['exit_code'] = code
+            if code != 0 and not _cache_update_task.get('error'):
+                _cache_update_task['error'] = f'任务异常退出，exit_code={code}'
+    except Exception as e:
+        with _cache_update_lock:
+            _cache_update_task['running'] = False
+            _cache_update_task['ended_at'] = datetime.now().isoformat()
+            _cache_update_task['error'] = str(e)
+            _cache_update_task['exit_code'] = -1
+    finally:
+        if proc and proc.stdout:
+            try:
+                proc.stdout.close()
+            except Exception:
+                pass
 
 @app.route('/')
 def index():
@@ -189,6 +270,38 @@ def get_stocks():
             'success': False,
             'error': str(e)
         }), 500
+
+
+@app.route('/api/stock-daily', methods=['GET'])
+def api_stock_daily():
+    """单只股票日 K（来自本地缓存 / Baostock），供多股复盘图等使用。"""
+    code = (request.args.get('code') or '').strip()
+    if len(code) != 6 or not code.isdigit():
+        return jsonify({'success': False, 'error': 'code 须为 6 位数字'}), 400
+    start = (request.args.get('start') or '').strip().replace('-', '')[:8] or None
+    end = (request.args.get('end') or '').strip().replace('-', '')[:8] or None
+    try:
+        df = data_fetcher.get_stock_data(code, start_date=start, end_date=end, force_refresh=False)
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+    if df is None or getattr(df, 'empty', True):
+        return jsonify({'success': False, 'error': '暂无 K 线，请先补该股缓存或调整日期范围'}), 404
+    rows = []
+    for _, r in df.iterrows():
+        d = r['日期']
+        if hasattr(d, 'strftime'):
+            ds = d.strftime('%Y-%m-%d')
+        else:
+            ds = str(d)[:10]
+        rows.append({
+            'date': ds,
+            'open': float(r['开盘']),
+            'high': float(r['最高']),
+            'low': float(r['最低']),
+            'close': float(r['收盘']),
+            'volume': float(r['成交量']),
+        })
+    return jsonify({'success': True, 'data': {'code': code, 'rows': rows}})
 
 @app.route('/api/strategies', methods=['GET'])
 def get_strategies():
@@ -528,6 +641,87 @@ def get_results_file():
             'success': False,
             'error': str(e)
         }), 500
+
+
+@app.route('/api/emotion-cycle', methods=['GET'])
+def get_emotion_cycle():
+    """获取情绪周期分析结果（全市场温度 + 龙头节奏等）"""
+    try:
+        days = int(request.args.get('days', 120))
+        stock_code = request.args.get('stock_code', '').strip()
+        force_q = (request.args.get('force') or request.args.get('force_refresh') or '').strip().lower()
+        force_refresh = force_q in ('1', 'true', 'yes', 'force')
+        if days <= 0:
+            days = 120
+        if days > 500:
+            days = 500
+        report = analyze_emotion_cycle(
+            days=days,
+            stock_code=stock_code,
+            force_refresh=force_refresh,
+        )
+        return jsonify({
+            'success': True,
+            'data': report
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/emotion-cycle/health', methods=['GET'])
+def get_emotion_cycle_health_api():
+    """情绪周期数据自检信息（本地日线缓存截面）。"""
+    try:
+        health = get_emotion_cycle_health()
+        return jsonify({'success': True, 'data': health})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/cache-update/start', methods=['POST'])
+def start_cache_update_task():
+    """启动缓存补齐后台任务（update_cache_and_backtest.py --no-backtest）。"""
+    try:
+        with _cache_update_lock:
+            if _cache_update_task['running']:
+                return jsonify({
+                    'success': True,
+                    'data': {
+                        'message': '任务已在运行中',
+                        'task': _cache_update_task
+                    }
+                })
+            _cache_update_task['running'] = True
+            _cache_update_task['started_at'] = datetime.now().isoformat()
+            _cache_update_task['ended_at'] = None
+            _cache_update_task['exit_code'] = None
+            _cache_update_task['last_lines'] = []
+            _cache_update_task['progress'] = None
+            _cache_update_task['error'] = None
+            _append_cache_update_line('已启动缓存补齐任务...')
+
+        t = threading.Thread(target=_run_cache_update_task, daemon=True)
+        t.start()
+        return jsonify({'success': True, 'data': {'message': '已启动', 'task': _cache_update_task}})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/cache-update/status', methods=['GET'])
+def get_cache_update_status():
+    """查询缓存补齐后台任务状态。"""
+    try:
+        with _cache_update_lock:
+            task = dict(_cache_update_task)
+            task['last_lines'] = list(_cache_update_task.get('last_lines', []))
+            progress = _cache_update_task.get('progress')
+            task['progress'] = dict(progress) if isinstance(progress, dict) else progress
+        return jsonify({'success': True, 'data': task})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/<path:path>')
 def serve_static(path):

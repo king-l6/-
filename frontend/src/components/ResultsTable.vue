@@ -64,6 +64,12 @@
         <div class="text-sm font-semibold text-primary">
           找到 {{ filteredResults.length }} 只符合条件的股票
         </div>
+        <div class="text-xs text-slate-600" v-if="tenDayHitStats.validCount > 0">
+          次日开盘买入后10个交易日内最高涨幅&gt;5%：
+          <span class="font-semibold text-rose-600">
+            {{ tenDayHitStats.hitCount }}/{{ tenDayHitStats.validCount }} ({{ tenDayHitStats.hitRateText }})
+          </span>
+        </div>
       </div>
       
       <Table
@@ -210,6 +216,24 @@ const filteredResults = computed(() => {
   return [...sourceData]
 })
 
+const tenDayHitStats = computed(() => {
+  const rows = filteredResults.value || []
+  let validCount = 0
+  let hitCount = 0
+  rows.forEach((item) => {
+    const maxGain = item.day2_buy_10d_max_gain_pct
+    if (typeof maxGain !== 'number') return
+    validCount += 1
+    if (maxGain > 5) hitCount += 1
+  })
+  const hitRate = validCount > 0 ? (hitCount / validCount) * 100 : 0
+  return {
+    validCount,
+    hitCount,
+    hitRateText: `${hitRate.toFixed(2)}%`
+  }
+})
+
 function formatDate(date?: string): string {
   if (!date) return '-'
   const s = String(date).trim()
@@ -224,6 +248,14 @@ function formatDate(date?: string): string {
 function formatPrice(price?: number): string {
   if (!price) return '-'
   return price.toFixed(2)
+}
+
+function renderDay2BuyHitCell(record: StockResult): string {
+  if (record.day2_buy_hit_5pct_day != null) return `第${record.day2_buy_hit_5pct_day}天`
+  const day10ClosePct = record.day2_buy_10d_close_pct
+  if (day10ClosePct == null) return '-'
+  const sign = day10ClosePct >= 0 ? '+' : ''
+  return `10日收盘 ${sign}${day10ClosePct.toFixed(2)}%`
 }
 
 const columns: ColumnsType<StockResult> = [
@@ -293,6 +325,18 @@ const columns: ColumnsType<StockResult> = [
         children: `${val >= 0 ? '+' : ''}${val}%`,
         props: { style: { color: text >= 0 ? '#dc2626' : '#16a34a', fontWeight: 600 } }
       }
+    }
+  },
+  {
+    title: '次日买入达5%',
+    dataIndex: 'day2_buy_hit_5pct_day',
+    key: 'day2_buy_hit_5pct_day',
+    width: 120,
+    align: 'center',
+    sorter: (a, b) => (a.day2_buy_hit_5pct_day || 999) - (b.day2_buy_hit_5pct_day || 999),
+    customRender: ({ record }) => {
+      const row = record as StockResult
+      return renderDay2BuyHitCell(row)
     }
   }
 ]
@@ -377,6 +421,19 @@ const denseColumns: ColumnsType<StockResult> = [
         children: `${val >= 0 ? '+' : ''}${val}%`,
         props: { style: { color: text >= 0 ? '#dc2626' : '#16a34a', fontWeight: 600 } }
       }
+    }
+  },
+  {
+    title: '次日买入达5%',
+    dataIndex: 'day2_buy_hit_5pct_day',
+    key: 'day2_buy_hit_5pct_day',
+    width: 95,
+    fixed: 'right',
+    align: 'center',
+    sorter: (a, b) => (a.day2_buy_hit_5pct_day || 999) - (b.day2_buy_hit_5pct_day || 999),
+    customRender: ({ record }) => {
+      const row = record as StockResult
+      return renderDay2BuyHitCell(row)
     }
   }
 ]

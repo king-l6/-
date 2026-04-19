@@ -61,6 +61,10 @@ npm run build
 
 cd ..
 
+echo ""
+echo "前端已输出到 static/。若页面仍是旧版文案或图表空白，请浏览器硬刷新：Ctrl+Shift+R（Mac：Cmd+Shift+R）。"
+echo ""
+
 # 启动应用
 echo ""
 echo "启动应用..."

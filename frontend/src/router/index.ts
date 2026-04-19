@@ -21,6 +21,16 @@ const routes = [
         path: 'history-results',
         name: 'HistoryResults',
         component: () => import('@/views/history-results/index.vue')
+      },
+      {
+        path: 'emotion-cycle',
+        name: 'EmotionCycle',
+        component: () => import('@/views/emotion-cycle/index.vue')
+      },
+      {
+        path: 'multi-kline',
+        name: 'MultiKline',
+        component: () => import('@/views/multi-kline/index.vue')
       }
     ]
   }

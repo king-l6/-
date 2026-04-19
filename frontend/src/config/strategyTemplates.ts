@@ -302,6 +302,207 @@ export const secondBoardStrategy: StrategyTemplate = {
   },
 };
 
+/**
+ * 游资合力接力策略
+ * 特征：
+ * 1. 近10日内有涨停（体现活跃度与辨识度）
+ * 2. T-1日分歧回踩（小阴/小阳，避免连续加速末端）
+ * 3. T日放量涨停（分歧转一致）
+ * 4. 20日日均成交额 >= 5亿（保证流动性，便于大资金参与）
+ */
+export const yzrConsensusRelayStrategy: StrategyTemplate = {
+  id: 'yzr_consensus_relay',
+  name: '游资合力接力',
+  description:
+    '游资风格的分歧转一致接力：近10日有涨停识别度，T-1日小幅回踩，T日放量涨停并满足流动性门槛。',
+  timeRange: 120,
+  conditions: [
+    { type: 'listed_days_gte', date1: 0, days: 120 },
+    { type: 'avg_amount_gte', date1: 0, days: 20, value: 500000000 },
+    { type: 'recent_limit_up', date1: -1, days: 10 },
+    { type: 'pct_change_between', date1: -1, minValue: -5, maxValue: 3 },
+    { type: 'limit_up', date1: 0 },
+    { type: 'volume_ratio', date1: 0, date2: -1, ratio: 1.3 },
+  ],
+  exclude: {
+    kcb: true,
+    cyb: true,
+    bjs: true,
+    st: true,
+    delist: true,
+  },
+};
+
+/**
+ * 游资三件套一：首板试错策略
+ * 特征：
+ * 1. T日首板涨停（T-1日非涨停）
+ * 2. 近20日日均成交额 >= 3亿（保证流动性）
+ * 3. T日相对T-1日放量（资金主动性）
+ */
+export const yzrFirstBoardProbeStrategy: StrategyTemplate = {
+  id: 'yzr_first_board_probe',
+  name: '游资首板试错',
+  description:
+    '游资试错型策略：T日首板涨停，前一日非涨停，且满足中高流动性与当日放量，用于捕捉题材启动首板。',
+  timeRange: 120,
+  conditions: [
+    { type: 'listed_days_gte', date1: 0, days: 120 },
+    { type: 'avg_amount_gte', date1: 0, days: 20, value: 300000000 },
+    { type: 'pct_change_lt', date1: -1, value: 9.8 },
+    { type: 'limit_up', date1: 0 },
+    { type: 'volume_ratio', date1: 0, date2: -1, ratio: 1.2 },
+  ],
+  exclude: {
+    kcb: true,
+    cyb: true,
+    bjs: true,
+    st: true,
+    delist: true,
+  },
+};
+
+/**
+ * 游资三件套二：分歧转一致策略
+ * 特征：
+ * 1. 近10日有涨停，代表票有辨识度
+ * 2. T-1日小幅分歧回踩
+ * 3. T日放量涨停转一致
+ */
+export const yzrDisagreementToConsensusStrategy: StrategyTemplate = {
+  id: 'yzr_disagreement_to_consensus',
+  name: '游资分歧转一致',
+  description:
+    '游资主流接力型策略：近10日有涨停，T-1日分歧回踩，T日放量涨停确认一致性。',
+  timeRange: 120,
+  conditions: [
+    { type: 'listed_days_gte', date1: 0, days: 120 },
+    { type: 'avg_amount_gte', date1: 0, days: 20, value: 500000000 },
+    { type: 'recent_limit_up', date1: -1, days: 10 },
+    { type: 'pct_change_between', date1: -1, minValue: -5, maxValue: 3 },
+    { type: 'limit_up', date1: 0 },
+    { type: 'volume_ratio', date1: 0, date2: -1, ratio: 1.3 },
+  ],
+  exclude: {
+    kcb: true,
+    cyb: true,
+    bjs: true,
+    st: true,
+    delist: true,
+  },
+};
+
+/**
+ * 游资三件套三：二波加速策略
+ * 特征：
+ * 1. 近30日内出现过三连板（历史龙头辨识度）
+ * 2. T-1日非涨停（避免连板末端）
+ * 3. T日再次涨停且放量，捕捉二波加速
+ */
+export const yzrSecondWaveAccelerationStrategy: StrategyTemplate = {
+  id: 'yzr_second_wave_acceleration',
+  name: '游资二波加速',
+  description:
+    '游资二波策略：近30日出现过三连板，T-1日非涨停，T日再次涨停并放量，尝试捕捉龙头二波启动。',
+  timeRange: 120,
+  conditions: [
+    { type: 'listed_days_gte', date1: 0, days: 120 },
+    { type: 'avg_amount_gte', date1: 0, days: 20, value: 600000000 },
+    { type: 'three_limit_up', date1: -1, days: 30 },
+    { type: 'pct_change_lt', date1: -1, value: 9.8 },
+    { type: 'limit_up', date1: 0 },
+    { type: 'volume_ratio', date1: 0, date2: -1, ratio: 1.2 },
+  ],
+  exclude: {
+    kcb: true,
+    cyb: true,
+    bjs: true,
+    st: true,
+    delist: true,
+  },
+};
+
+/**
+ * 市场状态开关：弱势策略包
+ * 思路：偏防守，只做分歧转一致里的高流动性、深回踩、强放量。
+ */
+export const yzrPackWeakMarketStrategy: StrategyTemplate = {
+  id: 'yzr_pack_weak_market',
+  name: '游资策略包-弱势',
+  description:
+    '弱势防守版：提高流动性门槛，要求更充分分歧与更强放量后再做转一致，减少噪音交易。',
+  timeRange: 120,
+  conditions: [
+    { type: 'listed_days_gte', date1: 0, days: 120 },
+    { type: 'avg_amount_gte', date1: 0, days: 20, value: 800000000 },
+    { type: 'recent_limit_up', date1: -1, days: 10 },
+    { type: 'pct_change_between', date1: -1, minValue: -6, maxValue: 2 },
+    { type: 'limit_up', date1: 0 },
+    { type: 'volume_ratio', date1: 0, date2: -1, ratio: 1.5 },
+  ],
+  exclude: {
+    kcb: true,
+    cyb: true,
+    bjs: true,
+    st: true,
+    delist: true,
+  },
+};
+
+/**
+ * 市场状态开关：中性策略包
+ * 思路：均衡配置，使用分歧转一致的标准参数。
+ */
+export const yzrPackNeutralMarketStrategy: StrategyTemplate = {
+  id: 'yzr_pack_neutral_market',
+  name: '游资策略包-中性',
+  description:
+    '中性均衡版：使用标准分歧转一致参数，在胜率与样本数量之间平衡。',
+  timeRange: 120,
+  conditions: [
+    { type: 'listed_days_gte', date1: 0, days: 120 },
+    { type: 'avg_amount_gte', date1: 0, days: 20, value: 500000000 },
+    { type: 'recent_limit_up', date1: -1, days: 10 },
+    { type: 'pct_change_between', date1: -1, minValue: -5, maxValue: 3 },
+    { type: 'limit_up', date1: 0 },
+    { type: 'volume_ratio', date1: 0, date2: -1, ratio: 1.3 },
+  ],
+  exclude: {
+    kcb: true,
+    cyb: true,
+    bjs: true,
+    st: true,
+    delist: true,
+  },
+};
+
+/**
+ * 市场状态开关：强势策略包
+ * 思路：进攻型，聚焦二波加速（历史龙头二次启动）。
+ */
+export const yzrPackStrongMarketStrategy: StrategyTemplate = {
+  id: 'yzr_pack_strong_market',
+  name: '游资策略包-强势',
+  description:
+    '强势进攻版：聚焦历史龙头二波加速，适合主升阶段追求弹性。',
+  timeRange: 120,
+  conditions: [
+    { type: 'listed_days_gte', date1: 0, days: 120 },
+    { type: 'avg_amount_gte', date1: 0, days: 20, value: 600000000 },
+    { type: 'three_limit_up', date1: -1, days: 30 },
+    { type: 'pct_change_lt', date1: -1, value: 9.8 },
+    { type: 'limit_up', date1: 0 },
+    { type: 'volume_ratio', date1: 0, date2: -1, ratio: 1.2 },
+  ],
+  exclude: {
+    kcb: true,
+    cyb: true,
+    bjs: true,
+    st: true,
+    delist: true,
+  },
+};
+
 // 所有策略模板（所有战法置顶）
 export const allStrategyTemplates: StrategyTemplate[] = [
   // 所有战法策略（置顶）
@@ -312,6 +513,13 @@ export const allStrategyTemplates: StrategyTemplate[] = [
   threeLimitUpStrategy, // 三连板
   monthThreeLimitUpWithFirstBoardStrategy, // 月内三连板+首板涨停
   oversoldReboundVolumeConfirmStrategy, // 超跌反弹+量能确认
+  yzrFirstBoardProbeStrategy, // 游资首板试错
+  yzrDisagreementToConsensusStrategy, // 游资分歧转一致
+  yzrSecondWaveAccelerationStrategy, // 游资二波加速
+  yzrPackWeakMarketStrategy, // 游资策略包-弱势
+  yzrPackNeutralMarketStrategy, // 游资策略包-中性
+  yzrPackStrongMarketStrategy, // 游资策略包-强势
+  yzrConsensusRelayStrategy, // 游资合力接力
   bottomingBreakoutStrategy, // 筑底突破
   touchLimitNotCloseWithThreeLimitStrategy, // 摸板首板
   secondBoardStrategy, // 打板二版

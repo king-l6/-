@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-用本地缓存 K 线数据补全回测结果文件中的「匹配日/次日/第三日」涨跌幅与振幅，并写回原文件。
+用本地缓存 K 线数据补全回测结果文件中的指标字段，并写回原文件。
 
-策略结果文件里已有 code、match_date 等，但可能缺少 day1_amplitude、day1_change_pct、day2_*、day3_*。
-本脚本根据 code + match_date 在 cache/stock_data 下找到对应股票的缓存，从缓存中取出匹配日及后两日
-的 开盘/收盘，计算上述字段后写回结果文件（覆盖原行，保留其他字段）。
+策略结果文件里已有 code、match_date 等，但可能缺少：
+- day1_amplitude、day1_change_pct、day2_*、day3_*
+- day2_buy_10d_max_gain_pct（次日开盘买入后，10个交易日内最高涨幅）
+- day2_buy_10d_close_pct（次日开盘买入后，第10个交易日收盘涨跌幅）
+- day2_buy_hit_5pct_day（次日开盘买入后，第几天首次达到 5%）
+
+本脚本根据 code + match_date 在 cache/stock_data 下找到对应股票的缓存，从缓存中取出匹配日及后续
+交易日的开高收数据，计算上述字段后写回结果文件（覆盖原行，保留其他字段）。
 
 使用（在项目根目录）：
   python scripts/enrich_results_from_cache.py                    # 处理 results 下所有 .jsonl
@@ -41,7 +46,7 @@ def _norm_date(d):
 def _load_cache_rows_for_code(code):
     """
     加载某只股票在缓存中的 K 线列表，按日期排序。
-    返回 [(date_str, row), ...]，row 含 开盘、收盘 等。
+    返回 [(date_str, row), ...]，row 含 开盘、最高、收盘 等。
     若未找到或数据为空返回 []。
     """
     pattern = os.path.join(CACHE_DIR, f'{code}_*.json')
@@ -79,10 +84,11 @@ def _load_cache_rows_for_code(code):
             continue
         try:
             open_ = float(r.get('开盘', 0))
+            high = float(r.get('最高', 0))
             close = float(r.get('收盘', 0))
         except (TypeError, ValueError):
             continue
-        out.append((date_str, {'开盘': open_, '收盘': close, 'row': r}))
+        out.append((date_str, {'开盘': open_, '最高': high, '收盘': close, 'row': r}))
     out.sort(key=lambda x: x[0])
     return out
 
@@ -117,6 +123,7 @@ def enrich_one_record(record, cache_rows):
 
     # 次日
     day2_close = None
+    day2_open = None
     if idx + 1 < n:
         day2 = cache_rows[idx + 1][1]
         day2_open, day2_close = day2['开盘'], day2['收盘']
@@ -139,6 +146,35 @@ def enrich_one_record(record, cache_rows):
     # 当前价：缓存最后一条的收盘
     if cache_rows:
         record['current_price'] = round(cache_rows[-1][1]['收盘'], 2)
+
+    # 次日开盘买入后 10 个交易日内：最高涨幅、首次达到 5% 的天数（买入日=第1天）
+    if day2_open and day2_open > 0:
+        max_gain_pct = None
+        hit_day = None
+        day10_close_pct = None
+        end_idx = min(idx + 10, n - 1)
+        for cur_idx in range(idx + 1, end_idx + 1):
+            row = cache_rows[cur_idx][1]
+            # 优先用最高价，缺失时回退到开盘/收盘较大值
+            day_high = row.get('最高')
+            if day_high is None or day_high <= 0:
+                day_high = max(float(row.get('开盘') or 0), float(row.get('收盘') or 0))
+            if day_high <= 0:
+                continue
+            gain_pct = (day_high - day2_open) / day2_open * 100
+            if max_gain_pct is None or gain_pct > max_gain_pct:
+                max_gain_pct = gain_pct
+            if hit_day is None and gain_pct >= 5:
+                # idx+1 是买入当日 => 第1天
+                hit_day = cur_idx - idx
+            if cur_idx == end_idx:
+                day_close = float(row.get('收盘') or 0)
+                if day_close > 0:
+                    day10_close_pct = (day_close - day2_open) / day2_open * 100
+        record['day2_buy_10d_max_gain_pct'] = round(max_gain_pct, 2) if max_gain_pct is not None else None
+        record['day2_buy_10d_close_pct'] = round(day10_close_pct, 2) if day10_close_pct is not None else None
+        record['day2_buy_hit_5pct_day'] = hit_day
+
     return True
 
 

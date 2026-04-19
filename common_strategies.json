@@ -202,6 +202,159 @@
         },
         "timeRange": 90
       }
+    },
+    {
+      "name": "游资合力接力",
+      "description": "游资风格的分歧转一致接力：近10日有涨停识别度，T-1日小幅回踩，T日放量涨停并满足流动性门槛。",
+      "strategy": {
+        "conditions": [
+          { "type": "listed_days_gte", "date1": 0, "days": 120 },
+          { "type": "avg_amount_gte", "date1": 0, "days": 20, "value": 500000000 },
+          { "type": "recent_limit_up", "date1": -1, "days": 10 },
+          { "type": "pct_change_between", "date1": -1, "minValue": -5, "maxValue": 3 },
+          { "type": "limit_up", "date1": 0 },
+          { "type": "volume_ratio", "date1": 0, "date2": -1, "ratio": 1.3 }
+        ],
+        "exclude": {
+          "kcb": true,
+          "cyb": true,
+          "bjs": true,
+          "st": true,
+          "delist": true
+        },
+        "timeRange": 120
+      }
+    },
+    {
+      "name": "游资首板试错",
+      "description": "游资试错型策略：T日首板涨停，前一日非涨停，且满足中高流动性与当日放量，用于捕捉题材启动首板。",
+      "strategy": {
+        "conditions": [
+          { "type": "listed_days_gte", "date1": 0, "days": 120 },
+          { "type": "avg_amount_gte", "date1": 0, "days": 20, "value": 300000000 },
+          { "type": "pct_change_lt", "date1": -1, "value": 9.8 },
+          { "type": "limit_up", "date1": 0 },
+          { "type": "volume_ratio", "date1": 0, "date2": -1, "ratio": 1.2 }
+        ],
+        "exclude": {
+          "kcb": true,
+          "cyb": true,
+          "bjs": true,
+          "st": true,
+          "delist": true
+        },
+        "timeRange": 120
+      }
+    },
+    {
+      "name": "游资分歧转一致",
+      "description": "游资主流接力型策略：近10日有涨停，T-1日分歧回踩，T日放量涨停确认一致性。",
+      "strategy": {
+        "conditions": [
+          { "type": "listed_days_gte", "date1": 0, "days": 120 },
+          { "type": "avg_amount_gte", "date1": 0, "days": 20, "value": 500000000 },
+          { "type": "recent_limit_up", "date1": -1, "days": 10 },
+          { "type": "pct_change_between", "date1": -1, "minValue": -5, "maxValue": 3 },
+          { "type": "limit_up", "date1": 0 },
+          { "type": "volume_ratio", "date1": 0, "date2": -1, "ratio": 1.3 }
+        ],
+        "exclude": {
+          "kcb": true,
+          "cyb": true,
+          "bjs": true,
+          "st": true,
+          "delist": true
+        },
+        "timeRange": 120
+      }
+    },
+    {
+      "name": "游资二波加速",
+      "description": "游资二波策略：近30日出现过三连板，T-1日非涨停，T日再次涨停并放量，尝试捕捉龙头二波启动。",
+      "strategy": {
+        "conditions": [
+          { "type": "listed_days_gte", "date1": 0, "days": 120 },
+          { "type": "avg_amount_gte", "date1": 0, "days": 20, "value": 600000000 },
+          { "type": "three_limit_up", "date1": -1, "days": 30 },
+          { "type": "pct_change_lt", "date1": -1, "value": 9.8 },
+          { "type": "limit_up", "date1": 0 },
+          { "type": "volume_ratio", "date1": 0, "date2": -1, "ratio": 1.2 }
+        ],
+        "exclude": {
+          "kcb": true,
+          "cyb": true,
+          "bjs": true,
+          "st": true,
+          "delist": true
+        },
+        "timeRange": 120
+      }
+    },
+    {
+      "name": "游资策略包-弱势",
+      "description": "弱势防守版：提高流动性门槛，要求更充分分歧与更强放量后再做转一致，减少噪音交易。",
+      "strategy": {
+        "conditions": [
+          { "type": "listed_days_gte", "date1": 0, "days": 120 },
+          { "type": "avg_amount_gte", "date1": 0, "days": 20, "value": 800000000 },
+          { "type": "recent_limit_up", "date1": -1, "days": 10 },
+          { "type": "pct_change_between", "date1": -1, "minValue": -6, "maxValue": 2 },
+          { "type": "limit_up", "date1": 0 },
+          { "type": "volume_ratio", "date1": 0, "date2": -1, "ratio": 1.5 }
+        ],
+        "exclude": {
+          "kcb": true,
+          "cyb": true,
+          "bjs": true,
+          "st": true,
+          "delist": true
+        },
+        "timeRange": 120
+      }
+    },
+    {
+      "name": "游资策略包-中性",
+      "description": "中性均衡版：使用标准分歧转一致参数，在胜率与样本数量之间平衡。",
+      "strategy": {
+        "conditions": [
+          { "type": "listed_days_gte", "date1": 0, "days": 120 },
+          { "type": "avg_amount_gte", "date1": 0, "days": 20, "value": 500000000 },
+          { "type": "recent_limit_up", "date1": -1, "days": 10 },
+          { "type": "pct_change_between", "date1": -1, "minValue": -5, "maxValue": 3 },
+          { "type": "limit_up", "date1": 0 },
+          { "type": "volume_ratio", "date1": 0, "date2": -1, "ratio": 1.3 }
+        ],
+        "exclude": {
+          "kcb": true,
+          "cyb": true,
+          "bjs": true,
+          "st": true,
+          "delist": true
+        },
+        "timeRange": 120
+      }
+    },
+    {
+      "name": "游资策略包-强势",
+      "description": "强势进攻版：聚焦历史龙头二波加速，适合主升阶段追求弹性。",
+      "strategy": {
+        "conditions": [
+          { "type": "listed_days_gte", "date1": 0, "days": 120 },
+          { "type": "avg_amount_gte", "date1": 0, "days": 20, "value": 600000000 },
+          { "type": "three_limit_up", "date1": -1, "days": 30 },
+          { "type": "pct_change_lt", "date1": -1, "value": 9.8 },
+          { "type": "limit_up", "date1": 0 },
+          { "type": "volume_ratio", "date1": 0, "date2": -1, "ratio": 1.2 }
+        ],
+        "exclude": {
+          "kcb": true,
+          "cyb": true,
+          "bjs": true,
+          "st": true,
+          "delist": true
+        },
+        "timeRange": 120
+      }
     }
   ]
 }

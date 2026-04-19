@@ -5,10 +5,16 @@
         <TabPane key="strategy-backtest" tab="策略回测" />
         <TabPane key="common-strategies" tab="常用策略" />
         <TabPane key="history-results" tab="历史回测数据" />
+        <TabPane key="emotion-cycle" tab="情绪周期" />
+        <TabPane key="multi-kline" tab="多股复盘K" />
       </Tabs>
 
       <div class="mt-2">
-        <router-view />
+        <router-view v-slot="{ Component, route: r }">
+          <keep-alive :include="['EmotionCycle', 'MultiKline']">
+            <component :is="Component" :key="r.name" />
+          </keep-alive>
+        </router-view>
       </div>
     </div>
   </div>
@@ -25,13 +31,17 @@ const route = useRoute()
 const routeToKey: Record<string, string> = {
   StrategyBacktest: 'strategy-backtest',
   CommonStrategies: 'common-strategies',
-  HistoryResults: 'history-results'
+  HistoryResults: 'history-results',
+  EmotionCycle: 'emotion-cycle',
+  MultiKline: 'multi-kline'
 }
 
 const keyToPath: Record<string, string> = {
   'strategy-backtest': '/strategy-backtest',
   'common-strategies': '/common-strategies',
-  'history-results': '/history-results'
+  'history-results': '/history-results',
+  'emotion-cycle': '/emotion-cycle',
+  'multi-kline': '/multi-kline'
 }
 
 const activeKey = computed({

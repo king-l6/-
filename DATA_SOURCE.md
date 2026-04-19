@@ -1,13 +1,19 @@
 # 数据源说明
 
+## 选用原则（快且准）
+
+- **股票列表（仅代码与简称）**：默认 **AkShare 拉交易所公开主板清单**（与「主板」板块定义一致、通常更快）；失败或为空时 **自动回退 Baostock** `query_all_stock` + 与本项目相同的规则过滤。需要强制与回测旧环境一致时，设环境变量 **`STOCK_LIST_SOURCE=baostock`** 仅用 Baostock。
+- **日 K 线（开高低收、量额、涨跌幅等）**：统一 **Baostock**，与回测、缓存文件名及字段一致；不因「换源快」混用其它日 K 源，避免同一套策略口径不一致。
+- **情绪周期页 / 已落盘缓存**：计算时只读本地 `cache/stock_data`，**最快**；**准度**等于当前缓存里已写入的交易日数据（见下文「当日数据何时可用」）。
+
 ## 使用的数据源
 
-本项目使用 **Baostock**（[www.baostock.com](http://www.baostock.com)）作为 A 股行情数据源。
+本项目使用 **Baostock**（[www.baostock.com](http://www.baostock.com)）作为 A 股**日 K 线**数据源；**沪深主板普通股代码表**默认用 **AkShare** 从交易所公开清单汇总（沪市「主板A股」、深市「A股列表」中板块为「主板」），失败时回退 Baostock `query_all_stock` + 规则过滤。环境变量 `STOCK_LIST_SOURCE=baostock` 可强制仅用 Baostock 拉列表。
 
-- **类型**：免费、开源的证券数据平台  
-- **用途**：股票列表、日 K 线（开高低收、成交量等）  
-- **范围**：沪市主板（60 开头）、深市主板（00 开头），不含科创板、创业板、北交所  
-- **代码**：`data_fetcher.py` 通过 `baostock` 库拉取并写入本地 `cache/` 目录
+- **类型**：Baostock / AkShare 均为免费源  
+- **用途**：AkShare/Baostock 股票列表；Baostock 日 K（开高低收、成交量等）  
+- **范围**：沪市主板（`60xxxx`）、深市主板（`000`–`003` 段，与深交所「主板」板块一致），不含科创板、创业板、北交所  
+- **代码**：`stock_list_sources.py`、`data_fetcher.py` 写入本地 `cache/stock_list.json` 与 `cache/stock_data/`
 
 ## 当日数据何时可用
 

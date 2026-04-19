@@ -1,4 +1,5 @@
-version: '3.8'
+# 显式项目名：避免项目目录为中文等非 ASCII 名时 Compose 推出空 project name
+name: stock-backtest
 
 services:
   app:

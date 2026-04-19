@@ -9,8 +9,19 @@ import time
 import os
 import json
 import glob
+from collections import defaultdict
 
 import baostock as bs
+
+_MAIN_BOARD_CACHE_PURGED_ONCE = False
+
+from stock_code_utils import (
+    is_likely_index_code_name,
+    is_main_board_equity_code,
+    load_main_board_codes_whitelist,
+    universe_exclusion_reason,
+)
+from stock_list_sources import fetch_main_board_stocks_akshare
 
 
 class DataFetcher:
@@ -38,34 +49,95 @@ class DataFetcher:
         self._trading_days_cache = {}  # {(start, end): [dates]}
         self._trading_days_full_cache = None  # 近N年完整交易日历
         self._trading_days_cache_time = None
+        self._network_error_count = 0
 
     def _ensure_login(self):
         if not self._bs_logged_in:
             lg = bs.login()
             self._bs_logged_in = (lg.error_code == '0')
 
+    def _reset_login(self):
+        """重置登录状态，触发下次请求前重新登录。"""
+        self._bs_logged_in = False
+
+    def _is_transient_bs_error(self, e):
+        """识别 Baostock 常见的临时网络/压缩/编码异常。"""
+        msg = str(e).lower()
+        transient_keywords = (
+            'decompress',
+            'utf-8',
+            'codec',
+            'truncated stream',
+            'invalid distance',
+            'connection reset',
+            'timed out',
+            'timeout',
+            'remote end closed',
+        )
+        return any(k in msg for k in transient_keywords)
+
+    def _query_history_rows_with_retry(self, bs_code, fields, start_fmt, end_fmt, max_retries=4):
+        """带重试拉取历史K线原始行。"""
+        last_error = None
+        for attempt in range(max_retries):
+            try:
+                with self._bs_lock:
+                    self._ensure_login()
+                    if not self._bs_logged_in:
+                        raise RuntimeError('Baostock 登录失败')
+                    rs = bs.query_history_k_data_plus(
+                        bs_code,
+                        fields,
+                        start_date=start_fmt, end_date=end_fmt, frequency="d", adjustflag="3"
+                    )
+                    data_list = []
+                    while rs.error_code == '0' and rs.next():
+                        data_list.append(rs.get_row_data())
+                return data_list
+            except Exception as e:
+                last_error = e
+                if not self._is_transient_bs_error(e) or attempt == max_retries - 1:
+                    break
+                self._network_error_count += 1
+                self._reset_login()
+                sleep_s = min(0.6 * (2 ** attempt), 5.0)
+                if self._network_error_count % 20 == 0:
+                    print(f"[WARNING] Baostock 网络波动累计 {self._network_error_count} 次，正在自动重试", flush=True)
+                time.sleep(sleep_s)
+        raise last_error
+
     def _to_bs_code(self, code):
         """6位代码转 Baostock 格式：sh.600000 或 sz.000001"""
         return f"sh.{code}" if code.startswith('6') else f"sz.{code}"
 
-    def _should_exclude(self, code, name):
-        """只保留主板股票：00开头（深市主板）、60开头（沪市主板）"""
-        if not (code.startswith('00') or code.startswith('60')):
-            return True
-        if 'ST' in name or '*ST' in name or 'st' in name or '*st' in name:
-            return True
-        if '退' in name:
-            return True
-        return False
+    def _filter_stock_list_rows(self, stocks):
+        """只保留主板个股，并剔除指数类（兼容旧 stock_list.json）。"""
+        if not stocks:
+            return stocks
+        out = []
+        for s in stocks:
+            code = str(s.get('code') or '')
+            name = str(s.get('name') or '')
+            ex = s.get('exchange') or s.get('ex')
+            ex = str(ex).strip().lower() if ex else None
+            if not ex:
+                ex = 'sh' if code.startswith('60') else 'sz'
+            if universe_exclusion_reason(code, name, exchange=ex) is not None:
+                continue
+            out.append(s)
+        return out
 
     def get_stock_list(self):
         """获取所有主板A股股票列表"""
+        purge_stock_data_dir_main_board_only_once()
+
         # 检查内存缓存
         if (self.stock_list_cache is not None and
                 self.stock_list_cache_time is not None and
                 (datetime.now() - self.stock_list_cache_time).seconds < self.cache_duration):
-            print(f"[DEBUG] 使用内存缓存，共 {len(self.stock_list_cache)} 只股票")
-            return self.stock_list_cache
+            filtered = self._filter_stock_list_rows(self.stock_list_cache)
+            print(f"[DEBUG] 使用内存缓存，共 {len(filtered)} 只股票")
+            return filtered
 
         # 检查文件缓存（包括过期缓存，作为备用）
         fallback_stocks = None
@@ -78,7 +150,7 @@ class DataFetcher:
                     cache_time = datetime.fromisoformat(cache_data['cache_time'])
                     cache_age = (datetime.now() - cache_time).total_seconds()
                     print(f"[DEBUG] 缓存文件时间: {cache_time}, 缓存年龄: {cache_age/3600:.2f} 小时")
-                    stocks = cache_data.get('stocks', [])
+                    stocks = self._filter_stock_list_rows(cache_data.get('stocks', []))
                     if stocks:
                         fallback_stocks = stocks
                         fallback_cache_time = cache_time
@@ -93,37 +165,85 @@ class DataFetcher:
         except Exception as e:
             print(f"[WARNING] 读取缓存文件失败: {e}")
 
-        # 从 baostock 获取
-        print(f"[DEBUG] 开始从 baostock 获取股票列表...")
+        use_bs_only = os.environ.get('STOCK_LIST_SOURCE', '').strip().lower() in (
+            'baostock',
+            'bs',
+            'baostock_only',
+        )
+        stock_list = []
+        if not use_bs_only:
+            stock_list = fetch_main_board_stocks_akshare() or []
+            if stock_list:
+                print(
+                    f'[INFO] 股票列表来自 AkShare（沪深主板），共 {len(stock_list)} 只；'
+                    f'设置 STOCK_LIST_SOURCE=baostock 可改回仅用 Baostock 全表过滤',
+                    flush=True,
+                )
+            else:
+                print('[INFO] AkShare 沪深主板列表不可用或为空，回退 Baostock', flush=True)
+        # 从 baostock 获取（备用或与 AkShare 二选一）
+        if not stock_list:
+            print(f"[DEBUG] 开始从 baostock 获取股票列表...")
         try:
-            with self._bs_lock:
-                self._ensure_login()
-                if not self._bs_logged_in:
-                    print(f"[ERROR] Baostock 登录失败")
-                    # 如果登录失败，使用过期缓存
-                    if fallback_stocks:
-                        print(f"[INFO] 使用过期缓存（{len(fallback_stocks)} 只股票）")
-                        self.stock_list_cache = fallback_stocks
-                        self.stock_list_cache_time = fallback_cache_time
-                        return fallback_stocks
-                    return []
-                query_date = datetime.now().strftime('%Y-%m-%d')
-                print(f"[DEBUG] 查询日期: {query_date}")
-                rs = bs.query_all_stock(day=query_date)
-                print(f"[DEBUG] Baostock 查询错误码: {rs.error_code}, 错误信息: {rs.error_msg}")
-            stock_list = []
-            if rs.error_code == '0':
+            if not stock_list:
+                with self._bs_lock:
+                    self._ensure_login()
+                    if not self._bs_logged_in:
+                        print(f"[ERROR] Baostock 登录失败")
+                        # 如果登录失败，使用过期缓存
+                        if fallback_stocks:
+                            print(f"[INFO] 使用过期缓存（{len(fallback_stocks)} 只股票）")
+                            self.stock_list_cache = fallback_stocks
+                            self.stock_list_cache_time = fallback_cache_time
+                            return fallback_stocks
+                        return []
+                    query_date = datetime.now().strftime('%Y-%m-%d')
+                    print(f"[DEBUG] 查询日期: {query_date}")
+                    rs = bs.query_all_stock(day=query_date)
+                    print(f"[DEBUG] Baostock 查询错误码: {rs.error_code}, 错误信息: {rs.error_msg}")
+            if not stock_list and rs.error_code == '0':
                 count = 0
+                excl_stats: defaultdict[str, int] = defaultdict(int)
+                excl_samples: defaultdict[str, list] = defaultdict(list)
+                dbg = os.environ.get('STOCK_FILTER_DEBUG', '').strip().lower() in ('1', 'true', 'yes', 'on')
+                max_sample = 5
                 while rs.next():
                     row = rs.get_row_data()
                     # code: sh.600000, code_name: 浦发银行
                     bs_code, trade_status, name = row[0], row[1], row[2]
                     code = bs_code.split('.')[-1] if '.' in bs_code else bs_code
-                    if len(code) != 6 or self._should_exclude(code, name):
+                    ex = 'sh' if str(bs_code).lower().startswith('sh.') else 'sz'
+                    reason = universe_exclusion_reason(code, name, exchange=ex, bs_code=bs_code)
+                    if reason:
+                        excl_stats[reason] += 1
+                        if dbg:
+                            print(
+                                f'[STOCK_FILTER] drop {bs_code}\t{code}\t{name!r}\t-> {reason}',
+                                flush=True,
+                            )
+                        elif len(excl_samples[reason]) < max_sample:
+                            excl_samples[reason].append(f'{bs_code} {code} {name[:32]!r}')
                         continue
-                    stock_list.append({'code': code, 'name': name})
+                    stock_list.append({'code': code, 'name': name, 'exchange': ex})
                     count += 1
-                print(f"[DEBUG] 从 baostock 获取到 {count} 只股票（过滤前）")
+                print(f"[DEBUG] 从 baostock 获取到 {count} 只股票（过滤后保留）")
+                if excl_stats:
+                    total_ex = sum(excl_stats.values())
+                    top = sorted(excl_stats.items(), key=lambda x: -x[1])[:20]
+                    summary = '; '.join(f'{k}={v}' for k, v in top)
+                    print(
+                        f'[INFO] Baostock 股票池过滤：排除 {total_ex} 条；原因 Top: {summary}',
+                        flush=True,
+                    )
+                    if not dbg:
+                        for rk, rows in sorted(excl_samples.items(), key=lambda x: -excl_stats[x[0]])[:12]:
+                            if not rows:
+                                continue
+                            print(f'[INFO]   · {rk} 示例: {" | ".join(rows)}', flush=True)
+                    print(
+                        '[INFO] 逐条对照可设置环境变量 STOCK_FILTER_DEBUG=1 后重启服务',
+                        flush=True,
+                    )
 
             if stock_list:
                 self.stock_list_cache = stock_list
@@ -259,6 +379,18 @@ class DataFetcher:
         index = self._build_cache_index()
         return index.get(code, [])
 
+    def _list_stock_cache_files(self, code):
+        """列出某只股票的 K 线缓存 json 路径（优先走内存索引，避免每次 glob 全目录）。"""
+        try:
+            rows = self.get_cache_files_for_code(code)
+            paths = [t[2] for t in rows if t and len(t) > 2]
+            if paths:
+                return paths
+        except Exception:
+            pass
+        pattern = os.path.join(self.stock_data_cache_dir, f'{code}_*.json')
+        return glob.glob(pattern)
+
     def get_all_cache_codes(self):
         """获取所有已缓存的股票代码集合"""
         index = self._build_cache_index()
@@ -358,6 +490,15 @@ class DataFetcher:
             all_dates = set()
             for fp in files:
                 try:
+                    base = os.path.basename(fp)
+                    if '_' in base and base.endswith('.json'):
+                        code0 = base.split('_')[0]
+                        wl = load_main_board_codes_whitelist(self.stock_list_cache_file)
+                        if wl is not None:
+                            if code0 not in wl:
+                                continue
+                        elif not is_main_board_equity_code(code0, None):
+                            continue
                     with open(fp, 'r', encoding='utf-8') as f:
                         data = json.load(f)
                     rows = data.get('data') or []
@@ -411,8 +552,47 @@ class DataFetcher:
             return True
         return cache_latest < last_trade
 
+    def remove_non_mainboard_cache_files(self):
+        """删除非主板个股及指数类 K 线缓存（仅依据文件名六位代码 + 可选 json 内 name）。"""
+        try:
+            pattern = os.path.join(self.stock_data_cache_dir, '*.json')
+            deleted = 0
+            for fp in glob.glob(pattern):
+                base = os.path.basename(fp)
+                if '_' not in base or not base.endswith('.json'):
+                    continue
+                parts = base[:-5].split('_')
+                if len(parts) != 3:
+                    continue
+                code, _, _ = parts
+                if len(code) != 6:
+                    continue
+                nm = ''
+                try:
+                    with open(fp, 'r', encoding='utf-8') as f:
+                        meta = json.load(f)
+                    nm = str(meta.get('name') or '')
+                except Exception:
+                    pass
+                wl = load_main_board_codes_whitelist(self.stock_list_cache_file)
+                if wl is not None:
+                    if code in wl:
+                        continue
+                elif is_main_board_equity_code(code, None) and not is_likely_index_code_name(code, nm):
+                    continue
+                try:
+                    os.remove(fp)
+                    deleted += 1
+                except Exception:
+                    pass
+            if deleted > 0:
+                print(f'[INFO] 删除非主板/指数缓存 {deleted} 个文件', flush=True)
+        except Exception as e:
+            print(f'[WARNING] 清理非主板缓存失败: {e}', flush=True)
+
     def remove_duplicate_cache(self):
-        """删除重复缓存：每只股票只保留一份（保留 start_date 最早的那份，覆盖范围最大）"""
+        """先删非主板/指数缓存，再删重复缓存：每只股票只保留一份（保留 start_date 最早的那份，覆盖范围最大）"""
+        self.remove_non_mainboard_cache_files()
         try:
             pattern = os.path.join(self.stock_data_cache_dir, '*.json')
             files = glob.glob(pattern)
@@ -453,17 +633,13 @@ class DataFetcher:
         start_fmt = f"{start_date[:4]}-{start_date[4:6]}-{start_date[6:]}"
         end_fmt = f"{end_date[:4]}-{end_date[4:6]}-{end_date[6:]}"
         try:
-            with self._bs_lock:
-                self._ensure_login()
-                bs_code = self._to_bs_code(code)
-                rs = bs.query_history_k_data_plus(
-                    bs_code,
-                    "date,open,high,low,close,volume,amount,pctChg,turn",
-                    start_date=start_fmt, end_date=end_fmt, frequency="d", adjustflag="3"
-                )
-                data_list = []
-                while rs.error_code == '0' and rs.next():
-                    data_list.append(rs.get_row_data())
+            bs_code = self._to_bs_code(code)
+            data_list = self._query_history_rows_with_retry(
+                bs_code,
+                "date,open,high,low,close,volume,amount,pctChg,turn",
+                start_fmt,
+                end_fmt,
+            )
             if not data_list:
                 return None
             df = pd.DataFrame(data_list, columns=['日期','开盘','最高','最低','收盘','成交量','成交额','涨跌幅','换手率'])
@@ -706,7 +882,7 @@ class DataFetcher:
         pattern = os.path.join(self.stock_data_cache_dir, '*.json')
         files = glob.glob(pattern)
         
-        # 按股票代码分组，找出每只股票最早的start_date
+        # 按股票代码分组，记录每只股票缓存的起止日期
         by_code = {}
         for fp in files:
             name = os.path.basename(fp)
@@ -718,12 +894,16 @@ class DataFetcher:
             code, start_str, end_str = parts
             if len(code) != 6 or len(start_str) != 8 or len(end_str) != 8:
                 continue
-            # 保留 start_date 最早的那个缓存文件
+            # 记录最早 start 与最晚 end（同一股票可能存在多份缓存）
             if code not in by_code:
-                by_code[code] = start_str
+                by_code[code] = {'start': start_str, 'end': end_str}
             else:
-                if start_str < by_code[code]:
-                    by_code[code] = start_str
+                if start_str < by_code[code]['start']:
+                    by_code[code]['start'] = start_str
+                if end_str > by_code[code]['end']:
+                    by_code[code]['end'] = end_str
+
+        last_available_trade_day = self._get_last_trading_day_available()
         
         # 检查哪些股票需要拉取更多数据
         for code in all_codes:
@@ -731,7 +911,13 @@ class DataFetcher:
                 # 没有缓存，需要拉取
                 need_fetch_codes.append(code)
             else:
-                cache_start = by_code[code]
+                cache_start = by_code[code]['start']
+                cache_end = by_code[code]['end']
+
+                # 若缓存已经覆盖到最近可用交易日，优先使用缓存，不再预拉取
+                if cache_end >= last_available_trade_day:
+                    continue
+
                 # 如果缓存的开始日期晚于需要的开始日期，需要拉取更多数据
                 if cache_start > required_start_date:
                     need_fetch_codes.append(code)
@@ -802,8 +988,7 @@ class DataFetcher:
                 if df is not None:
                     return df
                 # 2. 重叠匹配：任意缓存覆盖请求区间即可用（避免日期略不同时走 API）
-                pattern = os.path.join(self.stock_data_cache_dir, f'{code}_*.json')
-                for fp in glob.glob(pattern):
+                for fp in self._list_stock_cache_files(code):
                     name = os.path.basename(fp)
                     if '_' not in name or not name.endswith('.json'):
                         continue
@@ -823,8 +1008,7 @@ class DataFetcher:
 
         # 增量补数：若有现有缓存，只拉取缺失的日期区间并合并，避免全量拉取
         try:
-            pattern = os.path.join(self.stock_data_cache_dir, f'{code}_*.json')
-            existing_list = glob.glob(pattern)
+            existing_list = self._list_stock_cache_files(code)
             if existing_list and not force_refresh:
                 # 取该股票唯一缓存（remove_duplicate 后应只有一份；多份时取覆盖 end 最大的）
                 best_fp = None
@@ -853,7 +1037,8 @@ class DataFetcher:
                         cache_min_str = cache_min.strftime('%Y%m%d')
                         cache_max_str = cache_max.strftime('%Y%m%d')
                         need_back = start_date < cache_min_str
-                        need_front = end_date > cache_max_str
+                        last_trade_day = self._get_last_trading_day()
+                        need_front = (end_date > cache_max_str) and (cache_max_str < last_trade_day)
                         if need_back or need_front:
                             to_merge = [df_existing]
                             new_start = cache_data.get('start_date', cache_min_str)
@@ -892,6 +1077,7 @@ class DataFetcher:
                                 }
                                 with open(out_path, 'w', encoding='utf-8') as f:
                                     json.dump(out, f, ensure_ascii=False, default=str)
+                                self.invalidate_cache_index()
                                 if out_path != best_fp:
                                     try:
                                         os.remove(best_fp)
@@ -906,17 +1092,13 @@ class DataFetcher:
 
         try:
             cache_path = self._get_cache_path(code, start_date, end_date)
-            with self._bs_lock:
-                self._ensure_login()
-                bs_code = self._to_bs_code(code)
-                rs = bs.query_history_k_data_plus(
-                    bs_code,
-                    "date,open,high,low,close,volume,amount,pctChg,turn",
-                    start_date=start_fmt, end_date=end_fmt, frequency="d", adjustflag="3"
-                )
-                data_list = []
-                while rs.error_code == '0' and rs.next():
-                    data_list.append(rs.get_row_data())
+            bs_code = self._to_bs_code(code)
+            data_list = self._query_history_rows_with_retry(
+                bs_code,
+                "date,open,high,low,close,volume,amount,pctChg,turn",
+                start_fmt,
+                end_fmt,
+            )
             if not data_list:
                 return None
 
@@ -933,9 +1115,7 @@ class DataFetcher:
             df = df.sort_values('日期')
 
             # 保存前先删除该股票代码的其他缓存文件，避免重复数据
-            pattern = os.path.join(self.stock_data_cache_dir, f'{code}_*.json')
-            existing_files = glob.glob(pattern)
-            for existing_file in existing_files:
+            for existing_file in self._list_stock_cache_files(code):
                 if existing_file != cache_path:
                     try:
                         os.remove(existing_file)
@@ -948,6 +1128,7 @@ class DataFetcher:
                     'code': code, 'start_date': start_date, 'end_date': end_date,
                     'data': df.to_dict('records')
                 }, f, ensure_ascii=False, default=str)
+            self.invalidate_cache_index()
             return df
         except Exception as e:
             print(f"[ERROR] 获取 {code} 数据失败: {e}")
@@ -1034,3 +1215,15 @@ class DataFetcher:
             return data is not None and data['pct_change'] >= 9.8
         except Exception:
             return False
+
+
+def purge_stock_data_dir_main_board_only_once():
+    """进程内仅执行一次：删除 cache/stock_data 中非主板个股与指数类 json，并做重复文件清理。"""
+    global _MAIN_BOARD_CACHE_PURGED_ONCE
+    if _MAIN_BOARD_CACHE_PURGED_ONCE:
+        return
+    _MAIN_BOARD_CACHE_PURGED_ONCE = True
+    try:
+        DataFetcher().remove_duplicate_cache()
+    except Exception as e:
+        print(f'[WARNING] 首次清理非主板缓存失败: {e}', flush=True)

@@ -7,7 +7,8 @@ WORKDIR /app/frontend
 COPY frontend/package*.json ./
 
 # 安装前端依赖
-RUN npm ci --only=production
+# 构建需要 vite 等在 devDependencies，不能用 --omit=dev
+RUN npm ci
 
 # 复制前端源代码
 COPY frontend/ ./
@@ -20,8 +21,10 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# 安装系统依赖
-RUN apt-get update && apt-get install -y \
+# 安装系统依赖（curl：compose healthcheck；gcc/g++：部分 Python 包编译）
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    ca-certificates \
     gcc \
     g++ \
     && rm -rf /var/lib/apt/lists/*
@@ -36,6 +39,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app.py .
 COPY strategy_engine.py .
 COPY data_fetcher.py .
+COPY stock_code_utils.py .
+COPY stock_list_sources.py .
+COPY emotion_cycle_service.py .
+COPY configs ./configs/
+COPY common_strategies.json .
 
 # 从构建阶段复制前端构建产物
 COPY --from=frontend-builder /app/frontend/dist ./static

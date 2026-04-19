@@ -5,6 +5,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from threading import Lock
 import json
 import os
+from collections import defaultdict
 
 class StrategyEngine:
     """策略回测引擎"""
@@ -16,7 +17,82 @@ class StrategyEngine:
         # 结果持久化目录
         self.results_dir = os.path.join(os.path.dirname(__file__), 'results')
         os.makedirs(self.results_dir, exist_ok=True)
-    
+        # jsonl 批量写出缓冲（path -> 状态）
+        self._jsonl_buf = defaultdict(lambda: {'strategy_name': None, 'lines': [], 'meta_written': False})
+        self._jsonl_flush_size = int(os.environ.get('BACKTEST_JSONL_BUFFER', '40') or '40')
+        self._match_print_count = 0
+
+    def _prepare_df_for_strategy(self, df, conditions):
+        """单次：_ds、date_map、交易日序列、指标预计算（df 须已按日期升序）。"""
+        df['_ds'] = pd.to_datetime(df['日期']).dt.strftime('%Y-%m-%d')
+        date_map = df.set_index('_ds').to_dict('index')
+        dates_str = df['_ds'].tolist()
+        date_pos = {s: i for i, s in enumerate(dates_str)}
+        dates_sorted = [datetime.strptime(s, '%Y-%m-%d') for s in dates_str]
+        indicator_ctx = self._build_indicator_ctx(conditions, df)
+        return date_map, dates_str, date_pos, dates_sorted, indicator_ctx
+
+    def _build_indicator_ctx(self, conditions, df):
+        """按条件集合预计算 MA/RSI 等整列，避免在 T 日循环内重复 rolling。"""
+        ctx = {'ma_cross': {}, 'ma_period': {}, 'rsi_period': {}}
+        pairs = set()
+        periods_ma = set()
+        periods_rsi = set()
+        for c in conditions:
+            t = c.get('type')
+            if t == 'ma_cross_up':
+                pairs.add((int(c.get('shortPeriod', 5)), int(c.get('longPeriod', 10))))
+            elif t == 'close_below_ma_deviation':
+                periods_ma.add(int(c.get('period', 20)))
+            elif t == 'rsi_lt':
+                periods_rsi.add(int(c.get('period', 6)))
+        if not pairs and not periods_ma and not periods_rsi:
+            return ctx
+        close = pd.to_numeric(df['收盘'], errors='coerce')
+        for short, long in pairs:
+            ma_s = close.rolling(window=short, min_periods=short).mean().to_numpy(dtype=float, copy=False)
+            ma_l = close.rolling(window=long, min_periods=long).mean().to_numpy(dtype=float, copy=False)
+            ctx['ma_cross'][(short, long)] = (ma_s, ma_l)
+        for p in periods_ma:
+            ctx['ma_period'][p] = close.rolling(window=p, min_periods=p).mean().to_numpy(dtype=float, copy=False)
+        for p in periods_rsi:
+            delta = close.diff()
+            gain = delta.clip(lower=0).rolling(window=p, min_periods=p).mean()
+            loss = (-delta.clip(upper=0)).rolling(window=p, min_periods=p).mean()
+            rs = gain / loss.replace(0, pd.NA)
+            rsi = 100 - (100 / (1 + rs))
+            ctx['rsi_period'][p] = rsi.fillna(100).to_numpy(dtype=float, copy=False)
+        return ctx
+
+    def _flush_jsonl_buffer(self, filepath):
+        """将 filepath 对应缓冲刷盘；须在持有 results_lock 时调用。"""
+        buf = self._jsonl_buf.get(filepath)
+        if not buf or not buf['lines']:
+            return
+        strategy_name = buf['strategy_name'] or ''
+        lines = buf['lines']
+        buf['lines'] = []
+        mode = 'a' if buf['meta_written'] else 'w'
+        try:
+            with open(filepath, mode, encoding='utf-8') as f:
+                if not buf['meta_written']:
+                    meta = {'_meta': {'strategy_name': strategy_name, 'run_at': datetime.now().isoformat()}}
+                    f.write(json.dumps(meta, ensure_ascii=False, default=str) + '\n')
+                    buf['meta_written'] = True
+                for line in lines:
+                    f.write(line + '\n')
+        except Exception as e:
+            print(f"[WARNING] 批量写出结果失败: {e}")
+
+    def _queue_jsonl_row(self, filepath, strategy_name, result, count):
+        """缓冲写入一条 jsonl；须在持有 results_lock 时调用。"""
+        buf = self._jsonl_buf[filepath]
+        if buf['strategy_name'] is None:
+            buf['strategy_name'] = strategy_name
+        buf['lines'].append(json.dumps(result, ensure_ascii=False, default=str))
+        if len(buf['lines']) >= self._jsonl_flush_size:
+            self._flush_jsonl_buffer(filepath)
+
     def backtest(self, strategy, strategy_name=None):
         """执行策略回测（优化版：分阶段筛选 + 实时持久化）"""
         return self._backtest_impl(strategy, strategy_name=strategy_name, only_t_date=None, write_results=True)
@@ -49,21 +125,24 @@ class StrategyEngine:
         if df is None or df.empty:
             return {}
 
-        # 预处理：排序并创建 date_map（只做一次，大幅提升性能）
         df = df.sort_values('日期').reset_index(drop=True)
-        df['_ds'] = pd.to_datetime(df['日期']).dt.strftime('%Y-%m-%d')
-        date_map = df.set_index('_ds').to_dict('index')
-        dates_sorted = sorted([pd.to_datetime(d).to_pydatetime() for d in df['日期'].unique()])
 
         out = {}
         for strategy_name, strategy in strategies_list:
             conditions = strategy.get('conditions', [])
+            date_map, dates_str, date_pos, dates_sorted, indicator_ctx = self._prepare_df_for_strategy(df, conditions)
             time_range = strategy.get('timeRange', 30)
             for t_date in trading_days:
                 if any(c.get('type') == 'bottoming_breakout' for c in conditions):
-                    check = self._check_bottoming_breakout(code, start_d, end_d, time_range, only_t_date=t_date, df=df)
+                    check = self._check_bottoming_breakout(
+                        code, start_d, end_d, time_range, only_t_date=t_date, df=df, conditions=conditions
+                    )
                 else:
-                    check = self._check_strategy_fast(code, conditions, start_d, end_d, time_range, only_t_date=t_date, df=df, date_map=date_map, dates_sorted=dates_sorted)
+                    check = self._check_strategy_fast(
+                        code, conditions, start_d, end_d, time_range, only_t_date=t_date, df=df,
+                        date_map=date_map, dates_sorted=dates_sorted, dates_str=dates_str, date_pos=date_pos,
+                        indicator_ctx=indicator_ctx,
+                    )
                 if check:
                     items = check if isinstance(check, list) else [check]
                     for item in items:
@@ -92,7 +171,11 @@ class StrategyEngine:
         
         # 结果文件路径（仅全量回测时写入）
         results_filepath = os.path.join(self.results_dir, f"{strategy_name}_结果.jsonl") if write_results else None
-        
+        if results_filepath:
+            with self.results_lock:
+                self._jsonl_buf.pop(results_filepath, None)
+        self._match_print_count = 0
+
         # 在回测开始前，确保有足够的数据
         print(f'开始数据预检查，确保有足够的数据用于回测 {time_range} 个交易日...')
         self.data_fetcher.ensure_sufficient_data(time_range, max_workers=100)
@@ -182,14 +265,31 @@ class StrategyEngine:
                                 r['match_date'] = self._normalize_match_date(r.get('match_date'))
                                 results.append(r)
                                 if results_filepath:
-                                    self._append_result(results_filepath, strategy_name, r, len(results))
-                                    print(f"✓ 找到: {r['code']} {r['name']} (匹配日期: {r.get('match_date', 'N/A')})", flush=True)
+                                    self._queue_jsonl_row(results_filepath, strategy_name, r, len(results))
+                                verbose = os.environ.get('BACKTEST_VERBOSE_MATCH', '').strip().lower() in (
+                                    '1', 'true', 'yes', 'on',
+                                )
+                                self._match_print_count += 1
+                                if verbose:
+                                    print(
+                                        f"✓ 找到: {r['code']} {r['name']} (匹配日期: {r.get('match_date', 'N/A')})",
+                                        flush=True,
+                                    )
+                                elif self._match_print_count % 200 == 0:
+                                    print(
+                                        f"[INFO] 已匹配 {self._match_print_count} 条（最新 {r['code']} {r['name']} {r.get('match_date', '')}）",
+                                        flush=True,
+                                    )
                 except Exception as e:
                     # 输出错误信息以便调试
                     if processed_count[0] % 100 == 0:  # 每100只股票输出一次错误统计
                         print(f"[WARNING] 处理股票时出错: {type(e).__name__}: {str(e)}", flush=True)
                     continue
-        
+
+        if results_filepath:
+            with self.results_lock:
+                self._flush_jsonl_buffer(results_filepath)
+
         print(f"回测完成！共检查 {total_stocks} 只股票，找到 {len(results)} 条符合条件的记录")
         if results:
             # 所有策略统一规则：连续三个 A 股交易日内同一只股票只保留第一次出现的日期
@@ -277,17 +377,9 @@ class StrategyEngine:
         return out
 
     def _append_result(self, filepath, strategy_name, result, count):
-        """每找到一条符合条件的结果就追加到文件"""
-        try:
-            if count == 1:
-                # 第一条：写入元信息
-                with open(filepath, 'w', encoding='utf-8') as f:
-                    meta = {'_meta': {'strategy_name': strategy_name, 'run_at': datetime.now().isoformat()}}
-                    f.write(json.dumps(meta, ensure_ascii=False, default=str) + '\n')
-            with open(filepath, 'a', encoding='utf-8') as f:
-                f.write(json.dumps(result, ensure_ascii=False, default=str) + '\n')
-        except Exception as e:
-            print(f"[WARNING] 追加结果失败: {e}")
+        """每找到一条符合条件的结果就写入（缓冲批量刷盘）。"""
+        with self.results_lock:
+            self._queue_jsonl_row(filepath, strategy_name, result, count)
     
     def _write_sorted_results(self, filepath, strategy_name, results):
         """按符合日期排序后重写结果文件"""
@@ -330,7 +422,9 @@ class StrategyEngine:
         """检查股票是否符合策略条件。only_t_date 有值时仅检查该日作为 T。df 可选，传入时不再拉取数据。"""
         try:
             if any(c.get('type') == 'bottoming_breakout' for c in conditions):
-                return self._check_bottoming_breakout(code, start_date, end_date, time_range, only_t_date=only_t_date, df=df)
+                return self._check_bottoming_breakout(
+                    code, start_date, end_date, time_range, only_t_date=only_t_date, df=df, conditions=conditions
+                )
 
             if df is None:
                 df = self.data_fetcher.get_stock_data(
@@ -377,8 +471,15 @@ class StrategyEngine:
                     max_backward_offset = max(max_backward_offset, int(c.get('period', 6)) + 1)
                 elif cond_type == 'stop_fall_signal':
                     max_backward_offset = max(max_backward_offset, int(c.get('volumeDays', 5)) - 1)
+                elif cond_type == 'listed_days_gte':
+                    max_backward_offset = max(max_backward_offset, int(c.get('days', 120)) - 1)
             min_required_idx = max_backward_offset
-            
+
+            date_map, dates_str, date_pos, dates_sorted, indicator_ctx = self._prepare_df_for_strategy(df, conditions)
+            ctx_tail = {
+                'date_map': date_map, 'dates_str': dates_str, 'date_pos': date_pos, 'dates_sorted': dates_sorted,
+            }
+
             # 只检查最近 time_range 个交易日作为 T（不含周末，df 每行即一交易日）
             min_i = max(min_required_idx, len(df) - time_range)
             if only_t_date:
@@ -387,48 +488,53 @@ class StrategyEngine:
                     base_date = df.iloc[i]['日期']
                     base_str = base_date.strftime('%Y-%m-%d') if hasattr(base_date, 'strftime') else str(base_date)[:10]
                     if base_str == only_d:
-                        if self._check_conditions_from_date(code, conditions, base_date, df):
-                            return {'df': df, 'base_date': base_date}
+                        if self._check_conditions_from_date_fast(
+                            conditions, base_date, df, date_map, dates_sorted,
+                            dates_str=dates_str, date_pos=date_pos, indicator_ctx=indicator_ctx,
+                        ):
+                            return {'df': df, 'base_date': base_date, **ctx_tail}
                         return False
                 return False
             for i in range(len(df) - 1, min_i - 1, -1):
                 base_date = df.iloc[i]['日期']
-                if self._check_conditions_from_date(code, conditions, base_date, df):
-                    return {'df': df, 'base_date': base_date}
+                if self._check_conditions_from_date_fast(
+                    conditions, base_date, df, date_map, dates_sorted,
+                    dates_str=dates_str, date_pos=date_pos, indicator_ctx=indicator_ctx,
+                ):
+                    return {'df': df, 'base_date': base_date, **ctx_tail}
             return False
         except Exception as e:
             # 静默处理错误
             return False
 
-    def _check_strategy_fast(self, code, conditions, start_date, end_date, time_range=30, only_t_date=None, df=None, date_map=None, dates_sorted=None):
-        """快速检查股票是否符合策略条件（使用预创建的 date_map 和 dates_sorted）。"""
+    def _check_strategy_fast(
+        self, code, conditions, start_date, end_date, time_range=30, only_t_date=None, df=None,
+        date_map=None, dates_sorted=None, dates_str=None, date_pos=None, indicator_ctx=None,
+    ):
+        """快速检查股票是否符合策略条件（使用预创建的 date_map / dates_str / indicator_ctx）。"""
         try:
             if df is None or df.empty:
                 return False
 
-            # 确保有足够的列
             required_columns = ['日期', '涨跌幅', '成交量']
             if not all(col in df.columns for col in required_columns):
                 return False
 
-            # 优化：检查是否有依赖涨停的条件，如果有，则检查是否有涨停日
             has_limit_up_condition = any(
                 c.get('type') in ('limit_up', 'three_limit_up', 'recent_limit_up')
                 for c in conditions
             )
             if has_limit_up_condition:
-                # 如果有涨停条件但没有任何涨停日，直接跳过
                 if (df['涨跌幅'] >= 9.8).sum() == 0:
                     return False
 
-            # 计算需要的最少交易日数
             max_backward_offset = 0
             for c in conditions:
                 date1 = c.get('date1', 0)
                 date2 = c.get('date2', 0)
-                if date1< 0:
+                if date1 < 0:
                     max_backward_offset = max(max_backward_offset, abs(date1))
-                if date2< 0:
+                if date2 < 0:
                     max_backward_offset = max(max_backward_offset, abs(date2))
                 cond_type = c.get('type')
                 if cond_type in ('recent_n_day_pct_change_lt', 'avg_amount_gte'):
@@ -439,9 +545,16 @@ class StrategyEngine:
                     max_backward_offset = max(max_backward_offset, int(c.get('period', 6)) + 1)
                 elif cond_type == 'stop_fall_signal':
                     max_backward_offset = max(max_backward_offset, int(c.get('volumeDays', 5)) - 1)
+                elif cond_type == 'listed_days_gte':
+                    max_backward_offset = max(max_backward_offset, int(c.get('days', 120)) - 1)
             min_required_idx = max_backward_offset
 
-            # 只检查最近 time_range 个交易日作为 T
+            if date_map is None or dates_str is None or date_pos is None or dates_sorted is None or indicator_ctx is None:
+                date_map, dates_str, date_pos, dates_sorted, indicator_ctx = self._prepare_df_for_strategy(df, conditions)
+            ctx_tail = {
+                'date_map': date_map, 'dates_str': dates_str, 'date_pos': date_pos, 'dates_sorted': dates_sorted,
+            }
+
             min_i = max(min_required_idx, len(df) - time_range)
             if only_t_date:
                 only_d = only_t_date[:10] if isinstance(only_t_date, str) else only_t_date.strftime('%Y-%m-%d')
@@ -449,30 +562,47 @@ class StrategyEngine:
                     base_date = df.iloc[i]['日期']
                     base_str = base_date.strftime('%Y-%m-%d') if hasattr(base_date, 'strftime') else str(base_date)[:10]
                     if base_str == only_d:
-                        if self._check_conditions_from_date_fast(conditions, base_date, df, date_map, dates_sorted):
-                            return {'df': df, 'base_date': base_date}
+                        if self._check_conditions_from_date_fast(
+                            conditions, base_date, df, date_map, dates_sorted,
+                            dates_str=dates_str, date_pos=date_pos, indicator_ctx=indicator_ctx,
+                        ):
+                            return {'df': df, 'base_date': base_date, **ctx_tail}
                         return False
                 return False
             for i in range(len(df) - 1, min_i - 1, -1):
                 base_date = df.iloc[i]['日期']
-                if self._check_conditions_from_date_fast(conditions, base_date, df, date_map, dates_sorted):
-                    return {'df': df, 'base_date': base_date}
+                if self._check_conditions_from_date_fast(
+                    conditions, base_date, df, date_map, dates_sorted,
+                    dates_str=dates_str, date_pos=date_pos, indicator_ctx=indicator_ctx,
+                ):
+                    return {'df': df, 'base_date': base_date, **ctx_tail}
             return False
         except Exception as e:
             return False
 
-    def _check_conditions_from_date_fast(self, conditions, base_date, df, date_map, dates_sorted):
-        """快速检查条件（使用预创建的 date_map 和 dates_sorted）。"""
+    def _check_conditions_from_date_fast(
+        self, conditions, base_date, df, date_map, dates_sorted,
+        dates_str=None, date_pos=None, indicator_ctx=None,
+    ):
+        """快速检查条件（共享交易日序列与指标上下文）。"""
         try:
+            if dates_str is None or date_pos is None:
+                dates_str = df['_ds'].tolist() if '_ds' in df.columns else pd.to_datetime(df['日期']).dt.strftime('%Y-%m-%d').tolist()
+                date_pos = {s: i for i, s in enumerate(dates_str)}
+            if indicator_ctx is None:
+                indicator_ctx = self._build_indicator_ctx(conditions, df)
             for condition in conditions:
-                result = self._evaluate_condition(condition, base_date, date_map, df)
+                result = self._evaluate_condition(
+                    condition, base_date, date_map, df,
+                    dates_sorted=dates_sorted, dates_str=dates_str, date_pos=date_pos, indicator_ctx=indicator_ctx,
+                )
                 if not result:
                     return False
             return True
         except Exception as e:
             return False
 
-    def _check_bottoming_breakout(self, code, start_date, end_date, time_range=30, only_t_date=None, df=None):
+    def _check_bottoming_breakout(self, code, start_date, end_date, time_range=30, only_t_date=None, df=None, conditions=None):
         """二次筑底突破策略（双底/W底）。only_t_date 有值时仅检查该日是否为买点。df 可选，传入时不再拉取数据。"""
         try:
             if df is None:
@@ -487,6 +617,10 @@ class StrategyEngine:
             if not all(c in df.columns for c in req):
                 return False
             df = df.sort_values('日期').reset_index(drop=True)
+            ctx_tail = {}
+            if conditions:
+                dm, dstr, dpos, dsort, _ = self._prepare_df_for_strategy(df, conditions)
+                ctx_tail = {'date_map': dm, 'dates_str': dstr, 'date_pos': dpos, 'dates_sorted': dsort}
             matches = []
             min_i = max(30, len(df) - time_range)
             if only_t_date:
@@ -495,12 +629,12 @@ class StrategyEngine:
                     row_date = df.iloc[i]['日期']
                     row_str = row_date.strftime('%Y-%m-%d') if hasattr(row_date, 'strftime') else str(row_date)[:10]
                     if row_str == only_d and self._is_double_bottom_breakout_day(df, i):
-                        matches.append({'df': df, 'base_date': df.iloc[i]['日期']})
+                        matches.append({'df': df, 'base_date': df.iloc[i]['日期'], **ctx_tail})
                         break
             else:
                 for i in range(len(df) - 1, min_i - 1, -1):
                     if self._is_double_bottom_breakout_day(df, i):
-                        matches.append({'df': df, 'base_date': df.iloc[i]['日期']})
+                        matches.append({'df': df, 'base_date': df.iloc[i]['日期'], **ctx_tail})
             return matches if matches else False
         except Exception:
             return False
@@ -613,31 +747,39 @@ class StrategyEngine:
         return True
 
     def _check_conditions_from_date(self, code, conditions, base_date, df):
-        """从指定日期开始检查条件"""
+        """从指定日期开始检查条件（单次调用也复用共享 eval 上下文）。"""
         try:
-            # 创建日期映射（向量化，避免 iterrows）
-            df = df.copy()
-            df['_ds'] = pd.to_datetime(df['日期']).dt.strftime('%Y-%m-%d')
-            date_map = df.set_index('_ds').to_dict('index')
-            
-            # 解析每个条件
-            for idx, condition in enumerate(conditions):
-                result = self._evaluate_condition(condition, base_date, date_map, df)
-                if not result:
-                    return False
-            
-            return True
+            df = df.sort_values('日期').reset_index(drop=True)
+            date_map, dates_str, date_pos, dates_sorted, indicator_ctx = self._prepare_df_for_strategy(df, conditions)
+            return self._check_conditions_from_date_fast(
+                conditions, base_date, df, date_map, dates_sorted,
+                dates_str=dates_str, date_pos=date_pos, indicator_ctx=indicator_ctx,
+            )
         except Exception as e:
             return False
-    
-    def _evaluate_condition(self, condition, base_date, date_map, df):
+
+    def _evaluate_condition(
+        self, condition, base_date, date_map, df,
+        dates_sorted=None, dates_str=None, date_pos=None, indicator_ctx=None,
+    ):
         """评估单个条件（确保只使用交易日）"""
         try:
+            if indicator_ctx is None:
+                indicator_ctx = {'ma_cross': {}, 'ma_period': {}, 'rsi_period': {}}
+            if dates_str is None or date_pos is None:
+                if '_ds' in df.columns:
+                    dates_str = df['_ds'].tolist()
+                else:
+                    dates_str = pd.to_datetime(df['日期']).dt.strftime('%Y-%m-%d').tolist()
+                date_pos = {s: i for i, s in enumerate(dates_str)}
+            if dates_sorted is None:
+                dates_sorted = [datetime.strptime(s, '%Y-%m-%d') for s in dates_str]
+
             cond_type = condition.get('type')
-            
+
             if cond_type == 'limit_up':
                 # 涨停条件：date1涨停
-                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df)
+                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df, dates_str=dates_str, date_pos=date_pos)
                 if date1 is None:
                     return False  # 无法找到对应的交易日
                 date1_str = date1.strftime('%Y-%m-%d')
@@ -648,7 +790,7 @@ class StrategyEngine:
             
             elif cond_type == 'pct_change_gt':
                 # 涨幅大于零：date1涨幅>0
-                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df)
+                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df, dates_str=dates_str, date_pos=date_pos)
                 if date1 is None:
                     return False  # 无法找到对应的交易日
                 date1_str = date1.strftime('%Y-%m-%d')
@@ -659,7 +801,7 @@ class StrategyEngine:
             
             elif cond_type == 'pct_change_lt':
                 # 涨幅小于零：date1涨幅<0
-                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df)
+                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df, dates_str=dates_str, date_pos=date_pos)
                 if date1 is None:
                     return False  # 无法找到对应的交易日
                 date1_str = date1.strftime('%Y-%m-%d')
@@ -670,7 +812,7 @@ class StrategyEngine:
             
             elif cond_type == 'pct_change_between':
                 # 涨幅大于且小于：date1涨幅在 [minValue, maxValue] 范围内
-                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df)
+                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df, dates_str=dates_str, date_pos=date_pos)
                 if date1 is None:
                     return False  # 无法找到对应的交易日
                 date1_str = date1.strftime('%Y-%m-%d')
@@ -684,8 +826,8 @@ class StrategyEngine:
             
             elif cond_type == 'volume_ratio':
                 # 成交量比例：date1成交量 / date2成交量 > ratio
-                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df)
-                date2 = self._get_date_offset(base_date, condition.get('date2', 0), df)
+                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df, dates_str=dates_str, date_pos=date_pos)
+                date2 = self._get_date_offset(base_date, condition.get('date2', 0), df, dates_str=dates_str, date_pos=date_pos)
                 if date1 is None or date2 is None:
                     return False  # 无法找到对应的交易日
                 date1_str = date1.strftime('%Y-%m-%d')
@@ -711,29 +853,27 @@ class StrategyEngine:
                 start_offset = condition.get('date1', 0)
                 
                 # 获取起始日期
-                start_date = self._get_date_offset(base_date, start_offset, df)
+                start_date = self._get_date_offset(base_date, start_offset, df, dates_str=dates_str, date_pos=date_pos)
                 if start_date is None:
                     return False
-                
-                # 获取所有交易日并排序
-                dates = sorted([pd.to_datetime(d).to_pydatetime() for d in df['日期'].unique()])
-                
+
+                start_str = start_date.strftime('%Y-%m-%d')
                 try:
-                    start_idx = dates.index(start_date)
-                except ValueError:
+                    start_idx = date_pos[start_str]
+                except KeyError:
                     return False
-                
+
                 # 从起始日期往前查找，最多检查 check_days 个交易日
                 end_idx = max(0, start_idx - check_days + 1)
-                
+
                 # 检查是否有连续三天涨停
                 for i in range(start_idx, end_idx - 1, -1):
                     if i < 2:  # 至少需要3天
                         break
                     # 检查连续三天是否都涨停
-                    date1_str = dates[i].strftime('%Y-%m-%d')
-                    date2_str = dates[i-1].strftime('%Y-%m-%d')
-                    date3_str = dates[i-2].strftime('%Y-%m-%d')
+                    date1_str = dates_str[i]
+                    date2_str = dates_str[i - 1]
+                    date3_str = dates_str[i - 2]
                     
                     if (date1_str in date_map and date2_str in date_map and date3_str in date_map):
                         row1 = date_map[date1_str]
@@ -757,7 +897,7 @@ class StrategyEngine:
                 注意：这里的 9.8% 与涨停判断保持一致。
                 """
                 # 1. 找到目标交易日（通常是 T 日：date1=0）
-                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df)
+                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df, dates_str=dates_str, date_pos=date_pos)
                 if date1 is None:
                     return False
 
@@ -778,18 +918,16 @@ class StrategyEngine:
                     return False
 
                 # 3. 找到 T 日在交易日序列中的位置，获取前一交易日收盘价
-                dates_sorted = sorted([pd.to_datetime(d).to_pydatetime() for d in df['日期'].unique()])
                 try:
-                    idx = dates_sorted.index(date1)
-                except ValueError:
+                    idx = date_pos[target_str]
+                except KeyError:
                     return False
 
                 if idx == 0:
                     # 没有前一交易日，无法判断是否摸板
                     return False
 
-                prev_date = dates_sorted[idx - 1]
-                prev_str = prev_date.strftime('%Y-%m-%d')
+                prev_str = dates_str[idx - 1]
                 if prev_str not in date_map:
                     return False
 
@@ -816,7 +954,7 @@ class StrategyEngine:
                 注意：这里的 9.8% 与涨停判断保持一致。
                 """
                 # 1. 找到目标交易日
-                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df)
+                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df, dates_str=dates_str, date_pos=date_pos)
                 if date1 is None:
                     return False
 
@@ -836,18 +974,16 @@ class StrategyEngine:
                     return False
 
                 # 3. 找到 T 日在交易日序列中的位置，获取前一交易日收盘价
-                dates_sorted = sorted([pd.to_datetime(d).to_pydatetime() for d in df['日期'].unique()])
                 try:
-                    idx = dates_sorted.index(date1)
-                except ValueError:
+                    idx = date_pos[target_str]
+                except KeyError:
                     return False
 
                 if idx == 0:
                     # 没有前一交易日，无法判断
                     return False
 
-                prev_date = dates_sorted[idx - 1]
-                prev_str = prev_date.strftime('%Y-%m-%d')
+                prev_str = dates_str[idx - 1]
                 if prev_str not in date_map:
                     return False
 
@@ -880,23 +1016,20 @@ class StrategyEngine:
                 start_offset = condition.get('date1', -1)
                 
                 # 获取起始日期
-                start_date = self._get_date_offset(base_date, start_offset, df)
+                start_date = self._get_date_offset(base_date, start_offset, df, dates_str=dates_str, date_pos=date_pos)
                 if start_date is None:
                     return False
-                
-                # 获取所有交易日并排序
-                dates = sorted([pd.to_datetime(d).to_pydatetime() for d in df['日期'].unique()])
-                
+
                 try:
-                    start_idx = dates.index(start_date)
-                except ValueError:
+                    start_idx = date_pos[start_date.strftime('%Y-%m-%d')]
+                except KeyError:
                     return False
-                
+
                 # 从起始日期往前查找，最多检查 check_days 个交易日
                 end_idx = max(0, start_idx - check_days + 1)
-                
+
                 for i in range(start_idx, end_idx - 1, -1):
-                    d_str = dates[i].strftime('%Y-%m-%d')
+                    d_str = dates_str[i]
                     if d_str in date_map:
                         row = date_map[d_str]
                         if row['涨跌幅'] >= 9.8:
@@ -909,66 +1042,58 @@ class StrategyEngine:
                 # date1: 检查日期偏移（0表示base_date）
                 # short_period: 短期均线周期（默认5）
                 # long_period: 长期均线周期（默认10）
-                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df)
+                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df, dates_str=dates_str, date_pos=date_pos)
                 if date1 is None:
                     return False
-                
-                short_period = condition.get('shortPeriod', 5)
-                long_period = condition.get('longPeriod', 10)
-                
-                # 需要至少 long_period 天的数据
+
+                short_period = int(condition.get('shortPeriod', 5))
+                long_period = int(condition.get('longPeriod', 10))
+
                 if len(df) < long_period:
                     return False
-                
-                # 计算均线
-                df_sorted = df.sort_values('日期').reset_index(drop=True)
-                df_sorted['ma_short'] = df_sorted['收盘'].rolling(window=short_period, min_periods=short_period).mean()
-                df_sorted['ma_long'] = df_sorted['收盘'].rolling(window=long_period, min_periods=long_period).mean()
-                
-                # 找到date1对应的行
+
                 date1_str = date1.strftime('%Y-%m-%d')
-                date1_idx = None
-                for idx, row in df_sorted.iterrows():
-                    if pd.to_datetime(row['日期']).strftime('%Y-%m-%d') == date1_str:
-                        date1_idx = idx
-                        break
-                
-                if date1_idx is None or date1_idx < long_period:
+                key = (short_period, long_period)
+                pair = indicator_ctx['ma_cross'].get(key)
+                if pair is None:
                     return False
-                
-                # 检查当日和前一日是否满足上穿条件
-                # 上穿：当日 ma_short > ma_long 且 前一日 ma_short <= ma_long
-                current_ma_short = df_sorted.iloc[date1_idx]['ma_short']
-                current_ma_long = df_sorted.iloc[date1_idx]['ma_long']
-                prev_ma_short = df_sorted.iloc[date1_idx - 1]['ma_short']
-                prev_ma_long = df_sorted.iloc[date1_idx - 1]['ma_long']
-                
-                # 检查是否有NaN值
-                if (pd.isna(current_ma_short) or pd.isna(current_ma_long) or 
-                    pd.isna(prev_ma_short) or pd.isna(prev_ma_long)):
+                ma_s, ma_l = pair
+                try:
+                    date1_idx = date_pos[date1_str]
+                except KeyError:
                     return False
-                
-                # 上穿条件：当前 ma_short > ma_long，且前一日 ma_short <= ma_long
+
+                if date1_idx < long_period:
+                    return False
+
+                current_ma_short = ma_s[date1_idx]
+                current_ma_long = ma_l[date1_idx]
+                prev_ma_short = ma_s[date1_idx - 1]
+                prev_ma_long = ma_l[date1_idx - 1]
+
+                if (pd.isna(current_ma_short) or pd.isna(current_ma_long) or
+                        pd.isna(prev_ma_short) or pd.isna(prev_ma_long)):
+                    return False
+
                 return current_ma_short > current_ma_long and prev_ma_short <= prev_ma_long
 
             elif cond_type == 'recent_n_day_pct_change_lt':
                 # 近 N 个交易日累计涨跌幅 <= value（例如近5日 <= -12%）
-                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df)
+                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df, dates_str=dates_str, date_pos=date_pos)
                 if date1 is None:
                     return False
                 days = int(condition.get('days', 5))
                 if days <= 1:
                     return False
-                dates_sorted = sorted([pd.to_datetime(d).to_pydatetime() for d in df['日期'].unique()])
                 try:
-                    end_idx = dates_sorted.index(date1)
-                except ValueError:
+                    end_idx = date_pos[date1.strftime('%Y-%m-%d')]
+                except KeyError:
                     return False
                 start_idx = end_idx - days + 1
                 if start_idx < 0:
                     return False
-                start_str = dates_sorted[start_idx].strftime('%Y-%m-%d')
-                end_str = dates_sorted[end_idx].strftime('%Y-%m-%d')
+                start_str = dates_str[start_idx]
+                end_str = dates_str[end_idx]
                 if start_str not in date_map or end_str not in date_map:
                     return False
                 start_close = float(date_map[start_str].get('收盘') or 0)
@@ -980,52 +1105,49 @@ class StrategyEngine:
 
             elif cond_type == 'close_below_ma_deviation':
                 # 收盘价低于 N 日均线一定乖离（默认低于20日线6%）
-                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df)
+                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df, dates_str=dates_str, date_pos=date_pos)
                 if date1 is None:
                     return False
                 period = int(condition.get('period', 20))
                 deviation = float(condition.get('deviation', 0.06))
                 if period <= 1:
                     return False
-                df_sorted = df.sort_values('日期').reset_index(drop=True).copy()
-                df_sorted['ma_tmp'] = df_sorted['收盘'].rolling(window=period, min_periods=period).mean()
                 date1_str = date1.strftime('%Y-%m-%d')
-                row = df_sorted[pd.to_datetime(df_sorted['日期']).dt.strftime('%Y-%m-%d') == date1_str]
-                if row.empty:
+                ma_arr = indicator_ctx['ma_period'].get(period)
+                if ma_arr is None:
                     return False
-                close_v = float(row.iloc[0]['收盘'])
-                ma_v = float(row.iloc[0]['ma_tmp']) if not pd.isna(row.iloc[0]['ma_tmp']) else 0
-                if ma_v <= 0:
+                try:
+                    i = date_pos[date1_str]
+                except KeyError:
+                    return False
+                close_v = float(df.iloc[i]['收盘'])
+                ma_v = float(ma_arr[i])
+                if ma_v <= 0 or pd.isna(ma_v):
                     return False
                 return close_v <= ma_v * (1 - deviation)
 
             elif cond_type == 'rsi_lt':
                 # RSI(period) < value（默认 RSI(6) < 25）
-                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df)
+                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df, dates_str=dates_str, date_pos=date_pos)
                 if date1 is None:
                     return False
                 period = int(condition.get('period', 6))
                 threshold = float(condition.get('value', 25))
                 if period <= 1:
                     return False
-                df_sorted = df.sort_values('日期').reset_index(drop=True).copy()
-                close = pd.to_numeric(df_sorted['收盘'], errors='coerce')
-                delta = close.diff()
-                gain = delta.clip(lower=0).rolling(window=period, min_periods=period).mean()
-                loss = (-delta.clip(upper=0)).rolling(window=period, min_periods=period).mean()
-                rs = gain / loss.replace(0, pd.NA)
-                rsi = 100 - (100 / (1 + rs))
-                df_sorted['rsi_tmp'] = rsi.fillna(100)
-                date1_str = date1.strftime('%Y-%m-%d')
-                row = df_sorted[pd.to_datetime(df_sorted['日期']).dt.strftime('%Y-%m-%d') == date1_str]
-                if row.empty:
+                rsi_arr = indicator_ctx['rsi_period'].get(period)
+                if rsi_arr is None:
                     return False
-                rsi_v = float(row.iloc[0]['rsi_tmp'])
+                try:
+                    i = date_pos[date1.strftime('%Y-%m-%d')]
+                except KeyError:
+                    return False
+                rsi_v = float(rsi_arr[i])
                 return rsi_v < threshold
 
             elif cond_type == 'stop_fall_signal':
                 # 止跌迹象：长下影 或 放量（二选一）
-                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df)
+                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df, dates_str=dates_str, date_pos=date_pos)
                 if date1 is None:
                     return False
                 date1_str = date1.strftime('%Y-%m-%d')
@@ -1048,17 +1170,15 @@ class StrategyEngine:
                     long_lower_shadow = (lower_shadow / full_range) >= lower_shadow_ratio
 
                 vol_spike = False
-                dates_sorted = sorted([pd.to_datetime(d).to_pydatetime() for d in df['日期'].unique()])
                 try:
-                    idx = dates_sorted.index(date1)
-                except ValueError:
+                    idx = date_pos[date1_str]
+                except KeyError:
                     idx = -1
                 start_idx = idx - volume_days + 1
                 if idx >= 0 and start_idx >= 0:
-                    win_dates = dates_sorted[start_idx:idx + 1]
                     vols = []
-                    for d in win_dates:
-                        ds = d.strftime('%Y-%m-%d')
+                    for j in range(start_idx, idx + 1):
+                        ds = dates_str[j]
                         if ds in date_map:
                             vols.append(float(date_map[ds].get('成交量') or 0))
                     if len(vols) == volume_days:
@@ -1075,24 +1195,23 @@ class StrategyEngine:
 
             elif cond_type == 'avg_amount_gte':
                 # 近 N 日日均成交额 >= value
-                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df)
+                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df, dates_str=dates_str, date_pos=date_pos)
                 if date1 is None:
                     return False
                 days = int(condition.get('days', 20))
                 threshold = float(condition.get('value', 200000000))
                 if days <= 1:
                     return False
-                dates_sorted = sorted([pd.to_datetime(d).to_pydatetime() for d in df['日期'].unique()])
                 try:
-                    end_idx = dates_sorted.index(date1)
-                except ValueError:
+                    end_idx = date_pos[date1.strftime('%Y-%m-%d')]
+                except KeyError:
                     return False
                 start_idx = end_idx - days + 1
                 if start_idx < 0:
                     return False
                 amounts = []
-                for d in dates_sorted[start_idx:end_idx + 1]:
-                    ds = d.strftime('%Y-%m-%d')
+                for j in range(start_idx, end_idx + 1):
+                    ds = dates_str[j]
                     if ds in date_map:
                         amounts.append(float(date_map[ds].get('成交额') or 0))
                 if len(amounts) != days:
@@ -1104,65 +1223,49 @@ class StrategyEngine:
             # 静默处理错误
             return False
     
-    def _get_date_offset(self, base_date, offset_days, df=None):
-        """获取相对于基准日期的日期（交易日，跳过非交易日）
-        
-        Args:
-            base_date: 基准日期（回测日期，比如1月12日）
-            offset_days: 偏移交易日数（负数表示往前推，正数表示往后推）
-                        例如：-5表示往前推5个交易日（跳过周末和节假日），0表示基准日期本身
-            df: 股票数据DataFrame（只包含交易日数据）
-        
-        Returns:
-            目标日期（datetime对象），如果找不到则返回None
+    def _get_date_offset(self, base_date, offset_days, df=None, dates_str=None, date_pos=None):
+        """获取相对于基准日期的日期（交易日，跳过非交易日）。
+
+        若传入 dates_str / date_pos（与 df 行顺序一致），则 O(1) 定位；否则回退为按 df 重建序列。
         """
-        # 确保base_date是datetime类型
         if isinstance(base_date, pd.Timestamp):
             base_date = base_date.to_pydatetime()
         elif not isinstance(base_date, datetime):
             base_date = pd.to_datetime(base_date).to_pydatetime()
-        
-        # offset_days可以是相对天数，也可以是绝对日期字符串
+
         if isinstance(offset_days, str):
-            # 尝试解析为日期
             try:
                 return datetime.strptime(offset_days, '%Y-%m-%d')
-            except:
+            except Exception:
                 pass
-        
-        # 如果是数字，作为相对交易日数
+
         if isinstance(offset_days, (int, float)):
             offset = int(offset_days)
-            
-            # 如果偏移为0，直接返回基准日期
             if offset == 0:
                 return base_date
-            
-            # 必须使用DataFrame来确保只使用交易日
-            if df is None or df.empty:
-                # 如果没有DataFrame，无法准确计算交易日偏移
-                return None
-            
-            # 获取所有交易日并排序（DataFrame中的数据已经是交易日，不包含周末和节假日）
-            dates = sorted([pd.to_datetime(d).to_pydatetime() for d in df['日期'].unique()])
-            
-            try:
-                # 找到base_date在dates中的索引
-                base_idx = dates.index(base_date)
-                target_idx = base_idx + offset  # offset为负数时往前推，正数时往后推
-                
-                # 检查索引是否有效
-                if 0 <= target_idx < len(dates):
-                    return dates[target_idx]
-                else:
-                    # 索引超出范围，返回None
+
+            if dates_str is not None and date_pos is not None:
+                base_str = base_date.strftime('%Y-%m-%d')
+                base_idx = date_pos.get(base_str)
+                if base_idx is None:
                     return None
+                target_idx = base_idx + offset
+                if 0 <= target_idx < len(dates_str):
+                    return datetime.strptime(dates_str[target_idx], '%Y-%m-%d')
+                return None
+
+            if df is None or df.empty:
+                return None
+            dates = sorted([pd.to_datetime(d).to_pydatetime() for d in df['日期'].unique()])
+            try:
+                base_idx = dates.index(base_date)
             except ValueError:
-                # base_date不在dates中（可能是非交易日或停牌）
                 return None
-            except Exception:
-                return None
-        
+            target_idx = base_idx + offset
+            if 0 <= target_idx < len(dates):
+                return dates[target_idx]
+            return None
+
         return base_date
     
     def _normalize_match_date(self, value):
@@ -1237,15 +1340,17 @@ class StrategyEngine:
                 base_date = base_date.to_pydatetime()
             elif not isinstance(base_date, datetime):
                 base_date = pd.to_datetime(base_date).to_pydatetime()
-            
-            # 创建日期映射（向量化）
-            df_tmp = df.copy()
-            df_tmp['_ds'] = pd.to_datetime(df_tmp['日期']).dt.strftime('%Y-%m-%d')
-            date_map = df_tmp.set_index('_ds').to_dict('index')
-            
-            # 获取所有交易日并排序
-            dates = sorted([pd.to_datetime(d).to_pydatetime() for d in df['日期'].unique()])
-            
+
+            date_map = check_result.get('date_map')
+            dates = check_result.get('dates_sorted')
+            date_pos = check_result.get('date_pos')
+            if date_map is None or dates is None:
+                df_tmp = df.copy()
+                df_tmp['_ds'] = pd.to_datetime(df_tmp['日期']).dt.strftime('%Y-%m-%d')
+                date_map = df_tmp.set_index('_ds').to_dict('index')
+                dates = sorted([pd.to_datetime(d).to_pydatetime() for d in df['日期'].unique()])
+                date_pos = None
+
             base_date_str = base_date.strftime('%Y-%m-%d')
             
             # 提取关键信息
@@ -1257,7 +1362,10 @@ class StrategyEngine:
             
             # 计算匹配日当天（T日）的振幅和涨跌幅
             try:
-                base_idx = dates.index(base_date)
+                if date_pos is not None and base_date_str in date_pos:
+                    base_idx = date_pos[base_date_str]
+                else:
+                    base_idx = dates.index(base_date)
                 base_close = float(date_map[base_date_str]['收盘']) if base_date_str in date_map else None
                 base_open = float(date_map[base_date_str]['开盘']) if base_date_str in date_map and '开盘' in date_map[base_date_str] else None
                 
@@ -1281,7 +1389,10 @@ class StrategyEngine:
             # 额外标记：月内三连板+首板策略中，T 日最高价触及涨停价但收盘未涨停
             try:
                 if self._is_month_three_limit_first_board(conditions):
-                    base_idx = dates.index(base_date)
+                    if date_pos is not None and base_date_str in date_pos:
+                        base_idx = date_pos[base_date_str]
+                    else:
+                        base_idx = dates.index(base_date)
                     if base_idx >= 1 and base_date_str in date_map:
                         prev_date = dates[base_idx - 1]
                         prev_str = prev_date.strftime('%Y-%m-%d')
@@ -1304,7 +1415,10 @@ class StrategyEngine:
             
             # 计算第二天和第三天的振幅和涨跌幅
             try:
-                base_idx = dates.index(base_date)
+                if date_pos is not None and base_date_str in date_pos:
+                    base_idx = date_pos[base_date_str]
+                else:
+                    base_idx = dates.index(base_date)
                 base_close = float(date_map[base_date_str]['收盘']) if base_date_str in date_map else None
                 
                 # 第二天（base_date + 1个交易日）
@@ -1350,6 +1464,46 @@ class StrategyEngine:
                                     detail['day3_change_pct'] = round(day3_change_pct, 2)
             except (ValueError, KeyError, IndexError):
                 # 如果无法获取第二天或第三天的数据，跳过
+                pass
+
+            # 次日开盘买入后，统计 10 个交易日内最高涨幅及首次达到 5% 的天数（买入当日记为第 1 天）
+            try:
+                if date_pos is not None and base_date_str in date_pos:
+                    base_idx = date_pos[base_date_str]
+                else:
+                    base_idx = dates.index(base_date)
+                if base_idx + 1 < len(dates):
+                    buy_date = dates[base_idx + 1]
+                    buy_date_str = buy_date.strftime('%Y-%m-%d')
+                    buy_row = date_map.get(buy_date_str)
+                    if buy_row:
+                        buy_price = float(buy_row.get('开盘') or 0)
+                        if buy_price > 0:
+                            end_idx = min(base_idx + 10, len(dates) - 1)
+                            max_gain_pct = None
+                            hit_day = None
+                            day10_close_pct = None
+                            for idx in range(base_idx + 1, end_idx + 1):
+                                cur_date_str = dates[idx].strftime('%Y-%m-%d')
+                                row = date_map.get(cur_date_str)
+                                if not row:
+                                    continue
+                                day_high = float(row.get('最高') or 0)
+                                if day_high <= 0:
+                                    continue
+                                gain_pct = (day_high - buy_price) / buy_price * 100
+                                if max_gain_pct is None or gain_pct > max_gain_pct:
+                                    max_gain_pct = gain_pct
+                                if hit_day is None and gain_pct >= 5:
+                                    hit_day = idx - base_idx
+                                if idx == end_idx:
+                                    day_close = float(row.get('收盘') or 0)
+                                    if day_close > 0:
+                                        day10_close_pct = (day_close - buy_price) / buy_price * 100
+                            detail['day2_buy_10d_max_gain_pct'] = round(max_gain_pct, 2) if max_gain_pct is not None else None
+                            detail['day2_buy_10d_close_pct'] = round(day10_close_pct, 2) if day10_close_pct is not None else None
+                            detail['day2_buy_hit_5pct_day'] = hit_day
+            except (ValueError, KeyError, IndexError):
                 pass
             
             return detail
