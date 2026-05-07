@@ -34,7 +34,7 @@ class StrategyEngine:
 
     def _build_indicator_ctx(self, conditions, df):
         """按条件集合预计算 MA/RSI 等整列，避免在 T 日循环内重复 rolling。"""
-        ctx = {'ma_cross': {}, 'ma_period': {}, 'rsi_period': {}}
+        ctx = {'ma_cross': {}, 'ma_period': {}, 'rsi_period': {}, 'main_force_build': None}
         pairs = set()
         periods_ma = set()
         periods_rsi = set()
@@ -46,6 +46,10 @@ class StrategyEngine:
                 periods_ma.add(int(c.get('period', 20)))
             elif t == 'rsi_lt':
                 periods_rsi.add(int(c.get('period', 6)))
+            elif t == 'main_force_build_position':
+                periods_ma.update({5, 10, 20})
+            elif t == 'consecutive_up_days_gte' and bool(c.get('requireMa5GtMa10')):
+                periods_ma.update({5, 10})
         if not pairs and not periods_ma and not periods_rsi:
             return ctx
         close = pd.to_numeric(df['收盘'], errors='coerce')
@@ -62,6 +66,12 @@ class StrategyEngine:
             rs = gain / loss.replace(0, pd.NA)
             rsi = 100 - (100 / (1 + rs))
             ctx['rsi_period'][p] = rsi.fillna(100).to_numpy(dtype=float, copy=False)
+        if 5 in ctx['ma_period'] and 10 in ctx['ma_period'] and 20 in ctx['ma_period']:
+            ctx['main_force_build'] = {
+                'ma5': ctx['ma_period'][5],
+                'ma10': ctx['ma_period'][10],
+                'ma20': ctx['ma_period'][20],
+            }
         return ctx
 
     def _flush_jsonl_buffer(self, filepath):
@@ -205,6 +215,8 @@ class StrategyEngine:
                 max_backward_offset = max(max_backward_offset, int(c.get('volumeDays', 5)) - 1)
             elif cond_type == 'listed_days_gte':
                 max_backward_offset = max(max_backward_offset, int(c.get('days', 120)) - 1)
+            elif cond_type == 'main_force_build_position':
+                max_backward_offset = max(max_backward_offset, int(c.get('windowDays', 10)) + 20)
 
         end_date = datetime.now()
         if only_t_date:
@@ -292,8 +304,10 @@ class StrategyEngine:
 
         print(f"回测完成！共检查 {total_stocks} 只股票，找到 {len(results)} 条符合条件的记录")
         if results:
-            # 所有策略统一规则：连续三个 A 股交易日内同一只股票只保留第一次出现的日期
-            results = self._dedupe_same_stock_within_three_trading_days(results, trading_days=3)
+            # 默认规则：连续三个 A 股交易日内同一只股票只保留第一次出现的日期
+            # 连阳上影策略例外：保留 3 个交易日内重复出现，用于观察连阳阶段内的连续信号
+            if strategy_name != '连阳上影':
+                results = self._dedupe_same_stock_within_three_trading_days(results, trading_days=3)
             results.sort(key=lambda r: (r.get('match_date', '9999-99-99'), r.get('code', '')))
             if write_results and results_filepath:
                 self._write_sorted_results(results_filepath, strategy_name, results)
@@ -473,11 +487,16 @@ class StrategyEngine:
                     max_backward_offset = max(max_backward_offset, int(c.get('volumeDays', 5)) - 1)
                 elif cond_type == 'listed_days_gte':
                     max_backward_offset = max(max_backward_offset, int(c.get('days', 120)) - 1)
+                elif cond_type == 'main_force_build_position':
+                    max_backward_offset = max(max_backward_offset, int(c.get('windowDays', 10)) + 20)
+                elif cond_type == 'main_force_build_position':
+                    max_backward_offset = max(max_backward_offset, int(c.get('windowDays', 10)) + 20)
             min_required_idx = max_backward_offset
 
             date_map, dates_str, date_pos, dates_sorted, indicator_ctx = self._prepare_df_for_strategy(df, conditions)
             ctx_tail = {
                 'date_map': date_map, 'dates_str': dates_str, 'date_pos': date_pos, 'dates_sorted': dates_sorted,
+                'indicator_ctx': indicator_ctx,
             }
 
             # 只检查最近 time_range 个交易日作为 T（不含周末，df 每行即一交易日）
@@ -553,6 +572,7 @@ class StrategyEngine:
                 date_map, dates_str, date_pos, dates_sorted, indicator_ctx = self._prepare_df_for_strategy(df, conditions)
             ctx_tail = {
                 'date_map': date_map, 'dates_str': dates_str, 'date_pos': date_pos, 'dates_sorted': dates_sorted,
+                'indicator_ctx': indicator_ctx,
             }
 
             min_i = max(min_required_idx, len(df) - time_range)
@@ -619,8 +639,8 @@ class StrategyEngine:
             df = df.sort_values('日期').reset_index(drop=True)
             ctx_tail = {}
             if conditions:
-                dm, dstr, dpos, dsort, _ = self._prepare_df_for_strategy(df, conditions)
-                ctx_tail = {'date_map': dm, 'dates_str': dstr, 'date_pos': dpos, 'dates_sorted': dsort}
+                dm, dstr, dpos, dsort, indicator_ctx = self._prepare_df_for_strategy(df, conditions)
+                ctx_tail = {'date_map': dm, 'dates_str': dstr, 'date_pos': dpos, 'dates_sorted': dsort, 'indicator_ctx': indicator_ctx}
             matches = []
             min_i = max(30, len(df) - time_range)
             if only_t_date:
@@ -1217,6 +1237,73 @@ class StrategyEngine:
                 if len(amounts) != days:
                     return False
                 return (sum(amounts) / days) >= threshold
+            elif cond_type == 'main_force_build_position':
+                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df, dates_str=dates_str, date_pos=date_pos)
+                if date1 is None:
+                    return False
+                date1_str = date1.strftime('%Y-%m-%d')
+                try:
+                    base_idx = date_pos[date1_str]
+                except KeyError:
+                    return False
+                detail = self._compute_main_force_build_detail(
+                    base_idx=base_idx,
+                    dates_str=dates_str,
+                    date_map=date_map,
+                    indicator_ctx=indicator_ctx,
+                )
+                return bool(detail.get('main_force_build_tag'))
+            elif cond_type == 'consecutive_up_days_gte':
+                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df, dates_str=dates_str, date_pos=date_pos)
+                if date1 is None:
+                    return False
+                try:
+                    end_idx = date_pos[date1.strftime('%Y-%m-%d')]
+                except KeyError:
+                    return False
+                min_days = int(condition.get('consecutiveDays', condition.get('days', 3)))
+                if min_days <= 0:
+                    return False
+                up_days = self._compute_consecutive_up_days(end_idx=end_idx, dates_str=dates_str, date_map=date_map)
+                if up_days < min_days:
+                    return False
+                if bool(condition.get('requireMa5GtMa10')):
+                    ma5 = indicator_ctx.get('ma_period', {}).get(5)
+                    ma10 = indicator_ctx.get('ma_period', {}).get(10)
+                    if ma5 is None or ma10 is None:
+                        return False
+                    start_idx = end_idx - min_days + 1
+                    if start_idx < 0:
+                        return False
+                    for i in range(start_idx, end_idx + 1):
+                        if pd.isna(ma5[i]) or pd.isna(ma10[i]) or not (ma5[i] > ma10[i]):
+                            return False
+                return True
+            elif cond_type == 'upper_shadow_pct_gt':
+                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df, dates_str=dates_str, date_pos=date_pos)
+                if date1 is None:
+                    return False
+                try:
+                    end_idx = date_pos[date1.strftime('%Y-%m-%d')]
+                except KeyError:
+                    return False
+                threshold = float(condition.get('value', 2.0))
+                window_days = int(condition.get('days', condition.get('consecutiveDays', 3)))
+                if window_days <= 0:
+                    return False
+                consecutive_up_days = self._compute_consecutive_up_days(end_idx=end_idx, dates_str=dates_str, date_map=date_map)
+                scan_days = min(window_days, consecutive_up_days)
+                if scan_days <= 0:
+                    return False
+                max_upper_shadow_pct = self._compute_max_upper_shadow_pct(
+                    end_idx=end_idx,
+                    dates_str=dates_str,
+                    date_map=date_map,
+                    window_days=scan_days,
+                )
+                if max_upper_shadow_pct is None:
+                    return False
+                return max_upper_shadow_pct > threshold
             
             return False
         except Exception as e:
@@ -1505,8 +1592,168 @@ class StrategyEngine:
                             detail['day2_buy_hit_5pct_day'] = hit_day
             except (ValueError, KeyError, IndexError):
                 pass
+
+            # 主力建仓打标：仅在 T 日涨停场景下置 true；同时输出阳线统计供前端筛选
+            try:
+                if date_pos is not None and base_date_str in date_pos:
+                    base_idx = date_pos[base_date_str]
+                else:
+                    base_idx = dates.index(base_date)
+                main_force = self._compute_main_force_build_detail(
+                    base_idx=base_idx,
+                    dates_str=check_result.get('dates_str') or [d.strftime('%Y-%m-%d') for d in dates],
+                    date_map=date_map,
+                    indicator_ctx=check_result.get('indicator_ctx') or self._build_indicator_ctx([], df),
+                )
+                detail.update(main_force)
+            except Exception:
+                pass
+
+            # 连阳上影相关字段：连续阳线天数、连阳区间最大上影线幅度
+            try:
+                if date_pos is not None and base_date_str in date_pos:
+                    base_idx = date_pos[base_date_str]
+                else:
+                    base_idx = dates.index(base_date)
+                consecutive_up_days = self._compute_consecutive_up_days(
+                    base_idx,
+                    check_result.get('dates_str') or [d.strftime('%Y-%m-%d') for d in dates],
+                    date_map,
+                )
+                detail['consecutive_up_days'] = consecutive_up_days
+                max_upper_shadow_pct = self._compute_max_upper_shadow_pct(
+                    base_idx,
+                    check_result.get('dates_str') or [d.strftime('%Y-%m-%d') for d in dates],
+                    date_map,
+                    window_days=consecutive_up_days,
+                )
+                detail['upper_shadow_pct'] = round(max_upper_shadow_pct, 2) if max_upper_shadow_pct is not None else None
+                detail['consecutive_up_has_limit_touch'] = self._compute_has_limit_touch_in_window(
+                    base_idx,
+                    check_result.get('dates_str') or [d.strftime('%Y-%m-%d') for d in dates],
+                    date_map,
+                    window_days=consecutive_up_days,
+                )
+            except Exception:
+                pass
             
             return detail
         except Exception:
             return None
+
+    def _compute_consecutive_up_days(self, end_idx, dates_str, date_map):
+        """计算截至 end_idx（含）向前连续阳线（涨跌幅>0）天数。"""
+        if end_idx is None or end_idx < 0 or end_idx >= len(dates_str):
+            return 0
+        cnt = 0
+        for i in range(end_idx, -1, -1):
+            row = date_map.get(dates_str[i]) or {}
+            pct = float(row.get('涨跌幅') or 0)
+            if pct > 0:
+                cnt += 1
+            else:
+                break
+        return cnt
+
+    def _compute_upper_shadow_pct(self, end_idx, dates_str, date_map):
+        """计算上影线幅度：最高涨幅-收盘涨幅（相对前收盘，单位%）。"""
+        if end_idx is None or end_idx <= 0 or end_idx >= len(dates_str):
+            return None
+        today = date_map.get(dates_str[end_idx]) or {}
+        prev = date_map.get(dates_str[end_idx - 1]) or {}
+        prev_close = float(prev.get('收盘') or 0)
+        high_v = float(today.get('最高') or 0)
+        close_pct = float(today.get('涨跌幅') or 0)
+        if prev_close <= 0 or high_v <= 0:
+            return None
+        high_pct = (high_v - prev_close) / prev_close * 100
+        return high_pct - close_pct
+
+    def _compute_max_upper_shadow_pct(self, end_idx, dates_str, date_map, window_days):
+        """计算窗口内最大上影线幅度（含 end_idx，向前 window_days 个交易日）。"""
+        if end_idx is None or end_idx < 0 or end_idx >= len(dates_str) or window_days <= 0:
+            return None
+        start_idx = max(0, end_idx - window_days + 1)
+        max_val = None
+        for i in range(start_idx, end_idx + 1):
+            v = self._compute_upper_shadow_pct(i, dates_str, date_map)
+            if v is None:
+                continue
+            if max_val is None or v > max_val:
+                max_val = v
+        return max_val
+
+    def _compute_has_limit_touch_in_window(self, end_idx, dates_str, date_map, window_days):
+        """窗口内是否有任一日最高价触及涨停价（>=9.8%）。"""
+        if end_idx is None or end_idx <= 0 or end_idx >= len(dates_str) or window_days <= 0:
+            return False
+        start_idx = max(1, end_idx - window_days + 1)
+        for i in range(start_idx, end_idx + 1):
+            today = date_map.get(dates_str[i]) or {}
+            prev = date_map.get(dates_str[i - 1]) or {}
+            prev_close = float(prev.get('收盘') or 0)
+            high_v = float(today.get('最高') or 0)
+            if prev_close <= 0 or high_v <= 0:
+                continue
+            high_pct = (high_v - prev_close) / prev_close * 100
+            if high_pct >= 9.8:
+                return True
+        return False
+
+    def _compute_main_force_build_detail(self, base_idx, dates_str, date_map, indicator_ctx):
+        """主力建仓规则计算（T-10~T 阳线与均线形态）。"""
+        out = {
+            'main_force_build_tag': False,
+            'main_force_t_limit_up_tag': False,
+            'main_force_bullish_days': 0,
+            'main_force_slope_up_days': 0,
+        }
+        if base_idx is None or base_idx < 1 or base_idx >= len(dates_str):
+            return out
+        ma_ctx = (indicator_ctx or {}).get('main_force_build') or {}
+        ma5 = ma_ctx.get('ma5')
+        ma10 = ma_ctx.get('ma10')
+        ma20 = ma_ctx.get('ma20')
+        if ma5 is None or ma10 is None or ma20 is None:
+            return out
+
+        t_str = dates_str[base_idx]
+        t_row = date_map.get(t_str) or {}
+        t_pct = float(t_row.get('涨跌幅') or 0)
+        t_is_limit_up = t_pct >= 9.8
+        prev_str = dates_str[base_idx - 1]
+        prev_pct = float((date_map.get(prev_str) or {}).get('涨跌幅') or 0)
+        t1_not_limit_up = prev_pct < 9.8
+
+        bullish_cnt = 0
+        slope_up_cnt = 0
+        start_idx = max(0, base_idx - 10)
+        for i in range(start_idx, base_idx + 1):
+            row = date_map.get(dates_str[i])
+            if not row:
+                continue
+            open_v = float(row.get('开盘') or 0)
+            close_v = float(row.get('收盘') or 0)
+            if open_v <= 0 or close_v <= 0 or close_v <= open_v:
+                continue
+            m5 = ma5[i]
+            m10 = ma10[i]
+            m20 = ma20[i]
+            if pd.isna(m5) or pd.isna(m10) or pd.isna(m20):
+                continue
+            if not (close_v > m5 and m5 > m10 > m20):
+                continue
+            bullish_cnt += 1
+            if not pd.isna(ma5[i - 1]) and not pd.isna(ma10[i - 1]) and m5 > ma5[i - 1] and m10 > ma10[i - 1]:
+                slope_up_cnt += 1
+
+        out['main_force_bullish_days'] = bullish_cnt
+        out['main_force_slope_up_days'] = slope_up_cnt
+        out['main_force_t_limit_up_tag'] = bool(t_is_limit_up)
+        out['main_force_build_tag'] = bool(
+            t1_not_limit_up and
+            bullish_cnt >= 5 and
+            slope_up_cnt * 2 >= bullish_cnt
+        )
+        return out
     

@@ -49,6 +49,8 @@ STRATEGY_NAMES = [
     '摸板首板',
     '超跌反弹+量能确认',
     '打板二版',
+    '主力建仓',
+    '连阳上影',
 ]
 
 
@@ -257,8 +259,9 @@ def append_results_to_main_file(results_dir, strategy_name, new_results, strateg
     # 排序
     unique.sort(key=lambda x: (_normalize_date_str(x.get('match_date', '9999-99-99')), x.get('code', '')))
 
-    # 所有策略统一：连续三个 A 股交易日内同股只保留第一次
-    if strategy_engine is not None:
+    # 默认：连续三个 A 股交易日内同股只保留第一次
+    # 连阳上影例外：保留 3 日内重复信号
+    if strategy_engine is not None and strategy_name != '连阳上影':
         unique = strategy_engine._dedupe_same_stock_within_three_trading_days(unique, trading_days=3)
 
     try:

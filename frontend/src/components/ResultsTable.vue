@@ -18,6 +18,48 @@
             <SearchOutlined />
           </template>
         </Input>
+        <Switch
+          v-if="hasResults"
+          v-model:checked="onlyMainForceTag"
+          size="small"
+          checked-children="T日涨停"
+          un-checked-children="全部"
+        />
+        <InputNumber
+          v-if="hasResults"
+          v-model:value="minMainForceBullishDays"
+          :min="0"
+          :max="11"
+          size="small"
+          style="width: 140px"
+          placeholder="阳线个数>="
+        />
+        <InputNumber
+          v-if="hasResults"
+          v-model:value="minConsecutiveUpDays"
+          :min="1"
+          :max="30"
+          size="small"
+          style="width: 140px"
+          placeholder="连阳天数>="
+        />
+        <InputNumber
+          v-if="hasResults"
+          v-model:value="minUpperShadowPct"
+          :min="0"
+          :step="0.1"
+          :precision="2"
+          size="small"
+          style="width: 160px"
+          placeholder="上影线幅度>%"
+        />
+        <Switch
+          v-if="hasResults"
+          v-model:checked="onlyConsecutiveLimitTouch"
+          size="small"
+          checked-children="连阳触板"
+          un-checked-children="连阳不限"
+        />
         <Spin v-if="loading" />
       </Space>
     </template>
@@ -117,7 +159,7 @@
 
 <script setup lang="ts">
 import { computed, ref, onMounted } from 'vue'
-import { Card, Table, Spin, Alert, Button, Space, Input, message } from 'ant-design-vue'
+import { Card, Table, Spin, Alert, Button, Space, Input, InputNumber, Switch, message } from 'ant-design-vue'
 import { SearchOutlined, PlusOutlined } from '@ant-design/icons-vue'
 import { useStrategyStore } from '@/store/modules/strategy'
 import type { ColumnsType } from 'ant-design-vue/es/table'
@@ -132,6 +174,11 @@ const hasResults = computed(() => strategyStore.hasResults)
 
 const isDense = ref(true)
 const searchText = ref('')
+const onlyMainForceTag = ref(false)
+const minMainForceBullishDays = ref<number | null>(null)
+const minConsecutiveUpDays = ref<number | null>(3)
+const minUpperShadowPct = ref<number | null>(2)
+const onlyConsecutiveLimitTouch = ref(false)
 const STORAGE_KEY_FAVORITES = 'backtest-favorites'
 const collectedItems = ref<StockResult[]>([])
 
@@ -211,6 +258,21 @@ const filteredResults = computed(() => {
       item.code.toLowerCase().includes(search) || 
       item.name.toLowerCase().includes(search)
     )
+  }
+  if (onlyMainForceTag.value) {
+    sourceData = sourceData.filter(item => !!item.main_force_t_limit_up_tag)
+  }
+  if (minMainForceBullishDays.value != null) {
+    sourceData = sourceData.filter(item => (item.main_force_bullish_days ?? 0) >= minMainForceBullishDays.value!)
+  }
+  if (minConsecutiveUpDays.value != null) {
+    sourceData = sourceData.filter(item => (item.consecutive_up_days ?? 0) >= minConsecutiveUpDays.value!)
+  }
+  if (minUpperShadowPct.value != null) {
+    sourceData = sourceData.filter(item => (item.upper_shadow_pct ?? 0) > minUpperShadowPct.value!)
+  }
+  if (onlyConsecutiveLimitTouch.value) {
+    sourceData = sourceData.filter(item => !!item.consecutive_up_has_limit_touch)
   }
   // 返回数组的副本，避免 Table 组件修改原始数据
   return [...sourceData]
@@ -292,6 +354,55 @@ const columns: ColumnsType<StockResult> = [
     key: 'current_price',
     width: 120,
     customRender: ({ text }) => text ? text.toFixed(2) : '-'
+  },
+  {
+    title: 'T日涨停标记',
+    dataIndex: 'main_force_t_limit_up_tag',
+    key: 'main_force_t_limit_up_tag',
+    width: 120,
+    align: 'center',
+    customRender: ({ text }) => (text ? '是' : '否')
+  },
+  {
+    title: '主力建仓结构',
+    dataIndex: 'main_force_build_tag',
+    key: 'main_force_build_tag',
+    width: 100,
+    align: 'center',
+    customRender: ({ text }) => (text ? '是' : '否')
+  },
+  {
+    title: '阳线个数',
+    dataIndex: 'main_force_bullish_days',
+    key: 'main_force_bullish_days',
+    width: 100,
+    align: 'right',
+    sorter: (a, b) => (a.main_force_bullish_days || 0) - (b.main_force_bullish_days || 0)
+  },
+  {
+    title: '连阳天数',
+    dataIndex: 'consecutive_up_days',
+    key: 'consecutive_up_days',
+    width: 100,
+    align: 'right',
+    sorter: (a, b) => (a.consecutive_up_days || 0) - (b.consecutive_up_days || 0)
+  },
+  {
+    title: '上影线幅度%',
+    dataIndex: 'upper_shadow_pct',
+    key: 'upper_shadow_pct',
+    width: 120,
+    align: 'right',
+    sorter: (a, b) => (a.upper_shadow_pct || 0) - (b.upper_shadow_pct || 0),
+    customRender: ({ text }) => (text != null ? text.toFixed(2) : '-')
+  },
+  {
+    title: '连阳触板',
+    dataIndex: 'consecutive_up_has_limit_touch',
+    key: 'consecutive_up_has_limit_touch',
+    width: 100,
+    align: 'center',
+    customRender: ({ text }) => (text ? '是' : '否')
   },
   {
     title: '次日涨跌',
@@ -390,6 +501,65 @@ const denseColumns: ColumnsType<StockResult> = [
     sorter: (a, b) => (a.current_price || 0) - (b.current_price || 0)
   },
   {
+    title: 'T日涨停标记',
+    dataIndex: 'main_force_t_limit_up_tag',
+    key: 'main_force_t_limit_up_tag',
+    width: 120,
+    align: 'center',
+    filters: [
+      { text: '是', value: true },
+      { text: '否', value: false }
+    ],
+    onFilter: (value, record) => Boolean(record.main_force_t_limit_up_tag) === Boolean(value),
+    customRender: ({ text }) => (text ? '是' : '否')
+  },
+  {
+    title: '主力建仓结构',
+    dataIndex: 'main_force_build_tag',
+    key: 'main_force_build_tag',
+    width: 90,
+    align: 'center',
+    filters: [
+      { text: '是', value: true },
+      { text: '否', value: false }
+    ],
+    onFilter: (value, record) => Boolean(record.main_force_build_tag) === Boolean(value),
+    customRender: ({ text }) => (text ? '是' : '否')
+  },
+  {
+    title: '阳线个数',
+    dataIndex: 'main_force_bullish_days',
+    key: 'main_force_bullish_days',
+    width: 90,
+    align: 'right',
+    sorter: (a, b) => (a.main_force_bullish_days || 0) - (b.main_force_bullish_days || 0)
+  },
+  {
+    title: '连阳',
+    dataIndex: 'consecutive_up_days',
+    key: 'consecutive_up_days',
+    width: 70,
+    align: 'right',
+    sorter: (a, b) => (a.consecutive_up_days || 0) - (b.consecutive_up_days || 0)
+  },
+  {
+    title: '上影%',
+    dataIndex: 'upper_shadow_pct',
+    key: 'upper_shadow_pct',
+    width: 80,
+    align: 'right',
+    sorter: (a, b) => (a.upper_shadow_pct || 0) - (b.upper_shadow_pct || 0),
+    customRender: ({ text }) => (text != null ? text.toFixed(2) : '-')
+  },
+  {
+    title: '触板',
+    dataIndex: 'consecutive_up_has_limit_touch',
+    key: 'consecutive_up_has_limit_touch',
+    width: 70,
+    align: 'center',
+    customRender: ({ text }) => (text ? '是' : '否')
+  },
+  {
     title: '次日涨跌',
     dataIndex: 'day2_change_pct',
     key: 'day2_change_pct',
@@ -465,15 +635,22 @@ function handleExport() {
   })
 
   // 构建 CSV 内容
-  const headers = ['代码', '名称', '匹配日期', '匹配价', '当前价', '次日涨跌%', '第三日涨跌%']
+  const headers = ['代码', '名称', '匹配日期', '匹配价', '当前价', '连阳天数', '上影线幅度%', '连阳触板', '次日涨跌%', '第三日涨跌%', 'T日涨停标记', '主力建仓结构', '阳线个数', '斜率向上阳线个数']
   const rows = sortedData.map(item => [
     item.code,
     item.name,
     formatDate(item.match_date),
     item.match_price?.toFixed(2) || '',
     item.current_price?.toFixed(2) || '',
+    item.consecutive_up_days ?? '',
+    item.upper_shadow_pct != null ? item.upper_shadow_pct.toFixed(2) : '',
+    item.consecutive_up_has_limit_touch ? '是' : '否',
     item.day2_change_pct != null ? item.day2_change_pct.toFixed(2) : '',
-    item.day3_change_pct != null ? item.day3_change_pct.toFixed(2) : ''
+    item.day3_change_pct != null ? item.day3_change_pct.toFixed(2) : '',
+    item.main_force_t_limit_up_tag ? '是' : '否',
+    item.main_force_build_tag ? '是' : '否',
+    item.main_force_bullish_days ?? '',
+    item.main_force_slope_up_days ?? ''
   ])
 
   const csvContent = [

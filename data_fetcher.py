@@ -1,14 +1,15 @@
 """
-A股数据获取器 - 使用 Baostock（免费、稳定）
+A股数据获取器 - 支持 AkShare（优先）和 Baostock（备用）
 注意：Baostock 非线程安全，并发请求会混淆数据，需加锁
 """
 import pandas as pd
-from threading import Lock
+from threading import Lock, Thread
 from datetime import datetime, timedelta
 import time
 import os
 import json
 import glob
+import socket
 from collections import defaultdict
 
 import baostock as bs
@@ -52,9 +53,44 @@ class DataFetcher:
         self._network_error_count = 0
 
     def _ensure_login(self):
-        if not self._bs_logged_in:
-            lg = bs.login()
-            self._bs_logged_in = (lg.error_code == '0')
+        if self._bs_logged_in:
+            return
+        # Baostock 在网络异常时可能长时间阻塞 connect，这里做线程级超时保护并有限次重试
+        last_err = None
+        for attempt in range(1):
+            old_timeout = socket.getdefaulttimeout()
+            try:
+                socket.setdefaulttimeout(4)
+                holder = {'lg': None, 'err': None}
+
+                def _login_worker():
+                    try:
+                        holder['lg'] = bs.login()
+                    except Exception as e:
+                        holder['err'] = e
+
+                t = Thread(target=_login_worker, daemon=True)
+                t.start()
+                t.join(timeout=4)
+                if t.is_alive():
+                    last_err = TimeoutError('Baostock 登录超时')
+                    self._bs_logged_in = False
+                    continue
+                if holder['err'] is not None:
+                    raise holder['err']
+                lg = holder['lg']
+                self._bs_logged_in = bool(lg is not None and getattr(lg, 'error_code', None) == '0')
+                if self._bs_logged_in:
+                    return
+                last_err = RuntimeError(f"Baostock 登录失败: {getattr(lg, 'error_msg', '')}")
+            except Exception as e:
+                last_err = e
+            finally:
+                socket.setdefaulttimeout(old_timeout)
+            time.sleep(0.2)
+        self._bs_logged_in = False
+        if last_err is not None:
+            raise last_err
 
     def _reset_login(self):
         """重置登录状态，触发下次请求前重新登录。"""
@@ -339,8 +375,9 @@ class DataFetcher:
                             if rs.error_code == '0' and rs.next():
                                 return check_date
                 return last_trade  #  fallback
-        except Exception:
-            pass
+        except Exception as e:
+            # 数据源不可用时快速降级，避免脚本长时间卡在登录/连接阶段
+            print(f"[WARNING] 获取最近可用交易日失败，回退本地最近交易日 {last_trade}: {e}", flush=True)
         return last_trade
 
     # ==================== 缓存文件索引机制（性能优化）====================
@@ -628,33 +665,110 @@ class DataFetcher:
         except Exception as e:
             print(f"[WARNING] 清理重复缓存失败: {e}")
 
-    def _fetch_from_api(self, code, start_date, end_date):
-        """从 API 拉取数据并返回 DataFrame，不写缓存"""
-        start_fmt = f"{start_date[:4]}-{start_date[4:6]}-{start_date[6:]}"
-        end_fmt = f"{end_date[:4]}-{end_date[4:6]}-{end_date[6:]}"
+    def _fetch_from_akshare(self, code, start_date, end_date):
+        """从 AkShare 拉取数据并返回 DataFrame，不写缓存"""
         try:
-            bs_code = self._to_bs_code(code)
-            data_list = self._query_history_rows_with_retry(
-                bs_code,
-                "date,open,high,low,close,volume,amount,pctChg,turn",
-                start_fmt,
-                end_fmt,
+            import akshare as ak
+            # 日期格式转换：YYYYMMDD -> YYYYMMDD（akshare 使用 YYYYMMDD）
+            start_fmt = start_date[:8]
+            end_fmt = end_date[:8]
+
+            df = ak.stock_zh_a_hist(
+                symbol=code,
+                period='daily',
+                start_date=start_fmt,
+                end_date=end_fmt,
+                adjust=''  # 不复权
             )
-            if not data_list:
+
+            if df is None or df.empty:
                 return None
-            df = pd.DataFrame(data_list, columns=['日期','开盘','最高','最低','收盘','成交量','成交额','涨跌幅','换手率'])
-            df = df.drop_duplicates(subset=['日期'], keep='first')
+
+            # 列映射：akshare 列名 -> 内部列名
+            column_map = {
+                '日期': '日期',
+                '开盘': '开盘',
+                '收盘': '收盘',
+                '最高': '最高',
+                '最低': '最低',
+                '成交量': '成交量',
+                '成交额': '成交额',
+                '振幅': '振幅',
+                '涨跌幅': '涨跌幅',
+                '涨跌额': '涨跌额',
+                '换手率': '换手率',
+            }
+
+            # 重命名列
+            df = df.rename(columns=column_map)
+
+            # 确保日期格式正确
             df['日期'] = pd.to_datetime(df['日期'])
-            for col in ['开盘','收盘','最高','最低','成交量','成交额','涨跌幅','换手率']:
-                df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+
+            # 确保数值类型正确
+            for col in ['开盘', '收盘', '最高', '最低', '成交量', '成交额', '涨跌幅', '换手率']:
+                if col in df.columns:
+                    df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+
+            # 计算缺失的列
+            if '涨跌额' not in df.columns:
+                df['涨跌额'] = df['收盘'].diff().fillna(0)
+            if '振幅' not in df.columns:
+                df['振幅'] = ((df['最高'] - df['最低']) / df['最低'].replace(0, float('nan')) * 100).fillna(0)
+
             df['成交量'] = df['成交量'].astype(float)
-            df['涨跌额'] = df['收盘'].diff()
-            df['涨跌额'] = df['涨跌额'].fillna(0)
-            df['振幅'] = ((df['最高'] - df['最低']) / df['最低'].replace(0, float('nan')) * 100).fillna(0)
-            df = df[['日期','开盘','收盘','最高','最低','成交量','成交额','振幅','涨跌幅','涨跌额','换手率']]
+
+            # 选择需要的列
+            df = df[['日期', '开盘', '收盘', '最高', '最低', '成交量', '成交额', '振幅', '涨跌幅', '涨跌额', '换手率']]
+            df = df.drop_duplicates(subset=['日期'], keep='first')
+
             return df.sort_values('日期').reset_index(drop=True)
-        except Exception:
+        except Exception as e:
+            print(f"[DEBUG] AkShare 获取 {code} 数据失败: {e}")
             return None
+
+    def _fetch_from_api(self, code, start_date, end_date):
+        """从 API 拉取数据并返回 DataFrame，不写缓存。优先使用 AkShare，失败时回退到 Baostock。"""
+        # 环境变量控制数据源：akshare / baostock / auto（默认 auto）
+        data_source = os.environ.get('STOCK_DATA_SOURCE', 'auto').strip().lower()
+
+        # AkShare 优先（除非明确指定只用 baostock）
+        if data_source in ('akshare', 'ak', 'auto'):
+            df = self._fetch_from_akshare(code, start_date, end_date)
+            if df is not None and not df.empty:
+                return df
+            if data_source == 'akshare':
+                return None
+
+        # 回退到 Baostock
+        if data_source in ('baostock', 'bs', 'auto'):
+            start_fmt = f"{start_date[:4]}-{start_date[4:6]}-{start_date[6:]}"
+            end_fmt = f"{end_date[:4]}-{end_date[4:6]}-{end_date[6:]}"
+            try:
+                bs_code = self._to_bs_code(code)
+                data_list = self._query_history_rows_with_retry(
+                    bs_code,
+                    "date,open,high,low,close,volume,amount,pctChg,turn",
+                    start_fmt,
+                    end_fmt,
+                )
+                if not data_list:
+                    return None
+                df = pd.DataFrame(data_list, columns=['日期','开盘','最高','最低','收盘','成交量','成交额','涨跌幅','换手率'])
+                df = df.drop_duplicates(subset=['日期'], keep='first')
+                df['日期'] = pd.to_datetime(df['日期'])
+                for col in ['开盘','收盘','最高','最低','成交量','成交额','涨跌幅','换手率']:
+                    df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+                df['成交量'] = df['成交量'].astype(float)
+                df['涨跌额'] = df['收盘'].diff()
+                df['涨跌额'] = df['涨跌额'].fillna(0)
+                df['振幅'] = ((df['最高'] - df['最低']) / df['最低'].replace(0, float('nan')) * 100).fillna(0)
+                df = df[['日期','开盘','收盘','最高','最低','成交量','成交额','振幅','涨跌幅','涨跌额','换手率']]
+                return df.sort_values('日期').reset_index(drop=True)
+            except Exception:
+                return None
+
+        return None
 
     def update_caches_with_today_data(self, max_workers=100, task_index=None, task_count=None):
         """拉取今天（最近交易日）的数据，合并到对应的 json 缓存文件中

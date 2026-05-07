@@ -303,6 +303,58 @@ export const secondBoardStrategy: StrategyTemplate = {
 };
 
 /**
+ * 主力建仓策略
+ * 特征：
+ * 1. T-1 日非涨停（涨幅<9.8%）
+ * 2. T-10 至 T（含）至少 5 日阳线，且收盘在 5 日线上方
+ * 3. 计入阳线当日满足 5 日线 > 10 日线 > 20 日线
+ * 4. 计入阳线中至少一半满足 5/10 日线斜率均向上
+ * 5. T 日涨停仅作为后端打标，供前端筛选
+ */
+export const mainForceBuildPositionStrategy: StrategyTemplate = {
+  id: 'main_force_build_position',
+  name: '主力建仓',
+  description:
+    'T-1日涨幅<9.8%；T-10至T日（含）至少5日满足阳线且收盘站上5日线，且计入阳线当日5日线在10日线上方、10日线在20日线上方，且命中阳线里至少一半满足5日线和10日线均向上（斜率>0）。T日涨停仅作打标供前端筛选。',
+  timeRange: 120,
+  conditions: [{ type: 'main_force_build_position', date1: 0, windowDays: 10 }],
+  exclude: {
+    kcb: true,
+    cyb: true,
+    bjs: true,
+    st: true,
+    delist: true,
+  },
+};
+
+/**
+ * 连阳上影策略
+ * 特征：
+ * 1. T 日向前连续阳线天数 >= N（默认 3）
+ * 2. 连阳这 N 天每一天都满足 5 日线 > 10 日线
+ * 2. 连阳区间内至少 1 天上影线幅度 > 阈值（默认 2%）
+ * 上影线幅度 = 当日（最高涨幅 - 收盘涨幅）
+ */
+export const consecutiveUpUpperShadowStrategy: StrategyTemplate = {
+  id: 'consecutive_up_upper_shadow',
+  name: '连阳上影',
+  description:
+    '筛选连续连阳后的上影线个股：默认要求T日向前至少连阳3天，且连阳3天都满足5日线>10日线，并且这3天里至少1天上影线幅度大于2%。',
+  timeRange: 120,
+  conditions: [
+    { type: 'consecutive_up_days_gte', date1: 0, consecutiveDays: 3, requireMa5GtMa10: true },
+    { type: 'upper_shadow_pct_gt', date1: 0, days: 3, value: 2 },
+  ],
+  exclude: {
+    kcb: true,
+    cyb: true,
+    bjs: true,
+    st: true,
+    delist: true,
+  },
+};
+
+/**
  * 游资合力接力策略
  * 特征：
  * 1. 近10日内有涨停（体现活跃度与辨识度）
@@ -520,6 +572,8 @@ export const allStrategyTemplates: StrategyTemplate[] = [
   yzrPackNeutralMarketStrategy, // 游资策略包-中性
   yzrPackStrongMarketStrategy, // 游资策略包-强势
   yzrConsensusRelayStrategy, // 游资合力接力
+  mainForceBuildPositionStrategy, // 主力建仓
+  consecutiveUpUpperShadowStrategy, // 连阳上影
   bottomingBreakoutStrategy, // 筑底突破
   touchLimitNotCloseWithThreeLimitStrategy, // 摸板首板
   secondBoardStrategy, // 打板二版

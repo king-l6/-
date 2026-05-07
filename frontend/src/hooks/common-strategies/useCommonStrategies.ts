@@ -51,6 +51,12 @@ export function useCommonStrategies() {
         return `上市天数>=${condition.days ?? 120}日`
       case 'avg_amount_gte':
         return `${dateStr}近${condition.days ?? 20}日日均成交额>=${((condition.value ?? 200000000) / 100000000).toFixed(1)}亿`
+      case 'main_force_build_position':
+        return `主力建仓：T-10至T日（含）至少5日阳线且收盘站上5日线，计入阳线满足5>10>20，且至少一半满足5/10日线斜率>0，并要求T-1日涨幅<9.8%；T日涨停仅作打标筛选`
+      case 'consecutive_up_days_gte':
+        return `${dateStr}向前连阳天数>=${condition.consecutiveDays ?? condition.days ?? 3}${condition.requireMa5GtMa10 ? '且连阳日均满足5日线>10日线' : ''}`
+      case 'upper_shadow_pct_gt':
+        return `${dateStr}向前${condition.days ?? condition.consecutiveDays ?? 3}日内至少1天上影线幅度>${condition.value ?? 2}%`
       default:
         return `${dateStr}未知条件`
     }

@@ -204,6 +204,23 @@
       }
     },
     {
+      "name": "主力建仓",
+      "description": "T日涨停且T-1日非涨停；在T-10至T内至少5日满足阳线+收盘站上5日线+5>10>20日线，并且其中至少一半阳线满足5日线和10日线斜率向上。",
+      "strategy": {
+        "conditions": [
+          { "type": "main_force_build_position", "date1": 0, "windowDays": 10 }
+        ],
+        "exclude": {
+          "kcb": true,
+          "cyb": true,
+          "bjs": true,
+          "st": true,
+          "delist": true
+        },
+        "timeRange": 120
+      }
+    },
+    {
       "name": "游资合力接力",
       "description": "游资风格的分歧转一致接力：近10日有涨停识别度，T-1日小幅回踩，T日放量涨停并满足流动性门槛。",
       "strategy": {
@@ -345,6 +362,24 @@
           { "type": "pct_change_lt", "date1": -1, "value": 9.8 },
           { "type": "limit_up", "date1": 0 },
           { "type": "volume_ratio", "date1": 0, "date2": -1, "ratio": 1.2 }
+        ],
+        "exclude": {
+          "kcb": true,
+          "cyb": true,
+          "bjs": true,
+          "st": true,
+          "delist": true
+        },
+        "timeRange": 120
+      }
+    },
+    {
+      "name": "连阳上影",
+      "description": "筛选连续连阳后的上影线个股：默认要求T日向前至少连阳3天，且连阳3天都满足5日线>10日线，并且这3天里至少1天上影线幅度大于2%。",
+      "strategy": {
+        "conditions": [
+          { "type": "consecutive_up_days_gte", "date1": 0, "consecutiveDays": 3, "requireMa5GtMa10": true },
+          { "type": "upper_shadow_pct_gt", "date1": 0, "days": 3, "value": 2 }
         ],
         "exclude": {
           "kcb": true,

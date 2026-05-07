@@ -402,7 +402,8 @@ export function useHistoryResults() {
       if (fileList.value.length > 0) {
         const firstFile = fileList.value[0].filename
         if (!activeFile.value || !fileList.value.find(f => f.filename === activeFile.value)) {
-          await handleFileChange(firstFile, true)
+          // 不阻塞列表加载：先展示文件列表，详情请求走独立 loading
+          handleFileChange(firstFile, true)
         }
       } else {
         activeFile.value = ''

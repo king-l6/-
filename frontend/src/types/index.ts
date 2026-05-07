@@ -17,6 +17,9 @@ export type ConditionType =
   | 'stop_fall_signal'
   | 'listed_days_gte'
   | 'avg_amount_gte'
+  | 'main_force_build_position'
+  | 'consecutive_up_days_gte'
+  | 'upper_shadow_pct_gt'
 
 export interface StrategyCondition {
   type: ConditionType
@@ -34,6 +37,9 @@ export interface StrategyCondition {
   lowerShadowRatio?: number // 下影线占比阈值（用于 stop_fall_signal）
   volumeDays?: number // 成交量均线周期（用于 stop_fall_signal）
   volumeRatio?: number // 放量阈值（用于 stop_fall_signal）
+  windowDays?: number // 窗口天数（用于 main_force_build_position）
+  consecutiveDays?: number // 连阳天数阈值（用于 consecutive_up_days_gte）
+  requireMa5GtMa10?: boolean // 连阳窗口内是否要求每一天都满足5日线>10日线
 }
 
 export interface ExcludeRules {
@@ -73,6 +79,20 @@ export interface StockResult {
   day2_buy_hit_5pct_day?: number | null // 次日开盘买入后，首次达到5%是第几天（买入日=1）
   /** 月内三连板+首板策略中特殊标记：T日最高价触及涨停但收盘未涨停 */
   touch_limit_not_close?: boolean
+  /** 主力建仓打标（不要求T日涨停；要求T-1非涨停+T-10至T满足均线多头阳线结构） */
+  main_force_build_tag?: boolean
+  /** T日是否涨停（仅用于前端筛选标记） */
+  main_force_t_limit_up_tag?: boolean
+  /** 主力建仓命中阳线个数（T-10至T） */
+  main_force_bullish_days?: number
+  /** 主力建仓命中“5/10日均线斜率均向上”的阳线个数 */
+  main_force_slope_up_days?: number
+  /** T 日向前连续阳线天数（含 T 日） */
+  consecutive_up_days?: number
+  /** T 日上影线幅度：最高涨幅-收盘涨幅（%） */
+  upper_shadow_pct?: number
+  /** 连阳区间内是否出现过最高价触及涨停价（触板/涨停） */
+  consecutive_up_has_limit_touch?: boolean
 }
 
 export interface BacktestResponse {

@@ -22,6 +22,8 @@
         <SelectOption value="recent_limit_up">近N日有涨停</SelectOption>
         <SelectOption value="ma_cross_up">均线上穿</SelectOption>
         <SelectOption value="volume_ratio">成交量比例</SelectOption>
+        <SelectOption value="consecutive_up_days_gte">连阳天数>=N</SelectOption>
+        <SelectOption value="upper_shadow_pct_gt">上影线幅度&gt;N%</SelectOption>
       </Select>
     </Tooltip>
     
@@ -77,6 +79,31 @@
           class="w-32"
           :min="3"
           :max="365"
+        />
+      </Tooltip>
+    </template>
+
+    <template v-if="localCondition.type === 'consecutive_up_days_gte'">
+      <Tooltip title="最小连阳天数（连续涨跌幅>0的交易日，包含检查日）">
+        <InputNumber
+          v-model:value="localCondition.consecutiveDays"
+          placeholder="连阳天数"
+          class="w-32"
+          :min="1"
+          :max="30"
+        />
+      </Tooltip>
+    </template>
+
+    <template v-if="localCondition.type === 'upper_shadow_pct_gt'">
+      <Tooltip title="上影线幅度阈值（%）：最高涨幅-收盘涨幅">
+        <InputNumber
+          v-model:value="localCondition.value"
+          placeholder="上影幅度(%)"
+          class="w-32"
+          :precision="2"
+          :step="0.1"
+          :min="0"
         />
       </Tooltip>
     </template>
@@ -175,6 +202,7 @@ function handleTypeChange() {
     delete localCondition.value.days
     delete localCondition.value.shortPeriod
     delete localCondition.value.longPeriod
+    delete localCondition.value.consecutiveDays
   } else if (localCondition.value.type === 'pct_change_gt' || localCondition.value.type === 'pct_change_lt') {
     localCondition.value.value = localCondition.value.value || 0
     delete localCondition.value.minValue
@@ -184,6 +212,7 @@ function handleTypeChange() {
     delete localCondition.value.days
     delete localCondition.value.shortPeriod
     delete localCondition.value.longPeriod
+    delete localCondition.value.consecutiveDays
   } else if (localCondition.value.type === 'pct_change_between') {
     delete localCondition.value.value
     localCondition.value.minValue = localCondition.value.minValue ?? 0
@@ -193,6 +222,7 @@ function handleTypeChange() {
     delete localCondition.value.days
     delete localCondition.value.shortPeriod
     delete localCondition.value.longPeriod
+    delete localCondition.value.consecutiveDays
   } else if (localCondition.value.type === 'three_limit_up' || localCondition.value.type === 'recent_limit_up') {
     delete localCondition.value.value
     delete localCondition.value.minValue
@@ -202,6 +232,7 @@ function handleTypeChange() {
     localCondition.value.days = localCondition.value.days || (localCondition.value.type === 'three_limit_up' ? 30 : 10)
     delete localCondition.value.shortPeriod
     delete localCondition.value.longPeriod
+    delete localCondition.value.consecutiveDays
   } else if (localCondition.value.type === 'ma_cross_up') {
     delete localCondition.value.value
     delete localCondition.value.minValue
@@ -211,6 +242,7 @@ function handleTypeChange() {
     delete localCondition.value.days
     localCondition.value.shortPeriod = localCondition.value.shortPeriod || 5
     localCondition.value.longPeriod = localCondition.value.longPeriod || 10
+    delete localCondition.value.consecutiveDays
   } else if (localCondition.value.type === 'volume_ratio') {
     delete localCondition.value.value
     delete localCondition.value.minValue
@@ -220,6 +252,27 @@ function handleTypeChange() {
     delete localCondition.value.days
     delete localCondition.value.shortPeriod
     delete localCondition.value.longPeriod
+    delete localCondition.value.consecutiveDays
+  } else if (localCondition.value.type === 'consecutive_up_days_gte') {
+    delete localCondition.value.value
+    delete localCondition.value.minValue
+    delete localCondition.value.maxValue
+    delete localCondition.value.date2
+    delete localCondition.value.ratio
+    delete localCondition.value.days
+    delete localCondition.value.shortPeriod
+    delete localCondition.value.longPeriod
+    localCondition.value.consecutiveDays = localCondition.value.consecutiveDays || 3
+  } else if (localCondition.value.type === 'upper_shadow_pct_gt') {
+    localCondition.value.value = localCondition.value.value ?? 2
+    delete localCondition.value.minValue
+    delete localCondition.value.maxValue
+    delete localCondition.value.date2
+    delete localCondition.value.ratio
+    delete localCondition.value.days
+    delete localCondition.value.shortPeriod
+    delete localCondition.value.longPeriod
+    delete localCondition.value.consecutiveDays
   }
 }
 
@@ -260,6 +313,14 @@ watch(() => localCondition.value.type, (type) => {
     case 'volume_ratio':
       date1Tooltip.value = '第一个交易日偏移：负数表示往前推N个交易日，0表示回测日期当天。例如：-2 表示往前推2个交易日'
       date1Placeholder.value = '交易日1'
+      break
+    case 'consecutive_up_days_gte':
+      date1Tooltip.value = '检查日期偏移：以该交易日为结束日，向前统计连续阳线（涨跌幅>0）天数'
+      date1Placeholder.value = '检查日期'
+      break
+    case 'upper_shadow_pct_gt':
+      date1Tooltip.value = '检查日期偏移：上影线幅度=最高涨幅-收盘涨幅（均相对前收盘）'
+      date1Placeholder.value = '检查日期'
       break
     default:
       date1Tooltip.value = '交易日偏移：负数表示往前推N个交易日，0表示回测日期当天'

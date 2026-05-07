@@ -48,12 +48,6 @@ Thumbs.db
 .env
 .env.local
 
-# Cache files
-cache/
-*.cache
-
-# Results - 回测结果文件（可能很大）
-results/
 
 # Frontend
 frontend/node_modules/
