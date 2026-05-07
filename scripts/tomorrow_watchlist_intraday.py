@@ -65,8 +65,8 @@ def main():
     if args.date:
         target_date = _normalize_date(args.date)
     else:
-        # 尽量使用 DataFetcher 的“可用最近交易日”（会考虑 Baostock 当日是否已更新）。
-        # 若环境未安装 baostock，则退化为本地结果文件中的最大 match_date。
+        # 尽量使用 DataFetcher 的“可用最近交易日”（会考虑 AkShare 当日日 K 是否已更新）。
+        # 若不可用则退化为本地结果文件中的最大 match_date。
         target_date = None
         try:
             from data_fetcher import DataFetcher

@@ -316,7 +316,7 @@ class StrategyEngine:
     
     def _dedupe_same_stock_within_three_trading_days(self, results, trading_days=3):
         """所有策略通用：连续 N 个 A 股交易日内同一只股票只能出现一次，只保留第一次出现的日期。
-        使用真实 A 股交易日历（Baostock，失败时用缓存 K 线中的日期序列）。"""
+        使用真实 A 股交易日历（AkShare，失败时用缓存 K 线中的日期序列）。"""
         if not results:
             return results
 
@@ -332,7 +332,7 @@ class StrategyEngine:
                 cur = cur + timedelta(days=1)
             return n
 
-        # 一次拉取整个结果集日期范围内的 A 股交易日历，避免对每对日期都请求 Baostock
+        # 一次拉取整个结果集日期范围内的 A 股交易日历，避免对每对日期都重复请求
         dates_in_results = []
         for r in results:
             md = (r.get('match_date') or '')[:10]

@@ -1,18 +1,12 @@
 """
-A股数据获取器 - 支持 AkShare（优先）和 Baostock（备用）
-注意：Baostock 非线程安全，并发请求会混淆数据，需加锁
+A股数据获取器 - 股票列表与日 K 均使用 AkShare。
 """
 import pandas as pd
-from threading import Lock, Thread
 from datetime import datetime, timedelta
 import time
 import os
 import json
 import glob
-import socket
-from collections import defaultdict
-
-import baostock as bs
 
 _MAIN_BOARD_CACHE_PURGED_ONCE = False
 
@@ -26,7 +20,7 @@ from stock_list_sources import fetch_main_board_stocks_akshare
 
 
 class DataFetcher:
-    """A股数据获取器 - 使用 Baostock"""
+    """A股数据获取器 - AkShare"""
 
     def __init__(self):
         self.stock_list_cache = None
@@ -38,8 +32,6 @@ class DataFetcher:
         self.stock_list_cache_file = os.path.join(self.cache_dir, 'stock_list.json')
         self.stock_data_cache_dir = os.path.join(self.cache_dir, 'stock_data')
         os.makedirs(self.stock_data_cache_dir, exist_ok=True)
-        self._bs_logged_in = False
-        self._bs_lock = Lock()  # Baostock 非线程安全
 
         # 缓存文件索引机制（性能优化）
         self._cache_index = None  # {code: [(start, end, path), ...]}
@@ -50,101 +42,6 @@ class DataFetcher:
         self._trading_days_cache = {}  # {(start, end): [dates]}
         self._trading_days_full_cache = None  # 近N年完整交易日历
         self._trading_days_cache_time = None
-        self._network_error_count = 0
-
-    def _ensure_login(self):
-        if self._bs_logged_in:
-            return
-        # Baostock 在网络异常时可能长时间阻塞 connect，这里做线程级超时保护并有限次重试
-        last_err = None
-        for attempt in range(1):
-            old_timeout = socket.getdefaulttimeout()
-            try:
-                socket.setdefaulttimeout(4)
-                holder = {'lg': None, 'err': None}
-
-                def _login_worker():
-                    try:
-                        holder['lg'] = bs.login()
-                    except Exception as e:
-                        holder['err'] = e
-
-                t = Thread(target=_login_worker, daemon=True)
-                t.start()
-                t.join(timeout=4)
-                if t.is_alive():
-                    last_err = TimeoutError('Baostock 登录超时')
-                    self._bs_logged_in = False
-                    continue
-                if holder['err'] is not None:
-                    raise holder['err']
-                lg = holder['lg']
-                self._bs_logged_in = bool(lg is not None and getattr(lg, 'error_code', None) == '0')
-                if self._bs_logged_in:
-                    return
-                last_err = RuntimeError(f"Baostock 登录失败: {getattr(lg, 'error_msg', '')}")
-            except Exception as e:
-                last_err = e
-            finally:
-                socket.setdefaulttimeout(old_timeout)
-            time.sleep(0.2)
-        self._bs_logged_in = False
-        if last_err is not None:
-            raise last_err
-
-    def _reset_login(self):
-        """重置登录状态，触发下次请求前重新登录。"""
-        self._bs_logged_in = False
-
-    def _is_transient_bs_error(self, e):
-        """识别 Baostock 常见的临时网络/压缩/编码异常。"""
-        msg = str(e).lower()
-        transient_keywords = (
-            'decompress',
-            'utf-8',
-            'codec',
-            'truncated stream',
-            'invalid distance',
-            'connection reset',
-            'timed out',
-            'timeout',
-            'remote end closed',
-        )
-        return any(k in msg for k in transient_keywords)
-
-    def _query_history_rows_with_retry(self, bs_code, fields, start_fmt, end_fmt, max_retries=4):
-        """带重试拉取历史K线原始行。"""
-        last_error = None
-        for attempt in range(max_retries):
-            try:
-                with self._bs_lock:
-                    self._ensure_login()
-                    if not self._bs_logged_in:
-                        raise RuntimeError('Baostock 登录失败')
-                    rs = bs.query_history_k_data_plus(
-                        bs_code,
-                        fields,
-                        start_date=start_fmt, end_date=end_fmt, frequency="d", adjustflag="3"
-                    )
-                    data_list = []
-                    while rs.error_code == '0' and rs.next():
-                        data_list.append(rs.get_row_data())
-                return data_list
-            except Exception as e:
-                last_error = e
-                if not self._is_transient_bs_error(e) or attempt == max_retries - 1:
-                    break
-                self._network_error_count += 1
-                self._reset_login()
-                sleep_s = min(0.6 * (2 ** attempt), 5.0)
-                if self._network_error_count % 20 == 0:
-                    print(f"[WARNING] Baostock 网络波动累计 {self._network_error_count} 次，正在自动重试", flush=True)
-                time.sleep(sleep_s)
-        raise last_error
-
-    def _to_bs_code(self, code):
-        """6位代码转 Baostock 格式：sh.600000 或 sz.000001"""
-        return f"sh.{code}" if code.startswith('6') else f"sz.{code}"
 
     def _filter_stock_list_rows(self, stocks):
         """只保留主板个股，并剔除指数类（兼容旧 stock_list.json）。"""
@@ -201,114 +98,32 @@ class DataFetcher:
         except Exception as e:
             print(f"[WARNING] 读取缓存文件失败: {e}")
 
-        use_bs_only = os.environ.get('STOCK_LIST_SOURCE', '').strip().lower() in (
-            'baostock',
-            'bs',
-            'baostock_only',
-        )
-        stock_list = []
-        if not use_bs_only:
-            stock_list = fetch_main_board_stocks_akshare() or []
-            if stock_list:
-                print(
-                    f'[INFO] 股票列表来自 AkShare（沪深主板），共 {len(stock_list)} 只；'
-                    f'设置 STOCK_LIST_SOURCE=baostock 可改回仅用 Baostock 全表过滤',
-                    flush=True,
+        stock_list = fetch_main_board_stocks_akshare() or []
+        if stock_list:
+            print(
+                f'[INFO] 股票列表来自 AkShare（沪深主板），共 {len(stock_list)} 只',
+                flush=True,
+            )
+            self.stock_list_cache = stock_list
+            self.stock_list_cache_time = datetime.now()
+            with open(self.stock_list_cache_file, 'w', encoding='utf-8') as f:
+                json.dump(
+                    {'cache_time': datetime.now().isoformat(), 'stocks': stock_list},
+                    f,
+                    ensure_ascii=False,
+                    indent=2,
                 )
-            else:
-                print('[INFO] AkShare 沪深主板列表不可用或为空，回退 Baostock', flush=True)
-        # 从 baostock 获取（备用或与 AkShare 二选一）
-        if not stock_list:
-            print(f"[DEBUG] 开始从 baostock 获取股票列表...")
-        try:
-            if not stock_list:
-                with self._bs_lock:
-                    self._ensure_login()
-                    if not self._bs_logged_in:
-                        print(f"[ERROR] Baostock 登录失败")
-                        # 如果登录失败，使用过期缓存
-                        if fallback_stocks:
-                            print(f"[INFO] 使用过期缓存（{len(fallback_stocks)} 只股票）")
-                            self.stock_list_cache = fallback_stocks
-                            self.stock_list_cache_time = fallback_cache_time
-                            return fallback_stocks
-                        return []
-                    query_date = datetime.now().strftime('%Y-%m-%d')
-                    print(f"[DEBUG] 查询日期: {query_date}")
-                    rs = bs.query_all_stock(day=query_date)
-                    print(f"[DEBUG] Baostock 查询错误码: {rs.error_code}, 错误信息: {rs.error_msg}")
-            if not stock_list and rs.error_code == '0':
-                count = 0
-                excl_stats: defaultdict[str, int] = defaultdict(int)
-                excl_samples: defaultdict[str, list] = defaultdict(list)
-                dbg = os.environ.get('STOCK_FILTER_DEBUG', '').strip().lower() in ('1', 'true', 'yes', 'on')
-                max_sample = 5
-                while rs.next():
-                    row = rs.get_row_data()
-                    # code: sh.600000, code_name: 浦发银行
-                    bs_code, trade_status, name = row[0], row[1], row[2]
-                    code = bs_code.split('.')[-1] if '.' in bs_code else bs_code
-                    ex = 'sh' if str(bs_code).lower().startswith('sh.') else 'sz'
-                    reason = universe_exclusion_reason(code, name, exchange=ex, bs_code=bs_code)
-                    if reason:
-                        excl_stats[reason] += 1
-                        if dbg:
-                            print(
-                                f'[STOCK_FILTER] drop {bs_code}\t{code}\t{name!r}\t-> {reason}',
-                                flush=True,
-                            )
-                        elif len(excl_samples[reason]) < max_sample:
-                            excl_samples[reason].append(f'{bs_code} {code} {name[:32]!r}')
-                        continue
-                    stock_list.append({'code': code, 'name': name, 'exchange': ex})
-                    count += 1
-                print(f"[DEBUG] 从 baostock 获取到 {count} 只股票（过滤后保留）")
-                if excl_stats:
-                    total_ex = sum(excl_stats.values())
-                    top = sorted(excl_stats.items(), key=lambda x: -x[1])[:20]
-                    summary = '; '.join(f'{k}={v}' for k, v in top)
-                    print(
-                        f'[INFO] Baostock 股票池过滤：排除 {total_ex} 条；原因 Top: {summary}',
-                        flush=True,
-                    )
-                    if not dbg:
-                        for rk, rows in sorted(excl_samples.items(), key=lambda x: -excl_stats[x[0]])[:12]:
-                            if not rows:
-                                continue
-                            print(f'[INFO]   · {rk} 示例: {" | ".join(rows)}', flush=True)
-                    print(
-                        '[INFO] 逐条对照可设置环境变量 STOCK_FILTER_DEBUG=1 后重启服务',
-                        flush=True,
-                    )
+            print(f"[INFO] 获取 {len(stock_list)} 只主板股票")
+            return stock_list
 
-            if stock_list:
-                self.stock_list_cache = stock_list
-                self.stock_list_cache_time = datetime.now()
-                with open(self.stock_list_cache_file, 'w', encoding='utf-8') as f:
-                    json.dump({'cache_time': datetime.now().isoformat(), 'stocks': stock_list},
-                              f, ensure_ascii=False, indent=2)
-                print(f"[INFO] 获取 {len(stock_list)} 只主板股票")
-                return stock_list
-            else:
-                print(f"[WARNING] 从 baostock 获取的股票列表为空，尝试使用过期缓存")
-                # 如果 baostock 获取失败，使用过期缓存
-                if fallback_stocks:
-                    print(f"[INFO] 使用过期缓存（{len(fallback_stocks)} 只股票）")
-                    self.stock_list_cache = fallback_stocks
-                    self.stock_list_cache_time = fallback_cache_time
-                    return fallback_stocks
-        except Exception as e:
-            import traceback
-            print(f"[ERROR] 获取股票列表失败: {e}")
-            print(f"[ERROR] 错误堆栈: {traceback.format_exc()}")
-            # 如果获取失败，使用过期缓存
-            if fallback_stocks:
-                print(f"[INFO] 使用过期缓存（{len(fallback_stocks)} 只股票）")
-                self.stock_list_cache = fallback_stocks
-                self.stock_list_cache_time = fallback_cache_time
-                return fallback_stocks
-        
-        print(f"[ERROR] 无法获取股票列表，且无可用缓存")
+        print('[WARNING] AkShare 沪深主板列表不可用或为空，尝试使用过期缓存', flush=True)
+        if fallback_stocks:
+            print(f"[INFO] 使用过期缓存（{len(fallback_stocks)} 只股票）")
+            self.stock_list_cache = fallback_stocks
+            self.stock_list_cache_time = fallback_cache_time
+            return fallback_stocks
+
+        print('[ERROR] 无法获取股票列表，且无可用缓存')
         return []
 
     def _get_cache_path(self, code, start_date, end_date):
@@ -348,35 +163,23 @@ class DataFetcher:
         return d.strftime('%Y-%m-%d')
 
     def _get_last_trading_day_available(self):
-        """获取 Baostock 已有数据的最新交易日（当日数据通常收盘后才更新）"""
+        """获取 AkShare 已有日 K 的最新交易日（当日数据通常收盘后才更新；用 000001 探测）。"""
         last_trade = self._get_last_trading_day()
         last_trade_str = last_trade.replace('-', '')
         try:
-            with self._bs_lock:
-                self._ensure_login()
-                rs = bs.query_history_k_data_plus(
-                    'sz.000001', 'date', start_date=last_trade, end_date=last_trade,
-                    frequency='d', adjustflag='3'
-                )
-                has_data = rs.error_code == '0' and rs.next()
-            if not has_data:
-                # 当日数据未更新，回退到前一交易日
-                d = datetime.strptime(last_trade, '%Y-%m-%d').date()
-                for _ in range(5):
-                    d = d - timedelta(days=1)
-                    if d.weekday() < 5:  # 周一到周五
-                        check_date = d.strftime('%Y-%m-%d')
-                        with self._bs_lock:
-                            self._ensure_login()
-                            rs = bs.query_history_k_data_plus(
-                                'sz.000001', 'date', start_date=check_date, end_date=check_date,
-                                frequency='d', adjustflag='3'
-                            )
-                            if rs.error_code == '0' and rs.next():
-                                return check_date
-                return last_trade  #  fallback
+            df = self._fetch_from_akshare('000001', last_trade_str, last_trade_str)
+            if df is not None and not df.empty:
+                return last_trade
+            d = datetime.strptime(last_trade, '%Y-%m-%d').date()
+            for _ in range(10):
+                d = d - timedelta(days=1)
+                if d.weekday() < 5:
+                    check = d.strftime('%Y%m%d')
+                    df = self._fetch_from_akshare('000001', check, check)
+                    if df is not None and not df.empty:
+                        return d.strftime('%Y-%m-%d')
+            return last_trade
         except Exception as e:
-            # 数据源不可用时快速降级，避免脚本长时间卡在登录/连接阶段
             print(f"[WARNING] 获取最近可用交易日失败，回退本地最近交易日 {last_trade}: {e}", flush=True)
         return last_trade
 
@@ -441,27 +244,22 @@ class DataFetcher:
     # ==================== 交易日缓存机制（性能优化）====================
 
     def _fetch_trading_days_from_api(self, start_s, end_s):
-        """从 Baostock API 拉取交易日列表"""
+        """从 AkShare（000001 日 K）提取交易日列表。"""
         try:
-            with self._bs_lock:
-                self._ensure_login()
-                rs = bs.query_history_k_data_plus(
-                    'sz.000001', 'date',
-                    start_date=start_s, end_date=end_s,
-                    frequency='d', adjustflag='3'
-                )
-            if rs.error_code != '0':
+            start_fmt = start_s.replace('-', '')[:8]
+            end_fmt = end_s.replace('-', '')[:8]
+            df = self._fetch_from_akshare('000001', start_fmt, end_fmt)
+            if df is None or df.empty or '日期' not in df.columns:
                 return []
             out = []
-            while rs.next():
-                row = rs.get_row_data()
-                if row and row[0]:
-                    d = row[0].strip()
-                    if len(d) == 8 and d.isdigit():
-                        d = f"{d[:4]}-{d[4:6]}-{d[6:8]}"
-                    if len(d) >= 10 and d[4] == '-' and d[7] == '-':
-                        out.append(d[:10])
-            return out
+            for v in df['日期']:
+                if hasattr(v, 'strftime'):
+                    out.append(v.strftime('%Y-%m-%d'))
+                else:
+                    s = str(v)[:10]
+                    if len(s) == 10 and s[4] == '-' and s[7] == '-':
+                        out.append(s)
+            return sorted(out)
         except Exception:
             return []
 
@@ -728,47 +526,8 @@ class DataFetcher:
             return None
 
     def _fetch_from_api(self, code, start_date, end_date):
-        """从 API 拉取数据并返回 DataFrame，不写缓存。优先使用 AkShare，失败时回退到 Baostock。"""
-        # 环境变量控制数据源：akshare / baostock / auto（默认 auto）
-        data_source = os.environ.get('STOCK_DATA_SOURCE', 'auto').strip().lower()
-
-        # AkShare 优先（除非明确指定只用 baostock）
-        if data_source in ('akshare', 'ak', 'auto'):
-            df = self._fetch_from_akshare(code, start_date, end_date)
-            if df is not None and not df.empty:
-                return df
-            if data_source == 'akshare':
-                return None
-
-        # 回退到 Baostock
-        if data_source in ('baostock', 'bs', 'auto'):
-            start_fmt = f"{start_date[:4]}-{start_date[4:6]}-{start_date[6:]}"
-            end_fmt = f"{end_date[:4]}-{end_date[4:6]}-{end_date[6:]}"
-            try:
-                bs_code = self._to_bs_code(code)
-                data_list = self._query_history_rows_with_retry(
-                    bs_code,
-                    "date,open,high,low,close,volume,amount,pctChg,turn",
-                    start_fmt,
-                    end_fmt,
-                )
-                if not data_list:
-                    return None
-                df = pd.DataFrame(data_list, columns=['日期','开盘','最高','最低','收盘','成交量','成交额','涨跌幅','换手率'])
-                df = df.drop_duplicates(subset=['日期'], keep='first')
-                df['日期'] = pd.to_datetime(df['日期'])
-                for col in ['开盘','收盘','最高','最低','成交量','成交额','涨跌幅','换手率']:
-                    df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
-                df['成交量'] = df['成交量'].astype(float)
-                df['涨跌额'] = df['收盘'].diff()
-                df['涨跌额'] = df['涨跌额'].fillna(0)
-                df['振幅'] = ((df['最高'] - df['最低']) / df['最低'].replace(0, float('nan')) * 100).fillna(0)
-                df = df[['日期','开盘','收盘','最高','最低','成交量','成交额','振幅','涨跌幅','涨跌额','换手率']]
-                return df.sort_values('日期').reset_index(drop=True)
-            except Exception:
-                return None
-
-        return None
+        """从 AkShare 拉取数据并返回 DataFrame，不写缓存。"""
+        return self._fetch_from_akshare(code, start_date, end_date)
 
     def update_caches_with_today_data(self, max_workers=100, task_index=None, task_count=None):
         """拉取今天（最近交易日）的数据，合并到对应的 json 缓存文件中
@@ -783,7 +542,7 @@ class DataFetcher:
         # 先清理重复缓存，避免更新时出现重复数据
         self.remove_duplicate_cache()
 
-        # 使用 Baostock 已有数据的最新交易日（当日数据通常收盘后才更新）
+        # 使用 AkShare 已有数据的最新交易日（当日数据通常收盘后才更新）
         last_trade = self._get_last_trading_day_available()
         last_trade_str = last_trade.replace('-', '')
 
@@ -967,7 +726,7 @@ class DataFetcher:
                     print(f'进度: {i+1}/{total} | 已更新: {success}', flush=True)
         print(f'[INFO] 今日数据已落盘: 更新 {success}/{total} 个缓存')
         if success < total and total > 0:
-            print(f'[TIP] 部分股票未更新可能因 Baostock 无数据（如 ST/退市股），可忽略')
+            print(f'[TIP] 部分股票未更新可能因 AkShare 无数据（如 ST/退市股），可忽略')
 
     def ensure_sufficient_data(self, time_range, max_workers=100):
         """确保有足够的数据用于回测
@@ -1091,8 +850,6 @@ class DataFetcher:
 
         start_date = str(start_date).replace('-', '')
         end_date = str(end_date).replace('-', '')
-        start_fmt = f"{start_date[:4]}-{start_date[4:6]}-{start_date[6:]}"
-        end_fmt = f"{end_date[:4]}-{end_date[4:6]}-{end_date[6:]}"
 
         if not force_refresh:
             try:
@@ -1206,26 +963,9 @@ class DataFetcher:
 
         try:
             cache_path = self._get_cache_path(code, start_date, end_date)
-            bs_code = self._to_bs_code(code)
-            data_list = self._query_history_rows_with_retry(
-                bs_code,
-                "date,open,high,low,close,volume,amount,pctChg,turn",
-                start_fmt,
-                end_fmt,
-            )
-            if not data_list:
+            df = self._fetch_from_akshare(code, start_date, end_date)
+            if df is None or df.empty:
                 return None
-
-            df = pd.DataFrame(data_list, columns=['日期','开盘','最高','最低','收盘','成交量','成交额','涨跌幅','换手率'])
-            df = df.drop_duplicates(subset=['日期'], keep='first')  # 去重，防止异常返回
-            df['日期'] = pd.to_datetime(df['日期'])
-            for col in ['开盘','收盘','最高','最低','成交量','成交额','涨跌幅','换手率']:
-                df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
-            df['成交量'] = df['成交量'].astype(float)
-            df['涨跌额'] = df['收盘'].diff()
-            df['涨跌额'] = df['涨跌额'].fillna(0)
-            df['振幅'] = ((df['最高'] - df['最低']) / df['最低'].replace(0, float('nan')) * 100).fillna(0)
-            df = df[['日期','开盘','收盘','最高','最低','成交量','成交额','振幅','涨跌幅','涨跌额','换手率']]
             df = df.sort_values('日期')
 
             # 保存前先删除该股票代码的其他缓存文件，避免重复数据

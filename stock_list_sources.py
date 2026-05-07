@@ -4,7 +4,7 @@
 默认使用 AkShare 从交易所公开页汇总的主板清单（沪市 symbol=主板A股；深市 A股列表且 板块=主板），
 与项目内「沪市 60xxxx、深市 000~003」及 universe_exclusion_reason 再筛一层一致。
 
-行情仍由 Baostock 拉取；环境变量 STOCK_LIST_SOURCE=baostock 可强制仅用 Baostock 全表+规则过滤。
+日 K 由 data_fetcher 使用 AkShare 拉取。
 """
 from __future__ import annotations
 

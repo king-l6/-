@@ -524,7 +524,7 @@ def main():
                 return
             trading_days = fetcher.get_trading_days_between(start_date, last_trade)
             fallback_days = weekdays_between(start_date, last_trade)
-            # 若 Baostock 未返回或返回天数明显少于「工作日」数，用工作日列表兜底，保证回测所有中间交易日
+            # 若交易日历未返回或返回天数明显少于「工作日」数，用工作日列表兜底，保证回测所有中间交易日
             if not trading_days:
                 trading_days = fallback_days
             elif fallback_days and len(trading_days) < len(fallback_days):

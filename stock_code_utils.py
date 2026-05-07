@@ -6,7 +6,7 @@ A股代码/名称粗判：主板普通股票 vs 指数、基金、债券、REIT 
 - 深市：000/001/002/003 开头的 A 股主板（含原中小板）
 
 说明：
-- Baostock 返回带 sh./sz. 前缀，写入 stock_list 的 `exchange` 字段为 `sh`/`sz`；
+- 部分接口返回带 sh./sz. 前缀的代码；本项目 stock_list 的 `exchange` 字段为 `sh`/`sz`；
 - 无 `exchange` 的旧数据：仍用名称关键字兜底；缓存白名单以 stock_list 过滤结果为准。
 """
 
@@ -38,22 +38,22 @@ def universe_exclusion_reason(
     name: str = "",
     *,
     exchange: Optional[str] = None,
-    bs_code: Optional[str] = None,
+    prefixed_symbol: Optional[str] = None,
 ) -> Optional[str]:
     """
     是否应排除在「主板普通 A 股」股票池之外。
     返回 None 表示保留；否则为稳定英文 key，便于日志检索。
 
-    必须结合 exchange（或 Baostock 的 bs_code）才能区分上交所 000 段指数与深市 000 个股；
+    必须结合 exchange；若传入 prefixed_symbol（带 sh./sz. 前缀的完整代码），可区分上交所 000 段指数与深市 000 个股；
     仅六位码且无交易所时，规则为兼容旧数据的折中，可能误判。
     """
     c = (code or "").strip()
     nm = name or ""
     if len(c) != 6 or not c.isdigit():
         return "invalid_code"
-    bc = (bs_code or "").strip()
-    if bc and is_likely_index_baostock(bc, nm):
-        return "baostock_index_or_derivative_series"
+    bc = (prefixed_symbol or "").strip()
+    if bc and is_likely_index_prefixed_symbol(bc, nm):
+        return "prefixed_index_or_derivative_series"
     ex = (exchange or "").strip().lower() or None
     if not is_main_board_equity_code(c, ex):
         if ex == "sh":
@@ -138,9 +138,9 @@ def is_likely_non_equity_by_name(name: str) -> bool:
     return False
 
 
-def is_likely_index_baostock(bs_code: str, _name: str = "") -> bool:
-    """根据 Baostock 完整代码（sh./sz.）判断是否指数序列（名称类非个股由 universe_exclusion_reason 处理）。"""
-    bc = (bs_code or "").strip().lower()
+def is_likely_index_prefixed_symbol(prefixed_symbol: str, _name: str = "") -> bool:
+    """根据带 sh./sz. 前缀的完整代码判断是否指数序列（与数据源无关；名称类非个股由 universe_exclusion_reason 处理）。"""
+    bc = (prefixed_symbol or "").strip().lower()
     if bc.startswith("sh.000"):
         return True
     if bc.startswith("sz.399") or bc.startswith("sz.395"):

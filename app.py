@@ -274,7 +274,7 @@ def get_stocks():
 
 @app.route('/api/stock-daily', methods=['GET'])
 def api_stock_daily():
-    """单只股票日 K（来自本地缓存 / Baostock），供多股复盘图等使用。"""
+    """单只股票日 K（来自本地缓存 / AkShare），供多股复盘图等使用。"""
     code = (request.args.get('code') or '').strip()
     if len(code) != 6 or not code.isdigit():
         return jsonify({'success': False, 'error': 'code 须为 6 位数字'}), 400
