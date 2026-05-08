@@ -489,8 +489,6 @@ class StrategyEngine:
                     max_backward_offset = max(max_backward_offset, int(c.get('days', 120)) - 1)
                 elif cond_type == 'main_force_build_position':
                     max_backward_offset = max(max_backward_offset, int(c.get('windowDays', 10)) + 20)
-                elif cond_type == 'main_force_build_position':
-                    max_backward_offset = max(max_backward_offset, int(c.get('windowDays', 10)) + 20)
             min_required_idx = max_backward_offset
 
             date_map, dates_str, date_pos, dates_sorted, indicator_ctx = self._prepare_df_for_strategy(df, conditions)
@@ -566,6 +564,8 @@ class StrategyEngine:
                     max_backward_offset = max(max_backward_offset, int(c.get('volumeDays', 5)) - 1)
                 elif cond_type == 'listed_days_gte':
                     max_backward_offset = max(max_backward_offset, int(c.get('days', 120)) - 1)
+                elif cond_type == 'main_force_build_position':
+                    max_backward_offset = max(max_backward_offset, int(c.get('windowDays', 10)) + 20)
             min_required_idx = max_backward_offset
 
             if date_map is None or dates_str is None or date_pos is None or dates_sorted is None or indicator_ctx is None:
@@ -1599,11 +1599,14 @@ class StrategyEngine:
                     base_idx = date_pos[base_date_str]
                 else:
                     base_idx = dates.index(base_date)
+                ic = check_result.get('indicator_ctx')
+                if ic is None:
+                    ic = self._build_indicator_ctx(conditions, df)
                 main_force = self._compute_main_force_build_detail(
                     base_idx=base_idx,
                     dates_str=check_result.get('dates_str') or [d.strftime('%Y-%m-%d') for d in dates],
                     date_map=date_map,
-                    indicator_ctx=check_result.get('indicator_ctx') or self._build_indicator_ctx([], df),
+                    indicator_ctx=ic,
                 )
                 detail.update(main_force)
             except Exception:

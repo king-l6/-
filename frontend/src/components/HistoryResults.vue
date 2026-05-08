@@ -73,7 +73,13 @@
             <MenuItem
               v-for="file in fileList"
               :key="file.filename"
-              :class="['file-menu-item', { 'strategy-file': isStrategyFile(file.filename) }]"
+              :class="[
+                'file-menu-item',
+                {
+                  'strategy-file': isStrategyFile(file.filename),
+                  'strategy-file-main-force': isMainForceBuildHistoryFile(file.filename)
+                }
+              ]"
             >
               <div class="flex flex-col w-full">
                 <span class="text-xs font-medium text-gray-800 truncate" :title="file.filename">
@@ -175,6 +181,15 @@
               <Checkbox v-model:checked="filterDay2Strong" class="text-sm">
                 当日涨幅&gt;3% 或 振幅&gt;3%
               </Checkbox>
+              <InputNumber
+                v-if="showMainForceBullishFilter"
+                v-model:value="minMainForceBullishDays"
+                :min="0"
+                :max="11"
+                size="small"
+                class="w-[148px]"
+                placeholder="阳线个数>="
+              />
             </div>
             <div :class="['overflow-x-auto w-full -mx-2 px-2 md:mx-0 md:px-0', { 'history-table-mobile': isNarrowScreen }]">
               <Table
@@ -245,7 +260,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
-import { Card, Table, Spin, Alert, Button, Space, Input, Menu, MenuItem, Select, Tabs, TabPane, Checkbox } from 'ant-design-vue'
+import { Card, Table, Spin, Alert, Button, Space, Input, InputNumber, Menu, MenuItem, Select, Tabs, TabPane, Checkbox } from 'ant-design-vue'
 import { SearchOutlined, PlusOutlined } from '@ant-design/icons-vue'
 import type { ColumnsType } from 'ant-design-vue/es/table'
 import type { StockResult } from '@/types'
@@ -303,6 +318,9 @@ const {
   formatPrice,
   getRowClassName,
   isStrategyFile,
+  isMainForceBuildHistoryFile,
+  minMainForceBullishDays,
+  showMainForceBullishFilter,
   isDayLeader,
   getDayLeaderLabel,
   handleExport,
@@ -310,14 +328,18 @@ const {
   filterDay2Strong
 } = useHistoryResults()
 
-const collectedColumns: ColumnsType<StockResult> = [
-  { title: '代码', dataIndex: 'code', key: 'code', width: 80 },
-  { title: '名称', dataIndex: 'name', key: 'name', width: 100 },
-  { title: '匹配日期', dataIndex: 'match_date', key: 'match_date', width: 100, customRender: ({ text }) => formatDate(text ?? '') },
-  { title: '匹配价', dataIndex: 'match_price', key: 'match_price', width: 80, customRender: ({ text }) => text != null ? text.toFixed(2) : '-' },
-  { title: '当前价', dataIndex: 'current_price', key: 'current_price', width: 80, customRender: ({ text }) => text != null ? text.toFixed(2) : '-' },
-  { title: '操作', key: 'action', width: 70, fixed: 'right' }
-]
+const collectedColumns = computed<ColumnsType<StockResult>>(() => {
+  const head: ColumnsType<StockResult> = [
+    { title: '代码', dataIndex: 'code', key: 'code', width: 80 },
+    { title: '名称', dataIndex: 'name', key: 'name', width: 100 },
+    { title: '匹配日期', dataIndex: 'match_date', key: 'match_date', width: 100, customRender: ({ text }) => formatDate(text ?? '') },
+    { title: '匹配价', dataIndex: 'match_price', key: 'match_price', width: 80, customRender: ({ text }) => text != null ? text.toFixed(2) : '-' },
+    { title: '当前价', dataIndex: 'current_price', key: 'current_price', width: 80, customRender: ({ text }) => text != null ? text.toFixed(2) : '-' }
+  ]
+  const mid = hasMainForceResultColumns.value ? historyMainForceDenseColumns : []
+  const tail: ColumnsType<StockResult> = [{ title: '操作', key: 'action', width: 70, fixed: 'right' }]
+  return [...head, ...mid, ...tail]
+})
 
 function renderDay2BuyHitCell(record: StockResult): string {
   if (record.day2_buy_hit_5pct_day != null) return `第${record.day2_buy_hit_5pct_day}天`
@@ -327,12 +349,103 @@ function renderDay2BuyHitCell(record: StockResult): string {
   return `10日收盘 ${sign}${day10ClosePct.toFixed(2)}%`
 }
 
-const columns: ColumnsType<StockResult> = [
+/** 历史 jsonl 含主力建仓字段时展示（与 ResultsTable 一致口径） */
+const hasMainForceResultColumns = computed(() => {
+  const sn = String(metaInfo.value?.strategy_name || '').trim()
+  if (sn === '主力建仓') return true
+  return results.value.some((r) => {
+    const row = r as StockResult
+    return (
+      row.main_force_bullish_days != null ||
+      typeof row.main_force_build_tag === 'boolean' ||
+      typeof row.main_force_t_limit_up_tag === 'boolean'
+    )
+  })
+})
+
+const historyMainForceColumns: ColumnsType<StockResult> = [
+  {
+    title: 'T日涨停标记',
+    dataIndex: 'main_force_t_limit_up_tag',
+    key: 'main_force_t_limit_up_tag',
+    width: 110,
+    align: 'center',
+    customRender: ({ text }) => (text ? '是' : '否')
+  },
+  {
+    title: '主力建仓结构',
+    dataIndex: 'main_force_build_tag',
+    key: 'main_force_build_tag',
+    width: 110,
+    align: 'center',
+    customRender: ({ text }) => (text ? '是' : '否')
+  },
+  {
+    title: '阳线个数(T-10~T)',
+    dataIndex: 'main_force_bullish_days',
+    key: 'main_force_bullish_days',
+    width: 130,
+    align: 'right',
+    sorter: (a, b) => (a.main_force_bullish_days || 0) - (b.main_force_bullish_days || 0),
+    customRender: ({ text }) => (text != null ? String(text) : '-')
+  },
+  {
+    title: '斜率向上阳线数',
+    dataIndex: 'main_force_slope_up_days',
+    key: 'main_force_slope_up_days',
+    width: 130,
+    align: 'right',
+    sorter: (a, b) => (a.main_force_slope_up_days || 0) - (b.main_force_slope_up_days || 0),
+    customRender: ({ text }) => (text != null ? String(text) : '-')
+  }
+]
+
+const historyMainForceDenseColumns: ColumnsType<StockResult> = [
+  {
+    title: 'T涨停',
+    dataIndex: 'main_force_t_limit_up_tag',
+    key: 'main_force_t_limit_up_tag',
+    width: 72,
+    align: 'center',
+    customRender: ({ text }) => (text ? '是' : '否')
+  },
+  {
+    title: '建仓',
+    dataIndex: 'main_force_build_tag',
+    key: 'main_force_build_tag',
+    width: 64,
+    align: 'center',
+    customRender: ({ text }) => (text ? '是' : '否')
+  },
+  {
+    title: '阳线数',
+    dataIndex: 'main_force_bullish_days',
+    key: 'main_force_bullish_days',
+    width: 78,
+    align: 'right',
+    sorter: (a, b) => (a.main_force_bullish_days || 0) - (b.main_force_bullish_days || 0),
+    customRender: ({ text }) => (text != null ? String(text) : '-')
+  },
+  {
+    title: '斜率阳',
+    dataIndex: 'main_force_slope_up_days',
+    key: 'main_force_slope_up_days',
+    width: 78,
+    align: 'right',
+    sorter: (a, b) => (a.main_force_slope_up_days || 0) - (b.main_force_slope_up_days || 0),
+    customRender: ({ text }) => (text != null ? String(text) : '-')
+  }
+]
+
+const historyHeadColumns: ColumnsType<StockResult> = [
   { title: '代码', dataIndex: 'code', key: 'code', width: 100, fixed: 'left' },
   { title: '名称', dataIndex: 'name', key: 'name', width: 120 },
   { title: '匹配日期', dataIndex: 'match_date', key: 'match_date', width: 120, customRender: ({ text }) => formatDate(text ?? '') },
   { title: '匹配价', dataIndex: 'match_price', key: 'match_price', width: 120, customRender: ({ text }) => text ? text.toFixed(2) : '-' },
-  { title: '当前价', dataIndex: 'current_price', key: 'current_price', width: 120, customRender: ({ text }) => text ? text.toFixed(2) : '-' },
+  { title: '当前价', dataIndex: 'current_price', key: 'current_price', width: 120, customRender: ({ text }) => text ? text.toFixed(2) : '-' }
+]
+
+const historyDayColumns: ColumnsType<StockResult> = [
   {
     title: '次日涨跌',
     dataIndex: 'day2_change_pct',
@@ -381,12 +494,15 @@ const columns: ColumnsType<StockResult> = [
   }
 ]
 
-const denseColumns: ColumnsType<StockResult> = [
+const historyHeadDenseColumns: ColumnsType<StockResult> = [
   { title: '代码', dataIndex: 'code', key: 'code', width: 80, fixed: 'left', sorter: (a, b) => a.code.localeCompare(b.code) },
   { title: '名称', dataIndex: 'name', key: 'name', width: 100, sorter: (a, b) => a.name.localeCompare(b.name) },
   { title: '匹配日期', dataIndex: 'match_date', key: 'match_date', width: 100, sortDirections: ['ascend', 'descend'], sorter: (a, b) => ((a.match_date || '').trim()).localeCompare((b.match_date || '').trim()), customRender: ({ text }) => formatDate(text ?? '') },
   { title: '匹配价', dataIndex: 'match_price', key: 'match_price', width: 80, align: 'right', sorter: (a, b) => (a.match_price || 0) - (b.match_price || 0) },
-  { title: '当前价', dataIndex: 'current_price', key: 'current_price', width: 80, align: 'right', sorter: (a, b) => (a.current_price || 0) - (b.current_price || 0) },
+  { title: '当前价', dataIndex: 'current_price', key: 'current_price', width: 80, align: 'right', sorter: (a, b) => (a.current_price || 0) - (b.current_price || 0) }
+]
+
+const historyDayDenseColumns: ColumnsType<StockResult> = [
   {
     title: '次日涨跌',
     dataIndex: 'day2_change_pct',
@@ -435,6 +551,16 @@ const denseColumns: ColumnsType<StockResult> = [
   }
 ]
 
+const columns = computed<ColumnsType<StockResult>>(() => {
+  const mid = hasMainForceResultColumns.value ? historyMainForceColumns : []
+  return [...historyHeadColumns, ...mid, ...historyDayColumns]
+})
+
+const denseColumns = computed<ColumnsType<StockResult>>(() => {
+  const mid = hasMainForceResultColumns.value ? historyMainForceDenseColumns : []
+  return [...historyHeadDenseColumns, ...mid, ...historyDayDenseColumns]
+})
+
 const tenDayHitStats = computed(() => {
   const rows = filteredResults.value || []
   let validCount = 0
@@ -454,15 +580,17 @@ const tenDayHitStats = computed(() => {
 })
 
 const displayColumns = computed(() => {
-  if (!isNarrowScreen.value) return columns
-  return columns.map(col => {
+  const cols = columns.value
+  if (!isNarrowScreen.value) return cols
+  return cols.map(col => {
     const { width, fixed, ...rest } = col
     return { ...rest, fixed: undefined, width: undefined }
   })
 })
 const displayDenseColumns = computed(() => {
-  if (!isNarrowScreen.value) return denseColumns
-  return denseColumns.map(col => {
+  const cols = denseColumns.value
+  if (!isNarrowScreen.value) return cols
+  return cols.map(col => {
     const { width, fixed, ...rest } = col
     return { ...rest, fixed: undefined, width: undefined }
   })
@@ -686,6 +814,21 @@ watch(
   background-color: #fff1b8 !important;
   border-color: #faad14 !important;
   border-left-width: 3px !important;
+}
+
+/* 主力建仓：置顶项单独绿色系，与其它战法橙色区分 */
+:deep(.strategy-file.strategy-file-main-force) {
+  background-color: #f6ffed !important;
+  border-left-color: #52c41a !important;
+}
+
+:deep(.strategy-file.strategy-file-main-force:hover) {
+  background-color: #d9f7be !important;
+}
+
+:deep(.strategy-file.strategy-file-main-force.ant-menu-item-selected) {
+  background-color: #b7eb8f !important;
+  border-color: #52c41a !important;
 }
 
 /* 文件菜单项样式 */

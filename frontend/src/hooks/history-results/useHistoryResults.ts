@@ -4,7 +4,8 @@ import { getResultsList, getResultsFile, getResultsByStrategy } from '@/api'
 import type { StockResult, ResultFile } from '@/types'
 
 const STORAGE_KEY_FAVORITES = 'history-favorites-by-file'
-const strategyNames = ['龙头战法', '断板反包', '均线上穿', '情绪周期', '三连板', '筑底突破']
+/** 顺序即左侧文件列表中「按策略聚合」项的展示顺序；主力建仓置顶 */
+const strategyNames = ['主力建仓', '龙头战法', '断板反包', '均线上穿', '情绪周期', '三连板', '筑底突破']
 
 export function useHistoryResults() {
   const loadingFiles = ref(false)
@@ -21,6 +22,8 @@ export function useHistoryResults() {
   const collectedByFile = ref<Record<string, StockResult[]>>({})
   /** 仅显示：次日涨幅>3% 或 次日振幅(收盘-开盘)幅度>3% */
   const filterDay2Strong = ref(false)
+  /** 主力建仓：T-10~T 命中阳线个数下限（与即时回测 ResultsTable 一致） */
+  const minMainForceBullishDays = ref<number | null>(null)
 
   const isNarrowScreen = ref(typeof window !== 'undefined' && window.innerWidth < 768)
 
@@ -106,6 +109,12 @@ export function useHistoryResults() {
     return ''
   }
 
+  const showMainForceBullishFilter = computed(() => {
+    const sn = String(metaInfo.value?.strategy_name || '').trim()
+    if (sn === '主力建仓') return true
+    return results.value.some(r => (r as StockResult).main_force_bullish_days != null)
+  })
+
   const filteredResults = computed(() => {
     let sourceData = results.value
     if (isDense.value && searchText.value) {
@@ -125,6 +134,10 @@ export function useHistoryResults() {
         const ampOk = typeof amp === 'number' && Math.abs(amp) > 3
         return pctOk || ampOk
       })
+    }
+    if (showMainForceBullishFilter.value && minMainForceBullishDays.value != null) {
+      const minD = minMainForceBullishDays.value
+      sourceData = sourceData.filter(item => (item.main_force_bullish_days ?? 0) >= minD)
     }
     return [...sourceData]
   })
@@ -314,13 +327,23 @@ export function useHistoryResults() {
     )
   }
 
-  /** 从文件名解析策略名：龙头战法_结果.jsonl 或 龙头战法_20260226_结果.jsonl -> 龙头战法 */
+  /** 从文件名解析策略名：含分片/任务后缀的归入对应策略（如 主力建仓_task0.jsonl -> 主力建仓） */
   function getStrategyNameFromFilename(filename: string): string | null {
     if (filename.startsWith('__strategy__')) return filename.replace('__strategy__', '')
     const withDate = filename.match(/^(.+)_\d{8}_结果\.jsonl$/)
-    if (withDate) return strategyNames.includes(withDate[1]) ? withDate[1] : null
+    if (withDate && strategyNames.includes(withDate[1])) return withDate[1]
     const main = filename.replace(/_结果\.jsonl$/, '').replace(/\.jsonl$/, '')
-    return strategyNames.includes(main) ? main : null
+    if (strategyNames.includes(main)) return main
+    for (const name of strategyNames) {
+      if (main === name || main.startsWith(`${name}_`) || main.startsWith(`${name}-`)) return name
+    }
+    return null
+  }
+
+  /** 左侧菜单：主力建仓类文件单独配色（聚合项或分片文件名含「主力建仓」） */
+  function isMainForceBuildHistoryFile(filename: string): boolean {
+    const rest = filename.startsWith('__strategy__') ? filename.slice('__strategy__'.length) : filename
+    return rest.includes('主力建仓')
   }
 
   function sortFileList(files: ResultFile[]): ResultFile[] {
@@ -530,6 +553,8 @@ export function useHistoryResults() {
     selectedKeys,
     collectedByFile,
     filterDay2Strong,
+    minMainForceBullishDays,
+    showMainForceBullishFilter,
     isNarrowScreen,
     tableScroll,
     collectedItems,
@@ -558,6 +583,7 @@ export function useHistoryResults() {
     getAmplitudeClass,
     getRowClassName,
     isStrategyFile,
+    isMainForceBuildHistoryFile,
     isDayLeader,
     getDayLeaderLabel,
     handleExport

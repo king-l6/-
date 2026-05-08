@@ -4,7 +4,7 @@
 按「战法结果文件」中最后一个数据的日期，只回测该日期之后到今天的 T 日，并把结果追加到**同一个战法结果文件**中。
 
 步骤：
-1. 读取预设战法（如：龙头战法、断板反包、均线上穿、情绪周期、三连板、筑底突破、月内三连板+首板涨停、摸板首板）的结果文件
+1. 读取 common_strategies.json 中全部战法的结果文件
    （主文件 策略名_结果.jsonl + 按日文件 策略名_YYYYMMDD_结果.jsonl）
 2. 每个策略取最大的 match_date，再在这些日期中取最小值作为「最后日期」
    （若某策略无数据则跳过，只从有数据的策略中取最小最后日期）
@@ -12,7 +12,8 @@
 4. **按股票并发**：每只股票只加载一次 K 线，在该数据上对所有 T 日×所有策略做检查，再按策略聚合写回各自 策略名_结果.jsonl（比「每 T 日×每策略」全量扫一遍快得多）。
 
 使用方法（在项目根目录）：
-  python scripts/backtest_append_from_last.py                    # 自动检测最后日期并回测补齐（全部预设战法）
+  python scripts/backtest_append_from_last.py                    # 自动检测最后日期并回测补齐（配置文件全部战法）
+  python scripts/backtest_append_from_last.py --from-days-ago 35 # 最近 35 个交易日作 T 日全量重算并写回（忽略结果文件最后日期）
   python scripts/backtest_append_from_last.py --strategies \"月内三连板+首板涨停\"   # 只回测指定战法
   python scripts/backtest_append_from_last.py --no-check-cache   # 不检查缓存是否最新
   python scripts/backtest_append_from_last.py --workers 50
@@ -35,23 +36,6 @@ if PROJECT_ROOT not in sys.path:
 
 os.environ.setdefault('NO_PROXY', '*')
 os.environ.setdefault('no_proxy', '*')
-
-
-# 预设战法名称（与 common_strategies.json 及前端一致）
-STRATEGY_NAMES = [
-    '龙头战法',
-    '断板反包',
-    '均线上穿',
-    '情绪周期',
-    '三连板',
-    '筑底突破',
-    '月内三连板+首板涨停',
-    '摸板首板',
-    '超跌反弹+量能确认',
-    '打板二版',
-    '主力建仓',
-    '连阳上影',
-]
 
 
 def _read_one_results_file(filepath):
@@ -117,12 +101,16 @@ def get_last_date_for_strategy(results_dir, strategy_name):
     return max(all_dates)
 
 
-def get_common_last_date(results_dir, strategy_names=None):
+def get_common_last_date(results_dir, strategy_names=None, config_file=None):
     """
     给定策略列表中，每个策略取最大 match_date，再取这些中的最小值。
     若某个策略无数据则跳过；若所有策略都无数据则返回 None。
+    strategy_names 为 None 时，从 config_file（默认项目根 common_strategies.json）读取全部策略名。
     """
-    names = strategy_names or STRATEGY_NAMES
+    if strategy_names is None:
+        cfg = config_file or os.path.join(PROJECT_ROOT, 'common_strategies.json')
+        strategy_names = [s['name'] for s in load_strategies(cfg, allowed_names=None)]
+    names = strategy_names
     last_dates = []
     for name in names:
         d = get_last_date_for_strategy(results_dir, name)
@@ -161,11 +149,14 @@ def weekdays_between(start_yyyy_mm_dd, end_yyyy_mm_dd):
 
 
 def load_strategies(config_file='common_strategies.json', allowed_names=None):
+    """allowed_names 为 None 时返回配置文件中的全部策略（顺序与文件一致）。"""
     try:
         with open(config_file, 'r', encoding='utf-8') as f:
             data = json.load(f)
             strategies = data.get('strategies', [])
-        names_set = set(allowed_names or STRATEGY_NAMES)
+        if allowed_names is None:
+            return [s for s in strategies if s.get('name')]
+        names_set = set(allowed_names)
         return [s for s in strategies if s.get('name') in names_set]
     except FileNotFoundError:
         print(f'[ERROR] 策略配置文件不存在: {config_file}')
@@ -237,11 +228,12 @@ def append_results_to_main_file(results_dir, strategy_name, new_results, strateg
     filepath = os.path.join(results_dir, f"{strategy_name}_结果.jsonl")
     _, old_results = _read_full_results_file(filepath)
 
+    # 新结果在前，去重时同 (code, match_date, name) 保留本次扫描结果（覆盖旧记录）
     all_results = []
-    if old_results:
-        all_results.extend(old_results)
     if new_results:
         all_results.extend(new_results)
+    if old_results:
+        all_results.extend(old_results)
 
     # 去重
     seen = set()
@@ -402,7 +394,7 @@ def merge_shard_results(results_dir, shard_id, config_file):
 
 def main():
     parser = argparse.ArgumentParser(
-        description='按六个战法结果文件的最后日期，只回测之后到今天的 T 日并追加到结果文件'
+        description='按战法结果文件的最后日期增量补 T 日，或按 --from-days-ago 重算近 N 个交易日；默认使用配置文件中的全部战法'
     )
     parser.add_argument('--config', default='common_strategies.json', help='策略配置文件路径')
     parser.add_argument('--workers', type=int, default=50, help='并发线程数')
@@ -420,7 +412,7 @@ def main():
     parser.add_argument('--auto-shard-count', type=int, default=None,
                         help='自动开启多进程分片数量（>=2），父进程负责预拉取与合并，子进程负责各自分片回测')
     parser.add_argument('--strategies', nargs='+',
-                        help='只回测指定策略名称列表（可选），不填则默认回测所有预设战法')
+                        help='只回测指定策略名称列表（可选），不填则默认回测配置文件中的全部战法')
     parser.add_argument('--from-days-ago', type=int, default=None,
                         help='直接按最近 N 个交易日回测（忽略结果文件中的最后日期），如 90 表示最近 90 个交易日')
     args = parser.parse_args()
@@ -465,18 +457,21 @@ def main():
 
     sharding = args.task_index is not None and args.task_count is not None
 
-    # 处理策略名称过滤
+    cfg_all = load_strategies(args.config, allowed_names=None)
+    config_name_set = {s['name'] for s in cfg_all if s.get('name')}
+
+    # 处理策略名称过滤（校验以配置文件为准，含游资等全部战法）
     if args.strategies:
-        selected_names = [name for name in args.strategies if name in STRATEGY_NAMES]
-        missing = [name for name in args.strategies if name not in STRATEGY_NAMES]
+        selected_names = [name for name in args.strategies if name in config_name_set]
+        missing = [name for name in args.strategies if name not in config_name_set]
         if missing:
-            print(f'[WARN] 以下策略名称不在预设战法列表中，将被忽略: {missing}')
+            print(f'[WARN] 以下策略名称不在配置文件中，将被忽略: {missing}')
         if not selected_names:
-            print('[ERROR] --strategies 中的名称均不在预设战法列表中，无法回测')
+            print('[ERROR] --strategies 中的名称均不在配置文件中，无法回测')
             sys.exit(1)
         effective_names = selected_names
     else:
-        effective_names = STRATEGY_NAMES
+        effective_names = [s['name'] for s in cfg_all]
 
     fetcher = DataFetcher()
     cache_latest = fetcher.get_local_cache_latest_date()
@@ -508,7 +503,9 @@ def main():
         print()
     else:
         # 1) 查看选中战法结果中的最后日期
-        common_last = get_common_last_date(results_dir, strategy_names=effective_names)
+        common_last = get_common_last_date(
+            results_dir, strategy_names=effective_names, config_file=args.config
+        )
         print(f'选中战法结果中「最后日期」: {common_last or "无（任一策略均无数据）"}')
 
         if common_last is None:

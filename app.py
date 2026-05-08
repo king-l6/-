@@ -342,40 +342,20 @@ def get_results_list():
     """获取 results 目录下的所有文件列表"""
     try:
         def _count_one_results_file(filepath: str) -> int:
-            """统计单个 .jsonl 结果文件的数据条数（跳过 _meta 行与无效行）。"""
+            """统计有效结果行数：含 `code` 字段的对象行（首行 _meta 无 code，自动跳过）。"""
             cnt = 0
-            checked_first_non_empty = False
             try:
                 with open(filepath, 'r', encoding='utf-8') as f:
                     for line in f:
                         line = line.strip()
                         if not line:
                             continue
-                        if not checked_first_non_empty:
-                            checked_first_non_empty = True
-                            try:
-                                first = json.loads(line)
-                                if isinstance(first, dict) and '_meta' in first:
-                                    continue
-                                data = first
-                            except Exception:
-                                continue
-                            if isinstance(data, dict) and 'code' in data:
-                                name = (data.get('name') or '').strip()
-                                if len(name) <= 4:
-                                    cnt += 1
-                            continue
-
                         try:
                             data = json.loads(line)
                         except Exception:
                             continue
-                        if not isinstance(data, dict) or 'code' not in data:
-                            continue
-                        name = (data.get('name') or '').strip()
-                        if len(name) > 4:
-                            continue
-                        cnt += 1
+                        if isinstance(data, dict) and 'code' in data:
+                            cnt += 1
             except Exception:
                 return 0
             return cnt
@@ -400,8 +380,11 @@ def get_results_list():
                         'count': _count_one_results_file(filepath)
                     })
         
-        # 战法名称列表（用于置顶），按优先级排序
-        strategy_names = ['龙头战法', '断板反包', '均线上穿', '情绪周期', '三连板', '超跌反弹+量能确认']
+        # 战法名称列表（用于置顶），与前端历史页、common 策略配置对齐；含分片文件名前缀匹配
+        strategy_names = [
+            '主力建仓', '龙头战法', '断板反包', '均线上穿', '情绪周期', '三连板',
+            '筑底突破', '超跌反弹+量能确认',
+        ]
         
         # 判断文件是否属于战法策略（精确匹配，避免匹配到组合名称）
         def is_strategy_file(filename):
@@ -498,9 +481,6 @@ def _read_one_results_file(filepath):
             data = json.loads(line)
             if 'code' not in data:
                 continue
-            name = (data.get('name') or '').strip()
-            if len(name) > 4:
-                continue
             match_date = data.get('match_date')
             if match_date is not None:
                 if hasattr(match_date, 'strftime'):
@@ -518,7 +498,7 @@ def _read_one_results_file(filepath):
 
 @app.route('/api/results/strategy', methods=['GET'])
 def get_results_by_strategy():
-    """按策略名聚合：合并「策略名_结果.jsonl」与所有「策略名_YYYYMMDD_结果.jsonl」，按 match_date 排序返回。（带缓存）"""
+    """按策略名聚合：合并主结果文件、按日切片「策略名_YYYYMMDD_结果.jsonl」及分片「策略名_taskN.jsonl」。（带缓存）"""
     try:
         name = request.args.get('name')
         if not name or not name.strip():
@@ -529,7 +509,8 @@ def get_results_by_strategy():
             return jsonify({'success': False, 'error': '无效的策略名'}), 400
 
         # 使用缓存
-        cache_key = f"strategy:{strategy_name}"
+        # v2：合并 task 分片文件；改 key 使升级后立即生效，避免旧缓存缺数据
+        cache_key = f"strategy:v2:{strategy_name}"
 
         def fetch():
             results_dir = os.path.join(os.path.dirname(__file__), 'results')
@@ -540,7 +521,9 @@ def get_results_by_strategy():
             # 主文件：策略名_结果.jsonl
             main_file = os.path.join(results_dir, f"{strategy_name}_结果.jsonl")
             # 按日文件：策略名_YYYYMMDD_结果.jsonl
-            pattern = re.compile(re.escape(strategy_name) + r'_(\d{8})_结果\.jsonl$')
+            pattern_date = re.compile(re.escape(strategy_name) + r'_\d{8}_结果\.jsonl$')
+            # 增量/并行分片：策略名_task0.jsonl、策略名_task1.jsonl
+            pattern_task = re.compile(re.escape(strategy_name) + r'_task\d+\.jsonl$')
             all_results = []
             meta_merged = {'strategy_name': strategy_name, 'aggregated': True}
 
@@ -553,11 +536,12 @@ def get_results_by_strategy():
             for filename in os.listdir(results_dir):
                 if not filename.endswith('.jsonl'):
                     continue
-                if pattern.match(filename):
-                    filepath = os.path.join(results_dir, filename)
-                    if os.path.isfile(filepath):
-                        m, rows = _read_one_results_file(filepath)
-                        all_results.extend(rows)
+                if not (pattern_date.match(filename) or pattern_task.match(filename)):
+                    continue
+                filepath = os.path.join(results_dir, filename)
+                if os.path.isfile(filepath):
+                    m, rows = _read_one_results_file(filepath)
+                    all_results.extend(rows)
 
             # 去重：code + match_date + name
             seen = set()
