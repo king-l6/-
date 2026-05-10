@@ -205,7 +205,7 @@
     },
     {
       "name": "主力建仓",
-      "description": "T日涨停且T-1日非涨停；在T-10至T内至少5日满足阳线+收盘站上5日线+5>10>20日线，并且其中至少一半阳线满足5日线和10日线斜率向上。",
+      "description": "T-1日涨幅<9.8%；T-10至T（含）至少5日收涨（收盘>昨收）且当日收盘站上5日线且5>10>20；上述命中日中至少一半满足5日与10日均线斜率向上。T日是否涨停仅作打标（main_force_t_limit_up_tag），不参与是否命中。",
       "strategy": {
         "conditions": [
           { "type": "main_force_build_position", "date1": 0, "windowDays": 10 }

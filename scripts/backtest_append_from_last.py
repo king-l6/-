@@ -17,6 +17,9 @@
   python scripts/backtest_append_from_last.py --strategies \"月内三连板+首板涨停\"   # 只回测指定战法
   python scripts/backtest_append_from_last.py --no-check-cache   # 不检查缓存是否最新
   python scripts/backtest_append_from_last.py --workers 50
+  python scripts/backtest_append_from_last.py --from-days-ago 30 --cache-only  # 仅用本地 K 线缓存，不访问网络补数
+
+说明：--from-days-ago N 表示「最近 N 个交易日」作为锚点 T 日；与缓存文件名里的起点日（首根 K 线）不是同一概念，详见运行时的 [INFO] 提示。
 """
 
 import os
@@ -26,6 +29,7 @@ import re
 import argparse
 import glob
 import subprocess
+from collections import Counter
 from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -200,6 +204,90 @@ def _read_full_results_file(filepath):
     return meta, results
 
 
+_STOCK_CACHE_JSON_RE = re.compile(r'^(\d+)_(\d{8})\.json$')
+
+
+def _min_stock_cache_segment_start_yyyymmdd(cache_dir):
+    """从 cache/stock_data 下文件名 `代码_YYYYMMDD.json` 取最小 YYYYMMDD（片段左边界，通常即首根 K 线日期）。"""
+    mmin = None
+    try:
+        with os.scandir(cache_dir) as it:
+            for e in it:
+                if not e.is_file():
+                    continue
+                m = _STOCK_CACHE_JSON_RE.match(e.name)
+                if not m:
+                    continue
+                ymd = m.group(2)
+                if mmin is None or ymd < mmin:
+                    mmin = ymd
+    except OSError:
+        return None
+    return mmin
+
+
+def _hint_t_days_vs_cache_first_bar(fetcher, trading_days, from_days_ago):
+    """
+    解释：首根 K 线日（缓存片段起点）≠ --from-days-ago 的首个 T 日。
+    早于首个 T 的 K 线仍会参与更晚 T 的条件计算；只有「作为 T 锚点」才受 N 限制。
+    """
+    if not trading_days or not from_days_ago:
+        return
+    cache_dir = os.path.join(PROJECT_ROOT, 'cache', 'stock_data')
+    ymd = _min_stock_cache_segment_start_yyyymmdd(cache_dir)
+    if not ymd or len(ymd) != 8:
+        return
+    first_bar = f'{ymd[:4]}-{ymd[4:6]}-{ymd[6:8]}'
+    first_t, last_t = trading_days[0], trading_days[-1]
+    if first_t <= first_bar:
+        return
+    span = fetcher.get_trading_days_between(first_bar, last_t)
+    if not span:
+        span = fetcher.get_trading_days_from_cache(first_bar, last_t)
+    if not span:
+        return
+    need_n = len(span)
+    print(
+        f'[INFO] 本地 K 线缓存文件名最早片段起点为 {first_bar}（一般即该股首根 bar 所在交易日）。'
+    )
+    print(
+        f'       当前「近 {from_days_ago} 个交易日」的首个 T 为 {first_t}，早于 {first_t} 的交易日未列入本期 T 列表；'
+        f'这些日期的 K 线仍会用于 {first_t} 及之后 T 的指标与条件。'
+    )
+    print(
+        f'       若希望从 {first_bar} 起「每个交易日都作为 T」扫到 {last_t}，约需 --from-days-ago {need_n}（全区间共 {need_n} 个交易日）。'
+    )
+    print()
+
+
+def _print_per_t_day_summary(trading_days, all_results, strategies):
+    """打印本轮回测在各 T 日上的命中条数，便于核对「近 N 个交易日」是否被扫到（零条=全市场无命中或该股无 K 线）。"""
+    if not trading_days:
+        return
+    print()
+    print('--- 本轮回测：各 T 日在内存中的命中条数（写入前；未含与旧文件合并去重） ---')
+    for s in strategies:
+        name = s['name']
+        rows = all_results.get(name, [])
+        if not rows:
+            print(f'[{name}] 本次扫描合计 0 条')
+            continue
+        c = Counter()
+        for r in rows:
+            md = _normalize_date_str(r.get('match_date'))
+            if len(md) >= 10:
+                c[md[:10]] += 1
+        zero = [d for d in trading_days if c.get(d, 0) == 0]
+        hit_days = len(trading_days) - len(zero)
+        print(f'[{name}] 计划 T 日 {len(trading_days)} 个；其中 ≥1 条命中 {hit_days} 个 T 日，全市场 0 条 {len(zero)} 个 T 日')
+        if zero and len(zero) <= 30:
+            print(f'  零命中 T 日: {", ".join(zero)}')
+        elif zero:
+            print(f'  零命中 T 日(前15): {", ".join(zero[:15])} … 共 {len(zero)} 天')
+    print('说明: 结果 jsonl 里只会出现「有命中」的 match_date；多日全 0 时文件最早日期会晚于 T 日范围起点。')
+    print('---')
+
+
 def _normalize_date_str(value):
     """将日期字段统一为 YYYY-MM-DD 字符串（若可能）。"""
     if value is None:
@@ -222,8 +310,11 @@ def append_results_to_main_file(results_dir, strategy_name, new_results, strateg
     - 读取原文件所有记录 + 新记录
     - 按 (code, match_date, name) 去重
     - 所有策略统一：连续三个 A 股交易日内同股只保留第一次（需传入 strategy_engine）
-    - 按 match_date, code 排序
+    - 按 match_date, code 排序（含去重后再次排序，因同股三日去重会打乱全局顺序）
     - 重写同一个文件
+
+    Returns:
+        (写入路径或 None, 落盘后的总条数)；失败时为 (None, 0)。
     """
     filepath = os.path.join(results_dir, f"{strategy_name}_结果.jsonl")
     _, old_results = _read_full_results_file(filepath)
@@ -248,13 +339,21 @@ def append_results_to_main_file(results_dir, strategy_name, new_results, strateg
         r['match_date'] = match_date
         unique.append(r)
 
-    # 排序
-    unique.sort(key=lambda x: (_normalize_date_str(x.get('match_date', '9999-99-99')), x.get('code', '')))
+    def _result_row_sort_key(row):
+        md = _normalize_date_str(row.get('match_date')) or '9999-99-99'
+        c = row.get('code', '')
+        return (md, str(c))
+
+    # 排序：先 match_date，再 code（字符串化，避免 int/str 混用导致顺序错乱）
+    unique.sort(key=_result_row_sort_key)
 
     # 默认：连续三个 A 股交易日内同股只保留第一次
     # 连阳上影例外：保留 3 日内重复信号
     if strategy_engine is not None and strategy_name != '连阳上影':
         unique = strategy_engine._dedupe_same_stock_within_three_trading_days(unique, trading_days=3)
+
+    # 同股三日去重按 code 分组 extend，会打乱「按日期全局序」；落盘前再排一次
+    unique.sort(key=_result_row_sort_key)
 
     try:
         with open(filepath, 'w', encoding='utf-8') as f:
@@ -269,10 +368,10 @@ def append_results_to_main_file(results_dir, strategy_name, new_results, strateg
             f.write(json.dumps(meta, ensure_ascii=False, default=str) + '\n')
             for r in unique:
                 f.write(json.dumps(r, ensure_ascii=False, default=str) + '\n')
-        return filepath
+        return filepath, len(unique)
     except Exception as e:
         print(f"[WARNING] 写入 {filepath} 失败: {e}")
-        return None
+        return None, 0
 
 
 def write_shard_results(results_dir, shard_id, task_index, all_results):
@@ -360,10 +459,10 @@ def merge_shard_results(results_dir, shard_id, config_file):
             print(f'{name}: 分片文件中无有效数据，跳过')
             continue
 
-        path = append_results_to_main_file(results_dir, name, shard_rows, strategy_engine=engine)
+        path, final_n = append_results_to_main_file(results_dir, name, shard_rows, strategy_engine=engine)
         if path:
-            print(f'{name}: 合并 {len(shard_rows)} 条分片结果 → {os.path.basename(path)}')
-            merged_total += len(shard_rows)
+            print(f'{name}: 分片合计 {len(shard_rows)} 条 → 与主文件合并去重后落盘 {final_n} 条 → {os.path.basename(path)}')
+            merged_total += final_n
 
     # 清理分片文件
     try:
@@ -415,6 +514,8 @@ def main():
                         help='只回测指定策略名称列表（可选），不填则默认回测配置文件中的全部战法')
     parser.add_argument('--from-days-ago', type=int, default=None,
                         help='直接按最近 N 个交易日回测（忽略结果文件中的最后日期），如 90 表示最近 90 个交易日')
+    parser.add_argument('--cache-only', action='store_true',
+                        help='仅用本地 stock_data：不预拉取、不从网络补 K 线；用磁盘上已有区间与请求的交集（忽略 7 天过期策略）')
     args = parser.parse_args()
 
     from data_fetcher import DataFetcher
@@ -474,6 +575,9 @@ def main():
         effective_names = [s['name'] for s in cfg_all]
 
     fetcher = DataFetcher()
+    if args.cache_only:
+        fetcher.cache_only = True
+        print('[INFO] --cache-only：K 线只读本地缓存，不调用 AkShare 补数')
     cache_latest = fetcher.get_local_cache_latest_date()
     last_trade = fetcher._get_last_trading_day_available()
 
@@ -492,6 +596,8 @@ def main():
         # 直接取最近 N 个交易日
         approx_start = (datetime.strptime(last_trade, '%Y-%m-%d') - timedelta(days=args.from_days_ago * 2)).strftime('%Y-%m-%d')
         all_days = fetcher.get_trading_days_between(approx_start, last_trade)
+        if not all_days and args.cache_only:
+            all_days = fetcher.get_trading_days_from_cache(approx_start, last_trade)
         if not all_days:
             all_days = weekdays_between(approx_start, last_trade)
         trading_days = all_days[-args.from_days_ago:] if all_days else []
@@ -500,6 +606,7 @@ def main():
             return
         start_date = trading_days[0]
         print(f'本次回测 T 日范围: {trading_days[0]} ~ {trading_days[-1]}，共 {len(trading_days)} 个交易日')
+        _hint_t_days_vs_cache_first_bar(fetcher, trading_days, args.from_days_ago)
         print()
     else:
         # 1) 查看选中战法结果中的最后日期
@@ -520,6 +627,8 @@ def main():
                 print('[INFO] 最后日期已为最近交易日或更晚，无需回测。')
                 return
             trading_days = fetcher.get_trading_days_between(start_date, last_trade)
+            if not trading_days and args.cache_only:
+                trading_days = fetcher.get_trading_days_from_cache(start_date, last_trade)
             fallback_days = weekdays_between(start_date, last_trade)
             # 若交易日历未返回或返回天数明显少于「工作日」数，用工作日列表兜底，保证回测所有中间交易日
             if not trading_days:
@@ -533,10 +642,10 @@ def main():
             print(f'本次回测 T 日范围: {trading_days[0]} ~ {trading_days[-1]}，共 {len(trading_days)} 个交易日')
         print()
 
-        if not args.no_check_cache and cache_latest:
+        if not args.no_check_cache and cache_latest and not args.cache_only:
             if trading_days and cache_latest < trading_days[-1]:
                 print(f'[WARN] 缓存最新日期 {cache_latest} 早于回测截止日 {trading_days[-1]}，建议先运行 update_cache_and_backtest.py 补齐数据。')
-                print('       若坚持继续，可加 --no-check-cache')
+                print('       若坚持继续，可加 --no-check-cache 或仅用本地时用 --cache-only')
         print()
 
     strategies = load_strategies(args.config, allowed_names=effective_names)
@@ -577,6 +686,8 @@ def main():
             if args.strategies:
                 cmd.append('--strategies')
                 cmd.extend(effective_names)
+            if args.cache_only:
+                cmd.append('--cache-only')
             print(f'[INFO] 启动分片进程 {idx+1}/{args.auto_shard_count}: {" ".join(cmd)}')
             procs.append(subprocess.Popen(cmd))
 
@@ -646,6 +757,8 @@ def main():
                 if processed[0] % 500 == 0:
                     print(f'[WARN] 某只股票处理异常: {e}', flush=True)
 
+    _print_per_t_day_summary(trading_days, all_results, strategies)
+
     total_count = 0
     if sharding:
         # 分片模式：将结果写入分片文件，后续再用 --merge-shards 合并
@@ -662,20 +775,23 @@ def main():
         print(f'  python scripts/backtest_append_from_last.py --merge-shards --shard-id {args.shard_id}')
         print('=' * 60)
     else:
+        total_written = 0
         for s in strategies:
             name = s['name']
             rows = all_results.get(name, [])
             if rows:
-                path = append_results_to_main_file(results_dir, name, rows, strategy_engine=engine)
+                path, final_n = append_results_to_main_file(results_dir, name, rows, strategy_engine=engine)
                 if path:
-                    print(f'{name}: {len(rows)} 条 → {os.path.basename(path)}')
+                    print(f'{name}: 本次扫描 {len(rows)} 条，与主文件合并去重后落盘 {final_n} 条 → {os.path.basename(path)}')
+                    total_written += final_n
                 total_count += len(rows)
             else:
                 print(f'{name}: 0 条')
 
         print()
         print('=' * 60)
-        print(f'增量回测完成，共 {len(trading_days)} 个 T 日 × {len(strategies)} 个策略，合计 {total_count} 条记录')
+        print(f'增量回测完成，共 {len(trading_days)} 个 T 日 × {len(strategies)} 个策略；'
+              f'本次扫描合计 {total_count} 条，写入文件合计 {total_written} 条（已含去重与三日同股规则）')
         print('=' * 60)
 
 

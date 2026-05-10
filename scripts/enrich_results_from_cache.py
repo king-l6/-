@@ -29,6 +29,8 @@ os.chdir(PROJECT_ROOT)
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
+from data_fetcher import cache_span_from_filename_or_file
+
 CACHE_DIR = os.path.join(PROJECT_ROOT, 'cache', 'stock_data')
 RESULTS_DIR = os.path.join(PROJECT_ROOT, 'results')
 
@@ -60,11 +62,12 @@ def _load_cache_rows_for_code(code):
         name = os.path.basename(fp)
         if '_' not in name or not name.endswith('.json'):
             continue
-        parts = name[:-5].split('_')
-        if len(parts) != 3 or parts[0] != code or len(parts[1]) != 8 or len(parts[2]) != 8:
+        span = cache_span_from_filename_or_file(fp, name[:-5])
+        if not span or span[0] != code:
             continue
-        if parts[2] > best_end:
-            best_end = parts[2]
+        _, _, c_end = span
+        if c_end > best_end:
+            best_end = c_end
             best = fp
     if not best or not os.path.isfile(best):
         return []

@@ -32,7 +32,7 @@
           :max="11"
           size="small"
           style="width: 140px"
-          placeholder="阳线个数>="
+          placeholder="收涨日数>="
         />
         <InputNumber
           v-if="hasResults"
@@ -372,7 +372,7 @@ const columns: ColumnsType<StockResult> = [
     customRender: ({ text }) => (text ? '是' : '否')
   },
   {
-    title: '阳线个数',
+    title: '收涨个数',
     dataIndex: 'main_force_bullish_days',
     key: 'main_force_bullish_days',
     width: 100,
@@ -527,7 +527,7 @@ const denseColumns: ColumnsType<StockResult> = [
     customRender: ({ text }) => (text ? '是' : '否')
   },
   {
-    title: '阳线个数',
+    title: '收涨个数',
     dataIndex: 'main_force_bullish_days',
     key: 'main_force_bullish_days',
     width: 90,
@@ -635,7 +635,7 @@ function handleExport() {
   })
 
   // 构建 CSV 内容
-  const headers = ['代码', '名称', '匹配日期', '匹配价', '当前价', '连阳天数', '上影线幅度%', '连阳触板', '次日涨跌%', '第三日涨跌%', 'T日涨停标记', '主力建仓结构', '阳线个数', '斜率向上阳线个数']
+  const headers = ['代码', '名称', '匹配日期', '匹配价', '当前价', '连阳天数', '上影线幅度%', '连阳触板', '次日涨跌%', '第三日涨跌%', 'T日涨停标记', '主力建仓结构', '收涨个数', '斜率向上收涨个数']
   const rows = sortedData.map(item => [
     item.code,
     item.name,

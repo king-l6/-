@@ -188,7 +188,7 @@
                 :max="11"
                 size="small"
                 class="w-[148px]"
-                placeholder="阳线个数>="
+                placeholder="收涨日数>="
               />
             </div>
             <div :class="['overflow-x-auto w-full -mx-2 px-2 md:mx-0 md:px-0', { 'history-table-mobile': isNarrowScreen }]">
@@ -381,7 +381,7 @@ const historyMainForceColumns: ColumnsType<StockResult> = [
     customRender: ({ text }) => (text ? '是' : '否')
   },
   {
-    title: '阳线个数(T-10~T)',
+    title: '收涨个数(T-10~T)',
     dataIndex: 'main_force_bullish_days',
     key: 'main_force_bullish_days',
     width: 130,
@@ -390,7 +390,7 @@ const historyMainForceColumns: ColumnsType<StockResult> = [
     customRender: ({ text }) => (text != null ? String(text) : '-')
   },
   {
-    title: '斜率向上阳线数',
+    title: '斜率向上收涨数',
     dataIndex: 'main_force_slope_up_days',
     key: 'main_force_slope_up_days',
     width: 130,
@@ -418,7 +418,7 @@ const historyMainForceDenseColumns: ColumnsType<StockResult> = [
     customRender: ({ text }) => (text ? '是' : '否')
   },
   {
-    title: '阳线数',
+    title: '收涨数',
     dataIndex: 'main_force_bullish_days',
     key: 'main_force_bullish_days',
     width: 78,
@@ -427,7 +427,7 @@ const historyMainForceDenseColumns: ColumnsType<StockResult> = [
     customRender: ({ text }) => (text != null ? String(text) : '-')
   },
   {
-    title: '斜率阳',
+    title: '斜率涨',
     dataIndex: 'main_force_slope_up_days',
     key: 'main_force_slope_up_days',
     width: 78,

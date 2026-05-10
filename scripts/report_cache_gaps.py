@@ -55,7 +55,7 @@ def _scan_file(fp: str) -> Optional[Tuple[str, str, str]]:
     if "_" not in base or not base.endswith(".json"):
         return None
     parts = base[:-5].split("_")
-    if len(parts) != 3 or len(parts[0]) != 6:
+    if len(parts) not in (2, 3) or len(parts[0]) != 6:
         return None
     code = parts[0]
     try:

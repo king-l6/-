@@ -58,9 +58,16 @@ export function deriveMarkersFromTimeline(
   return out
 }
 
+function isValidAshareCode(c: string): boolean {
+  return c.length === 6 && /^\d+$/.test(c)
+}
+
 /**
- * 叠 K 标的代码：分段主线天数为主，再按「每日涨停池龙头列表」名次加权（含第 2～k 名），
- * 这样在调大 max 时能从榜单里补足，而不会永远卡在少数几只 top1 上。
+ * 叠 K 标的代码（自动模式）：
+ * 先在窗口内收集所有曾出现在龙头分段或日榜（top1 / leaders）的代码；
+ * 按<strong>最后活跃日</strong>从新到旧排序（活跃日 = 分段 end_date，或当日出现在 top1/leaders 的交易日），
+ * 只取前 max 只，避免整条情绪窗里「累计分最高但早已退场」的老龙头占满叠图。
+ * 最后活跃日相同时，用累计分（分段天数 + 日榜名次加权）作次序。
  */
 export function pickCodesFromLeaderSegments(
   segments: MarketLeaderSegmentRow[] | undefined,
@@ -71,7 +78,7 @@ export function pickCodesFromLeaderSegments(
   if (segments?.length) {
     for (const s of segments) {
       const c = (s.code || '').trim()
-      if (c.length !== 6) continue
+      if (!isValidAshareCode(c)) continue
       score.set(c, (score.get(c) || 0) + (s.days || 0))
     }
   }
@@ -81,15 +88,70 @@ export function pickCodesFromLeaderSegments(
       const n = leaders.length
       for (let i = 0; i < n; i++) {
         const c = (leaders[i].code || '').trim()
-        if (c.length !== 6) continue
+        if (!isValidAshareCode(c)) continue
         const w = n - i
         score.set(c, (score.get(c) || 0) + w)
       }
     }
   }
-  return [...score.entries()]
-    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-    .map(([code]) => code)
+
+  const lastSeen = new Map<string, string>()
+  const bumpLast = (code: string, d: string) => {
+    const c = code.trim()
+    if (!isValidAshareCode(c) || d.length !== 10) return
+    const prev = lastSeen.get(c) || ''
+    if (d > prev) lastSeen.set(c, d)
+  }
+
+  if (segments?.length) {
+    for (const s of segments) {
+      const c = (s.code || '').trim()
+      if (!isValidAshareCode(c)) continue
+      const e = (s.end_date || '').slice(0, 10)
+      const st = (s.start_date || '').slice(0, 10)
+      bumpLast(c, e.length === 10 ? e : st)
+    }
+  }
+  if (daily?.length) {
+    for (const row of daily) {
+      const d = (row.date || '').slice(0, 10)
+      if (d.length !== 10) continue
+      const top = (row.top1?.code || '').trim()
+      if (isValidAshareCode(top)) bumpLast(top, d)
+      for (const l of row.leaders || []) {
+        const lc = (l.code || '').trim()
+        if (isValidAshareCode(lc)) bumpLast(lc, d)
+      }
+    }
+  }
+
+  const codes = new Set<string>()
+  for (const s of segments || []) {
+    const c = (s.code || '').trim()
+    if (isValidAshareCode(c)) codes.add(c)
+  }
+  for (const row of daily || []) {
+    const top = (row.top1?.code || '').trim()
+    if (isValidAshareCode(top)) codes.add(top)
+    for (const l of row.leaders || []) {
+      const lc = (l.code || '').trim()
+      if (isValidAshareCode(lc)) codes.add(lc)
+    }
+  }
+
+  const NO_DATE = '0000-00-00'
+  return [...codes]
+    .map((code) => ({
+      code,
+      last: lastSeen.get(code) || NO_DATE,
+      sc: score.get(code) || 0
+    }))
+    .sort((a, b) => {
+      if (a.last !== b.last) return b.last.localeCompare(a.last)
+      if (a.sc !== b.sc) return b.sc - a.sc
+      return a.code.localeCompare(b.code)
+    })
+    .map((x) => x.code)
     .slice(0, max)
 }
 

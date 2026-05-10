@@ -5,8 +5,7 @@
         <template #description>
           <div class="text-xs space-y-1">
             <p>
-              <strong>标的</strong>：与情绪报告一致，按「龙头分段」累计天数优先，不足时用日主线
-              <code>top1</code> 频次补足；<strong>叠图只数</strong>默认 5（叠太多 K 线会糊在一起），可在下方调到最多 12；也可手动填代码。图例与 K
+              <strong>标的</strong>：与情绪报告一致，自动模式下按各票在窗口内<strong>最后活跃日从新到旧</strong>取前 N 只（默认 5，避免整条窗里累计分高但已退场的旧龙占满叠图）；同一最后活跃日再看分段天数与日榜名次加权分。也可手动填代码。图例与 K
               线<strong>绘制顺序</strong>按各票<strong>首次与主线龙头相关</strong>的日期从早到晚（见下方规则说明）。
             </p>
             <p>
@@ -31,9 +30,8 @@
             top1 时连板数的最大值。
           </li>
           <li>
-            <strong>本页叠 K 的 {{ maxOverlay }} 只股票</strong>：综合打分——「分段」里按代码累计<strong>主线天数</strong>；每个交易日再把当日涨停池龙头列表
-            <code>leaders</code> 按名次加权（第 1 名权重等于列表长度、依次递减），常当第 2、第 3 名的票也会进候选。按总分降序取前
-            {{ maxOverlay }}。手动填代码时以输入为准，仍受「叠图只数」上限；改完数字后需再点<strong>从情绪周期加载</strong>。
+            <strong>本页叠 K 的 {{ maxOverlay }} 只股票（自动）</strong>：先取窗口内曾出现在龙头分段或日榜的代码，按<strong>最后活跃日</strong>（分段结束日或最后一次出现在
+            <code>top1</code>/<code>leaders</code> 的交易日）<strong>从新到旧</strong>取前 {{ maxOverlay }} 只；同日再看累计分（分段主线天数 + 日榜名次加权）。手动填代码时以输入为准，仍受「叠图只数」上限；改完数字后需再点<strong>从情绪周期加载</strong>。
           </li>
           <li>
             <strong>图例与叠图顺序</strong>：对最终选中的代码，按<strong>首次龙头相关日</strong>从早到晚排序——取该代码在「龙头分段」里最早的

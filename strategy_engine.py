@@ -497,21 +497,25 @@ class StrategyEngine:
                 'indicator_ctx': indicator_ctx,
             }
 
-            # 只检查最近 time_range 个交易日作为 T（不含周末，df 每行即一交易日）
-            min_i = max(min_required_idx, len(df) - time_range)
+            # 无 only_t_date：只在「最近 time_range 根 K 线」内枚举 T（全量回测找最近命中）。
+            # 有 only_t_date：增量脚本已指定 T 日列表，不得再截成尾部 time_range 根，否则 timeRange 大（如主力建仓 120）
+            # 时早于「df 尾窗」的 T 永远不会被扫到。
             if only_t_date:
                 only_d = only_t_date[:10] if isinstance(only_t_date, str) else only_t_date.strftime('%Y-%m-%d')
-                for i in range(len(df) - 1, min_i - 1, -1):
-                    base_date = df.iloc[i]['日期']
-                    base_str = base_date.strftime('%Y-%m-%d') if hasattr(base_date, 'strftime') else str(base_date)[:10]
-                    if base_str == only_d:
-                        if self._check_conditions_from_date_fast(
-                            conditions, base_date, df, date_map, dates_sorted,
-                            dates_str=dates_str, date_pos=date_pos, indicator_ctx=indicator_ctx,
-                        ):
-                            return {'df': df, 'base_date': base_date, **ctx_tail}
-                        return False
+                if only_d not in date_pos:
+                    return False
+                idx = date_pos[only_d]
+                if idx < 1:
+                    return False
+                base_date = df.iloc[idx]['日期']
+                if self._check_conditions_from_date_fast(
+                    conditions, base_date, df, date_map, dates_sorted,
+                    dates_str=dates_str, date_pos=date_pos, indicator_ctx=indicator_ctx,
+                ):
+                    return {'df': df, 'base_date': base_date, **ctx_tail}
                 return False
+
+            min_i = max(min_required_idx, len(df) - time_range)
             for i in range(len(df) - 1, min_i - 1, -1):
                 base_date = df.iloc[i]['日期']
                 if self._check_conditions_from_date_fast(
@@ -575,20 +579,24 @@ class StrategyEngine:
                 'indicator_ctx': indicator_ctx,
             }
 
-            min_i = max(min_required_idx, len(df) - time_range)
             if only_t_date:
                 only_d = only_t_date[:10] if isinstance(only_t_date, str) else only_t_date.strftime('%Y-%m-%d')
-                for i in range(len(df) - 1, min_i - 1, -1):
-                    base_date = df.iloc[i]['日期']
-                    base_str = base_date.strftime('%Y-%m-%d') if hasattr(base_date, 'strftime') else str(base_date)[:10]
-                    if base_str == only_d:
-                        if self._check_conditions_from_date_fast(
-                            conditions, base_date, df, date_map, dates_sorted,
-                            dates_str=dates_str, date_pos=date_pos, indicator_ctx=indicator_ctx,
-                        ):
-                            return {'df': df, 'base_date': base_date, **ctx_tail}
-                        return False
+                if only_d not in date_pos:
+                    return False
+                idx = date_pos[only_d]
+                # 增量模式：不得用 min_required_idx（如 30）卡死 T 的下标，否则短历史新股或 df 较短时全部被拒。
+                # 指标是否有效由条件内部与 NaN 判断处理；至少需有 T-1 即 idx>=1。
+                if idx < 1:
+                    return False
+                base_date = df.iloc[idx]['日期']
+                if self._check_conditions_from_date_fast(
+                    conditions, base_date, df, date_map, dates_sorted,
+                    dates_str=dates_str, date_pos=date_pos, indicator_ctx=indicator_ctx,
+                ):
+                    return {'df': df, 'base_date': base_date, **ctx_tail}
                 return False
+
+            min_i = max(min_required_idx, len(df) - time_range)
             for i in range(len(df) - 1, min_i - 1, -1):
                 base_date = df.iloc[i]['日期']
                 if self._check_conditions_from_date_fast(
@@ -1593,7 +1601,7 @@ class StrategyEngine:
             except (ValueError, KeyError, IndexError):
                 pass
 
-            # 主力建仓打标：仅在 T 日涨停场景下置 true；同时输出阳线统计供前端筛选
+            # 主力建仓：输出 main_force_build_tag / T 日涨停打标等（与是否命中一致，供前端展示与筛选）
             try:
                 if date_pos is not None and base_date_str in date_pos:
                     base_idx = date_pos[base_date_str]
@@ -1704,7 +1712,7 @@ class StrategyEngine:
         return False
 
     def _compute_main_force_build_detail(self, base_idx, dates_str, date_map, indicator_ctx):
-        """主力建仓规则计算（T-10~T 阳线与均线形态）。"""
+        """主力建仓规则计算（T-10~T：收涨日=收盘>前一交易日收盘，即涨跌幅>0；叠加均线形态）。"""
         out = {
             'main_force_build_tag': False,
             'main_force_t_limit_up_tag': False,
@@ -1735,9 +1743,14 @@ class StrategyEngine:
             row = date_map.get(dates_str[i])
             if not row:
                 continue
-            open_v = float(row.get('开盘') or 0)
+            if i < 1:
+                continue
+            prev_row = date_map.get(dates_str[i - 1])
+            if not prev_row:
+                continue
+            prev_close = float(prev_row.get('收盘') or 0)
             close_v = float(row.get('收盘') or 0)
-            if open_v <= 0 or close_v <= 0 or close_v <= open_v:
+            if prev_close <= 0 or close_v <= 0 or close_v <= prev_close:
                 continue
             m5 = ma5[i]
             m10 = ma10[i]

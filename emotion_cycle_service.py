@@ -12,6 +12,7 @@ from stock_code_utils import (
     load_main_board_codes_whitelist,
     load_stock_exchange_map,
 )
+from data_fetcher import parse_stock_data_cache_basename, read_stock_cache_end_ymd_quick
 
 
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -52,11 +53,15 @@ def _latest_cache_file_by_code() -> Dict[str, str]:
     for name in os.listdir(CACHE_DIR):
         if not name.endswith(".json"):
             continue
-        parts = name[:-5].split("_")
-        if len(parts) != 3:
+        parsed = parse_stock_data_cache_basename(name[:-5])
+        if not parsed:
             continue
-        code, _, end_s = parts
-        if len(code) != 6 or len(end_s) != 8:
+        code, _, end_from_name = parsed
+        if len(code) != 6:
+            continue
+        fp_try = os.path.join(CACHE_DIR, name)
+        end_s = end_from_name or read_stock_cache_end_ymd_quick(fp_try)
+        if not end_s or len(end_s) != 8:
             continue
         if wl is not None:
             if code not in wl:
@@ -69,12 +74,18 @@ def _latest_cache_file_by_code() -> Dict[str, str]:
                 continue
         if is_likely_index_code_name(code, name_map.get(code, "")):
             continue
-        fp = os.path.join(CACHE_DIR, name)
+        fp = fp_try
         old = out.get(code)
         if old is None:
             out[code] = fp
             continue
-        old_end = os.path.basename(old)[:-5].split("_")[2]
+        old_name = os.path.basename(old)[:-5]
+        old_p = parse_stock_data_cache_basename(old_name)
+        old_end = (
+            old_p[2]
+            if old_p and old_p[2]
+            else read_stock_cache_end_ymd_quick(old)
+        ) or ""
         if end_s > old_end:
             out[code] = fp
     return out

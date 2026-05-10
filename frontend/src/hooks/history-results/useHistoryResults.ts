@@ -22,7 +22,7 @@ export function useHistoryResults() {
   const collectedByFile = ref<Record<string, StockResult[]>>({})
   /** 仅显示：次日涨幅>3% 或 次日振幅(收盘-开盘)幅度>3% */
   const filterDay2Strong = ref(false)
-  /** 主力建仓：T-10~T 命中阳线个数下限（与即时回测 ResultsTable 一致） */
+  /** 主力建仓：T-10~T 命中收涨日个数下限（与即时回测 ResultsTable 一致） */
   const minMainForceBullishDays = ref<number | null>(null)
 
   const isNarrowScreen = ref(typeof window !== 'undefined' && window.innerWidth < 768)

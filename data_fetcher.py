@@ -7,8 +7,87 @@ import time
 import os
 import json
 import glob
+import re
+import threading
+from typing import Optional
 
 _MAIN_BOARD_CACHE_PURGED_ONCE = False
+
+# 东财 stock_zh_a_hist 批量拉取时：累计「单只股票本次调用未拿到可用日K」达阈值后，本会话不再请求东财（改新浪/腾讯）。
+EASTMONEY_HIST_CB_THRESHOLD = 50
+_eastmoney_hist_cb_lock = threading.Lock()
+_eastmoney_hist_cb_failures = 0
+_eastmoney_hist_cb_open = False
+_eastmoney_hist_cb_logged = False
+
+
+def _eastmoney_hist_cb_is_open() -> bool:
+    with _eastmoney_hist_cb_lock:
+        return _eastmoney_hist_cb_open
+
+
+def _eastmoney_hist_cb_record_stock_failure() -> None:
+    """东财路径对当前 code 用尽重试仍未产出可用 DataFrame 时记一次（多线程安全）。"""
+    global _eastmoney_hist_cb_failures, _eastmoney_hist_cb_open, _eastmoney_hist_cb_logged
+    with _eastmoney_hist_cb_lock:
+        if _eastmoney_hist_cb_open:
+            return
+        _eastmoney_hist_cb_failures += 1
+        if _eastmoney_hist_cb_failures >= EASTMONEY_HIST_CB_THRESHOLD:
+            _eastmoney_hist_cb_open = True
+            if not _eastmoney_hist_cb_logged:
+                _eastmoney_hist_cb_logged = True
+                print(
+                    f'[INFO] 东财日K(stock_zh_a_hist)累计失败已达 {EASTMONEY_HIST_CB_THRESHOLD} 只，'
+                    '本会话后续将跳过东财，直接使用新浪/腾讯'
+                )
+
+# 新缓存文件名：{code}_{start}.json，结束日在文件内 end_date；增量补数不改路径，避免 Git 大量删建。
+_RE_CACHE_END_DATE = re.compile(r'"end_date"\s*:\s*"(\d{8})"')
+
+
+def parse_stock_data_cache_basename(stem):
+    """basename 去掉 .json。返回 (code, start_ymd, end_ymd|None)；None 表示新格式，结束日读文件。"""
+    if '_' not in stem:
+        return None
+    parts = stem.split('_')
+    if len(parts) == 3:
+        code, s, e = parts
+        if len(code) == 6 and len(s) == 8 and len(e) == 8 and s.isdigit() and e.isdigit():
+            return code, s, e
+    if len(parts) == 2:
+        code, s = parts
+        if len(code) == 6 and len(s) == 8 and s.isdigit():
+            return code, s, None
+    return None
+
+
+def read_stock_cache_end_ymd_quick(fp):
+    """从 json 文本前部读取 end_date（落盘时 meta 在 data 之前）；失败返回 None。"""
+    try:
+        with open(fp, 'r', encoding='utf-8') as f:
+            chunk = f.read(262144)
+        m = _RE_CACHE_END_DATE.search(chunk)
+        if m:
+            return m.group(1)
+    except Exception:
+        pass
+    return None
+
+
+def cache_span_from_filename_or_file(fp, stem=None):
+    """返回 (code, start_ymd, end_ymd) 供索引与区间判断；end 优先来自文件名（旧格式），否则读文件头。"""
+    if stem is None:
+        stem = os.path.basename(fp)[:-5]
+    parsed = parse_stock_data_cache_basename(stem)
+    if not parsed:
+        return None
+    code, start_str, end_str = parsed
+    if end_str is None:
+        end_str = read_stock_cache_end_ymd_quick(fp)
+    if not end_str or len(end_str) != 8 or not end_str.isdigit():
+        return None
+    return code, start_str, end_str
 
 from stock_code_utils import (
     is_likely_index_code_name,
@@ -16,7 +95,53 @@ from stock_code_utils import (
     load_main_board_codes_whitelist,
     universe_exclusion_reason,
 )
+from akshare_setup import configure_akshare_http
 from stock_list_sources import fetch_main_board_stocks_akshare
+
+
+def _ak_exchange_prefixed_symbol(code: str) -> str:
+    """6 位 A 股代码 -> 新浪/腾讯接口所需的 sh600000 / sz000001 形式。"""
+    if not code or len(code) != 6 or not code.isdigit():
+        return ''
+    if code.startswith('6'):
+        return f'sh{code}'
+    return f'sz{code}'
+
+
+def _finalize_hist_df_from_chinese_columns(df: pd.DataFrame) -> Optional[pd.DataFrame]:
+    """将已统一为中文列名的日 K DataFrame 做类型与衍生字段处理（与各数据源对齐后调用）。"""
+    if df is None or df.empty:
+        return None
+    need = {'日期', '开盘', '收盘', '最高', '最低', '成交量', '成交额'}
+    if not need.issubset(df.columns):
+        return None
+    df = df.copy()
+    df['日期'] = pd.to_datetime(df['日期'])
+    for col in ['开盘', '收盘', '最高', '最低', '成交量', '成交额']:
+        df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+    if '涨跌幅' in df.columns:
+        df['涨跌幅'] = pd.to_numeric(df['涨跌幅'], errors='coerce').fillna(0)
+    else:
+        df['涨跌幅'] = 0.0
+    if '换手率' in df.columns:
+        df['换手率'] = pd.to_numeric(df['换手率'], errors='coerce').fillna(0)
+    else:
+        df['换手率'] = 0.0
+    if '涨跌额' not in df.columns:
+        df['涨跌额'] = df['收盘'].diff().fillna(0)
+    else:
+        df['涨跌额'] = pd.to_numeric(df['涨跌额'], errors='coerce').fillna(0)
+    if '振幅' not in df.columns:
+        df['振幅'] = ((df['最高'] - df['最低']) / df['最低'].replace(0, float('nan')) * 100).fillna(0)
+    else:
+        df['振幅'] = pd.to_numeric(df['振幅'], errors='coerce').fillna(0)
+    if df['涨跌幅'].abs().sum() == 0:
+        prev = df['收盘'].shift(1)
+        df['涨跌幅'] = ((df['收盘'] - prev) / prev.replace(0, float('nan')) * 100).fillna(0)
+    df['成交量'] = df['成交量'].astype(float)
+    df = df[['日期', '开盘', '收盘', '最高', '最低', '成交量', '成交额', '振幅', '涨跌幅', '涨跌额', '换手率']]
+    df = df.drop_duplicates(subset=['日期'], keep='first')
+    return df.sort_values('日期').reset_index(drop=True)
 
 
 class DataFetcher:
@@ -42,6 +167,9 @@ class DataFetcher:
         self._trading_days_cache = {}  # {(start, end): [dates]}
         self._trading_days_full_cache = None  # 近N年完整交易日历
         self._trading_days_cache_time = None
+
+        # 为 True 时 get_stock_data 仅用本地 json，不访问 AkShare；ensure_sufficient_data 直接跳过
+        self.cache_only = False
 
     def _filter_stock_list_rows(self, stocks):
         """只保留主板个股，并剔除指数类（兼容旧 stock_list.json）。"""
@@ -126,8 +254,10 @@ class DataFetcher:
         print('[ERROR] 无法获取股票列表，且无可用缓存')
         return []
 
-    def _get_cache_path(self, code, start_date, end_date):
-        return os.path.join(self.stock_data_cache_dir, f"{code}_{start_date}_{end_date}.json")
+    def _get_cache_path(self, code, start_date, end_date=None):
+        """落盘路径仅用起始日；end_date 仅兼容旧调用，不参与命名。"""
+        sd = str(start_date).replace('-', '')[:8]
+        return os.path.join(self.stock_data_cache_dir, f"{code}_{sd}.json")
 
     def _load_from_cache_file(self, cache_path):
         """从缓存文件加载 DataFrame，失败返回 None"""
@@ -162,10 +292,41 @@ class DataFetcher:
             return (d - timedelta(days=2)).strftime('%Y-%m-%d')
         return d.strftime('%Y-%m-%d')
 
+    def _local_fallback_last_trade_date_from_stock_cache(self):
+        """AkShare 不可用时：用本地 stock_data 各缓存文件中的 end_date（经索引）的最大值；无则试 000001 文件内最后一条日期。"""
+        try:
+            idx = self._build_cache_index()
+            mx = None
+            for spans in idx.values():
+                for _start_str, end_str, _fp in spans:
+                    if end_str and len(end_str) == 8 and end_str.isdigit():
+                        if mx is None or end_str > mx:
+                            mx = end_str
+            if mx:
+                return f'{mx[:4]}-{mx[4:6]}-{mx[6:8]}'
+        except Exception:
+            pass
+        return self.get_local_cache_latest_date()
+
     def _get_last_trading_day_available(self):
         """获取 AkShare 已有日 K 的最新交易日（当日数据通常收盘后才更新；用 000001 探测）。"""
         last_trade = self._get_last_trading_day()
         last_trade_str = last_trade.replace('-', '')
+
+        def _fallback():
+            loc = self._local_fallback_last_trade_date_from_stock_cache()
+            if loc:
+                print(
+                    f'[INFO] AkShare 探测 000001 失败或当日无 K，改用本地缓存推断「最近交易日参照」: {loc}',
+                    flush=True,
+                )
+                return loc
+            print(
+                f'[WARN] AkShare 与本地缓存均无法确定最近交易日，退回日历近似值: {last_trade}',
+                flush=True,
+            )
+            return last_trade
+
         try:
             df = self._fetch_from_akshare('000001', last_trade_str, last_trade_str)
             if df is not None and not df.empty:
@@ -178,10 +339,10 @@ class DataFetcher:
                     df = self._fetch_from_akshare('000001', check, check)
                     if df is not None and not df.empty:
                         return d.strftime('%Y-%m-%d')
-            return last_trade
+            return _fallback()
         except Exception as e:
-            print(f"[WARNING] 获取最近可用交易日失败，回退本地最近交易日 {last_trade}: {e}", flush=True)
-        return last_trade
+            print(f'[WARNING] 获取最近可用交易日异常: {e}', flush=True)
+            return _fallback()
 
     # ==================== 缓存文件索引机制（性能优化）====================
 
@@ -202,12 +363,10 @@ class DataFetcher:
             name = os.path.basename(fp)
             if '_' not in name or not name.endswith('.json'):
                 continue
-            parts = name[:-5].split('_')
-            if len(parts) != 3:
+            span = cache_span_from_filename_or_file(fp, name[:-5])
+            if not span:
                 continue
-            code, start_str, end_str = parts
-            if len(code) != 6 or len(start_str) != 8 or len(end_str) != 8:
-                continue
+            code, start_str, end_str = span
             index.setdefault(code, []).append((start_str, end_str, fp))
 
         self._cache_index = index
@@ -396,10 +555,10 @@ class DataFetcher:
                 base = os.path.basename(fp)
                 if '_' not in base or not base.endswith('.json'):
                     continue
-                parts = base[:-5].split('_')
-                if len(parts) != 3:
+                parsed = parse_stock_data_cache_basename(base[:-5])
+                if not parsed:
                     continue
-                code, _, _ = parts
+                code = parsed[0]
                 if len(code) != 6:
                     continue
                 nm = ''
@@ -437,12 +596,10 @@ class DataFetcher:
                 name = os.path.basename(fp)
                 if '_' not in name or not name.endswith('.json'):
                     continue
-                parts = name[:-5].split('_')  # 去掉 .json
-                if len(parts) != 3:
+                span = cache_span_from_filename_or_file(fp, name[:-5])
+                if not span:
                     continue
-                code, start_str, end_str = parts
-                if len(code) != 6 or len(start_str) != 8 or len(end_str) != 8:
-                    continue
+                code, start_str, end_str = span
                 by_code.setdefault(code, []).append((start_str, end_str, fp))
 
             deleted = 0
@@ -464,25 +621,53 @@ class DataFetcher:
             print(f"[WARNING] 清理重复缓存失败: {e}")
 
     def _fetch_from_akshare(self, code, start_date, end_date):
-        """从 AkShare 拉取数据并返回 DataFrame，不写缓存"""
-        try:
-            import akshare as ak
-            # 日期格式转换：YYYYMMDD -> YYYYMMDD（akshare 使用 YYYYMMDD）
-            start_fmt = start_date[:8]
-            end_fmt = end_date[:8]
+        """从 AkShare 拉取日 K 并返回 DataFrame，不写缓存。
 
+        数据源顺序：东方财富 stock_zh_a_hist → 新浪 stock_zh_a_daily → 腾讯 stock_zh_a_hist_tx（若存在）。
+        单源内仍对瞬时网络错误重试；该源彻底失败再换下一源。
+        """
+        configure_akshare_http()
+        import akshare as ak
+
+        start_fmt = start_date[:8]
+        end_fmt = end_date[:8]
+        d0 = pd.to_datetime(start_fmt, format='%Y%m%d')
+        d1 = pd.to_datetime(end_fmt, format='%Y%m%d')
+
+        def _is_transient_network_err(e):
+            s = str(e).lower()
+            return any(
+                x in s
+                for x in (
+                    'remotedisconnected',
+                    'connection aborted',
+                    'connection reset',
+                    'read timed out',
+                    'timed out',
+                    'empty reply',
+                    'bad gateway',
+                    '502',
+                    '503',
+                )
+            )
+
+        def _clip_date(df_in: Optional[pd.DataFrame]) -> Optional[pd.DataFrame]:
+            if df_in is None or df_in.empty or '日期' not in df_in.columns:
+                return df_in
+            dt = pd.to_datetime(df_in['日期'])
+            m = (dt >= d0) & (dt <= d1)
+            return df_in.loc[m].copy()
+
+        def _pull_eastmoney() -> Optional[pd.DataFrame]:
             df = ak.stock_zh_a_hist(
                 symbol=code,
                 period='daily',
                 start_date=start_fmt,
                 end_date=end_fmt,
-                adjust=''  # 不复权
+                adjust='',
             )
-
             if df is None or df.empty:
                 return None
-
-            # 列映射：akshare 列名 -> 内部列名
             column_map = {
                 '日期': '日期',
                 '开盘': '开盘',
@@ -496,34 +681,105 @@ class DataFetcher:
                 '涨跌额': '涨跌额',
                 '换手率': '换手率',
             }
-
-            # 重命名列
             df = df.rename(columns=column_map)
+            return _clip_date(df)
 
-            # 确保日期格式正确
-            df['日期'] = pd.to_datetime(df['日期'])
+        def _pull_sina() -> Optional[pd.DataFrame]:
+            fn = getattr(ak, 'stock_zh_a_daily', None)
+            if not callable(fn):
+                return None
+            sym = _ak_exchange_prefixed_symbol(code)
+            if not sym:
+                return None
+            raw = fn(symbol=sym, start_date=start_fmt, end_date=end_fmt, adjust='')
+            if raw is None or raw.empty:
+                return None
+            col_en = {
+                'date': '日期',
+                'open': '开盘',
+                'high': '最高',
+                'low': '最低',
+                'close': '收盘',
+                'volume': '成交量',
+                'amount': '成交额',
+                'turnover': '换手率',
+            }
+            df = raw.rename(columns={k: v for k, v in col_en.items() if k in raw.columns})
+            if not {'日期', '开盘', '收盘', '最高', '最低', '成交量', '成交额'}.issubset(df.columns):
+                return None
+            # 新浪 turnover 为成交量/流通股本，转成与东财一致的百分数口径
+            if '换手率' in df.columns:
+                df['换手率'] = pd.to_numeric(df['换手率'], errors='coerce').fillna(0) * 100.0
+            return _clip_date(df)
 
-            # 确保数值类型正确
-            for col in ['开盘', '收盘', '最高', '最低', '成交量', '成交额', '涨跌幅', '换手率']:
-                if col in df.columns:
-                    df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+        def _pull_tencent() -> Optional[pd.DataFrame]:
+            fn = getattr(ak, 'stock_zh_a_hist_tx', None)
+            if not callable(fn):
+                return None
+            sym = _ak_exchange_prefixed_symbol(code)
+            if not sym:
+                return None
+            raw = fn(symbol=sym, start_date=start_fmt, end_date=end_fmt, adjust='')
+            if raw is None or raw.empty:
+                return None
+            # 腾讯接口列名为英文；文档标注 amount 单位为「手」，按 1 手=100 股换算成交量
+            if 'date' not in raw.columns or 'open' not in raw.columns:
+                return None
+            if 'volume' in raw.columns:
+                vol_shares = pd.to_numeric(raw['volume'], errors='coerce').fillna(0)
+            elif 'amount' in raw.columns:
+                # 文档标注 amount 单位为「手」
+                vol_shares = pd.to_numeric(raw['amount'], errors='coerce').fillna(0) * 100.0
+            else:
+                return None
+            df = pd.DataFrame(
+                {
+                    '日期': raw['date'],
+                    '开盘': raw['open'],
+                    '最高': raw['high'],
+                    '最低': raw['low'],
+                    '收盘': raw['close'],
+                    '成交量': vol_shares,
+                    '成交额': 0.0,
+                    '涨跌幅': 0.0,
+                    '换手率': 0.0,
+                }
+            )
+            return _clip_date(df)
 
-            # 计算缺失的列
-            if '涨跌额' not in df.columns:
-                df['涨跌额'] = df['收盘'].diff().fillna(0)
-            if '振幅' not in df.columns:
-                df['振幅'] = ((df['最高'] - df['最低']) / df['最低'].replace(0, float('nan')) * 100).fillna(0)
+        sources = (
+            ('eastmoney', _pull_eastmoney),
+            ('sina', _pull_sina),
+            ('tencent', _pull_tencent),
+        )
+        if _eastmoney_hist_cb_is_open():
+            sources = tuple(s for s in sources if s[0] != 'eastmoney')
 
-            df['成交量'] = df['成交量'].astype(float)
+        last_error: Optional[Exception] = None
+        for src_name, pull in sources:
+            for attempt in range(3):
+                try:
+                    raw_df = pull()
+                    if raw_df is not None and not raw_df.empty:
+                        out = _finalize_hist_df_from_chinese_columns(raw_df)
+                        if out is not None and not out.empty:
+                            if src_name != 'eastmoney':
+                                print(f'[INFO] {code} 日K 使用备用数据源: {src_name}')
+                            return out
+                    break
+                except Exception as e:
+                    last_error = e
+                    if _is_transient_network_err(e) and attempt < 2:
+                        time.sleep(1.2 * (2 ** attempt))
+                        continue
+                    print(f'[DEBUG] AkShare({src_name}) 获取 {code} 失败: {e}')
+                    break
+            if src_name == 'eastmoney':
+                _eastmoney_hist_cb_record_stock_failure()
 
-            # 选择需要的列
-            df = df[['日期', '开盘', '收盘', '最高', '最低', '成交量', '成交额', '振幅', '涨跌幅', '涨跌额', '换手率']]
-            df = df.drop_duplicates(subset=['日期'], keep='first')
-
-            return df.sort_values('日期').reset_index(drop=True)
-        except Exception as e:
-            print(f"[DEBUG] AkShare 获取 {code} 数据失败: {e}")
-            return None
+        if last_error is not None:
+            print(f'[DEBUG] AkShare 获取 {code} 全部数据源失败，末次错误: {last_error}')
+        return None
 
     def _fetch_from_api(self, code, start_date, end_date):
         """从 AkShare 拉取数据并返回 DataFrame，不写缓存。"""
@@ -556,11 +812,11 @@ class DataFetcher:
                 name = os.path.basename(fp)
                 if '_' not in name or not name.endswith('.json'):
                     return None
-                parts = name[:-5].split('_')
-                if len(parts) != 3:
+                parsed = parse_stock_data_cache_basename(name[:-5])
+                if not parsed:
                     return None
-                code, start_str, end_str = parts
-                if len(code) != 6 or len(start_str) != 8 or len(end_str) != 8:
+                code, start_str, _ = parsed
+                if len(code) != 6 or len(start_str) != 8:
                     return None
                 with open(fp, 'r', encoding='utf-8') as f:
                     cache_data = json.load(f)
@@ -570,7 +826,7 @@ class DataFetcher:
                 actual_max = max(r['日期'][:10] for r in rows)
                 if actual_max >= last_trade:
                     return None
-                return (code, start_str, end_str, fp)
+                return (code, start_str, '', fp)
             except Exception:
                 return None
 
@@ -736,6 +992,10 @@ class DataFetcher:
             max_workers: 并发线程数
         """
         from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        if getattr(self, 'cache_only', False):
+            print('[INFO] cache_only：跳过 ensure_sufficient_data（不通过网络预拉取 K 线）')
+            return
         
         # 计算需要的日历日数：约 1 交易日 ≈ 1.4 日历日，多取一些确保覆盖
         calendar_days = int(time_range * 1.6) + 10
@@ -761,12 +1021,10 @@ class DataFetcher:
             name = os.path.basename(fp)
             if '_' not in name or not name.endswith('.json'):
                 continue
-            parts = name[:-5].split('_')
-            if len(parts) != 3:
+            span = cache_span_from_filename_or_file(fp, name[:-5])
+            if not span:
                 continue
-            code, start_str, end_str = parts
-            if len(code) != 6 or len(start_str) != 8 or len(end_str) != 8:
-                continue
+            code, start_str, end_str = span
             # 记录最早 start 与最晚 end（同一股票可能存在多份缓存）
             if code not in by_code:
                 by_code[code] = {'start': start_str, 'end': end_str}
@@ -776,8 +1034,10 @@ class DataFetcher:
                 if end_str > by_code[code]['end']:
                     by_code[code]['end'] = end_str
 
-        last_available_trade_day = self._get_last_trading_day_available()
-        
+        last_trade_raw = self._get_last_trading_day_available() or ''
+        # 与 cache_end（YYYYMMDD）统一口径，禁止和 'YYYY-MM-DD' 做字符串比较（会误判 20260508 >= 2026-05-08）
+        last_trade_ymd = last_trade_raw.replace('-', '')[:8]
+
         # 检查哪些股票需要拉取更多数据
         for code in all_codes:
             if code not in by_code:
@@ -788,10 +1048,13 @@ class DataFetcher:
                 cache_end = by_code[code]['end']
 
                 # 若缓存已经覆盖到最近可用交易日，优先使用缓存，不再预拉取
-                if cache_end >= last_available_trade_day:
+                if last_trade_ymd and len(last_trade_ymd) == 8 and cache_end >= last_trade_ymd:
+                    pass  # 尾部已够，仍要检查历史深度
+                elif last_trade_ymd and len(last_trade_ymd) == 8:
+                    need_fetch_codes.append(code)
                     continue
 
-                # 如果缓存的开始日期晚于需要的开始日期，需要拉取更多数据
+                # 历史深度：缓存起点晚于回测所需最早日则向前补数
                 if cache_start > required_start_date:
                     need_fetch_codes.append(code)
         
@@ -837,6 +1100,102 @@ class DataFetcher:
         # 清理重复缓存
         self.remove_duplicate_cache()
 
+    def _read_stock_cache_json_any_age(self, cache_path):
+        """读取 K 线缓存为 DataFrame；不因 cache_time 超过 7 天而拒绝（供 cache_only 使用）。"""
+        try:
+            if not cache_path or not os.path.exists(cache_path) or os.path.getsize(cache_path) <= 100:
+                return None
+            try:
+                import orjson
+                with open(cache_path, 'rb') as f:
+                    cache_data = orjson.loads(f.read())
+            except ImportError:
+                with open(cache_path, 'r', encoding='utf-8') as f:
+                    cache_data = json.load(f)
+            rows = cache_data.get('data')
+            if not rows:
+                return None
+            df = pd.DataFrame(rows)
+            if df.empty or '日期' not in df.columns:
+                return None
+            df['日期'] = pd.to_datetime(df['日期'])
+            return df
+        except Exception:
+            return None
+
+    def _normalize_hist_df(self, df):
+        """与增量合并后一致的历史 K 线列，供策略侧使用。"""
+        if df is None or df.empty:
+            return None
+        df = df.copy()
+        df['日期'] = pd.to_datetime(df['日期'])
+        df = df.sort_values('日期').reset_index(drop=True)
+        for col in ['开盘', '收盘', '最高', '最低', '成交量', '成交额', '涨跌幅', '换手率']:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+            else:
+                df[col] = 0.0
+        if '涨跌额' not in df.columns:
+            df['涨跌额'] = df['收盘'].diff().fillna(0)
+        else:
+            df['涨跌额'] = pd.to_numeric(df['涨跌额'], errors='coerce').fillna(0)
+        if '振幅' not in df.columns:
+            df['振幅'] = ((df['最高'] - df['最低']) / df['最低'].replace(0, float('nan')) * 100).fillna(0)
+        else:
+            df['振幅'] = pd.to_numeric(df['振幅'], errors='coerce').fillna(0)
+        df['成交量'] = df['成交量'].astype(float)
+        return df[['日期', '开盘', '收盘', '最高', '最低', '成交量', '成交额', '振幅', '涨跌幅', '涨跌额', '换手率']]
+
+    def _get_stock_data_cache_only(self, code, start_date, end_date):
+        """仅用本地 json：先尝试文件名覆盖整段；否则用该代码下「结束日最晚」的那份缓存与请求区间的交集。"""
+        try:
+            s, e = pd.to_datetime(start_date), pd.to_datetime(end_date)
+        except Exception:
+            return None
+
+        cache_path = self._get_cache_path(code, start_date, end_date)
+        df = self._read_stock_cache_json_any_age(cache_path)
+        if df is not None and not df.empty:
+            df = df[(df['日期'] >= s) & (df['日期'] <= e)]
+            if not df.empty:
+                return self._normalize_hist_df(df)
+
+        for fp in self._list_stock_cache_files(code):
+            name = os.path.basename(fp)
+            if '_' not in name or not name.endswith('.json'):
+                continue
+            span = cache_span_from_filename_or_file(fp, name[:-5])
+            if not span:
+                continue
+            _, c_start, c_end = span
+            if c_start <= start_date and c_end >= end_date:
+                df = self._read_stock_cache_json_any_age(fp)
+                if df is not None and not df.empty:
+                    df = df[(df['日期'] >= s) & (df['日期'] <= e)]
+                    if not df.empty:
+                        return self._normalize_hist_df(df)
+
+        best_fp = None
+        best_end = ''
+        for fp in self._list_stock_cache_files(code):
+            name = os.path.basename(fp)
+            if '_' not in name or not name.endswith('.json'):
+                continue
+            span = cache_span_from_filename_or_file(fp, name[:-5])
+            if not span or span[0] != code:
+                continue
+            _, _, c_end = span
+            if c_end > best_end:
+                best_end = c_end
+                best_fp = fp
+        if best_fp:
+            df = self._read_stock_cache_json_any_age(best_fp)
+            if df is not None and not df.empty:
+                df = df[(df['日期'] >= s) & (df['日期'] <= e)]
+                if not df.empty:
+                    return self._normalize_hist_df(df)
+        return None
+
     def get_stock_data(self, code, start_date=None, end_date=None, force_refresh=False):
         """获取单只股票的历史K线数据
         
@@ -851,6 +1210,9 @@ class DataFetcher:
         start_date = str(start_date).replace('-', '')
         end_date = str(end_date).replace('-', '')
 
+        if getattr(self, 'cache_only', False):
+            return self._get_stock_data_cache_only(code, start_date, end_date)
+
         if not force_refresh:
             try:
                 # 1. 精确匹配
@@ -863,10 +1225,10 @@ class DataFetcher:
                     name = os.path.basename(fp)
                     if '_' not in name or not name.endswith('.json'):
                         continue
-                    parts = name[:-5].split('_')
-                    if len(parts) != 3 or len(parts[1]) != 8 or len(parts[2]) != 8:
+                    span = cache_span_from_filename_or_file(fp, name[:-5])
+                    if not span:
                         continue
-                    c_start, c_end = parts[1], parts[2]
+                    _, c_start, c_end = span
                     if c_start <= start_date and c_end >= end_date:
                         df = self._load_from_cache_file(fp)
                         if df is not None and not df.empty:
@@ -888,13 +1250,12 @@ class DataFetcher:
                     name = os.path.basename(fp)
                     if '_' not in name or not name.endswith('.json'):
                         continue
-                    parts = name[:-5].split('_')
-                    if len(parts) != 3 or len(parts[1]) != 8 or len(parts[2]) != 8:
+                    span = cache_span_from_filename_or_file(fp, name[:-5])
+                    if not span or span[0] != code:
                         continue
-                    if parts[0] != code:
-                        continue
-                    if parts[2] > best_end:
-                        best_end = parts[2]
+                    _, _, c_end = span
+                    if c_end > best_end:
+                        best_end = c_end
                         best_fp = fp
                 if best_fp and os.path.isfile(best_fp):
                     with open(best_fp, 'r', encoding='utf-8') as f:
