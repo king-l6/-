@@ -555,9 +555,9 @@ export const yzrPackStrongMarketStrategy: StrategyTemplate = {
   },
 };
 
-// 所有策略模板（所有战法置顶）
+// 所有策略模板（主力建仓置顶）
 export const allStrategyTemplates: StrategyTemplate[] = [
-  // 所有战法策略（置顶）
+  mainForceBuildPositionStrategy, // 主力建仓
   dragonHeadStrategy, // 龙头战法
   breakAndRecoverStrategy, // 断板反包
   maCrossUpStrategy, // 均线上穿
@@ -572,7 +572,6 @@ export const allStrategyTemplates: StrategyTemplate[] = [
   yzrPackNeutralMarketStrategy, // 游资策略包-中性
   yzrPackStrongMarketStrategy, // 游资策略包-强势
   yzrConsensusRelayStrategy, // 游资合力接力
-  mainForceBuildPositionStrategy, // 主力建仓
   consecutiveUpUpperShadowStrategy, // 连阳上影
   bottomingBreakoutStrategy, // 筑底突破
   touchLimitNotCloseWithThreeLimitStrategy, // 摸板首板

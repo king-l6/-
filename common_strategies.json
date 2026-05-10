@@ -1,6 +1,23 @@
 {
   "strategies": [
     {
+      "name": "主力建仓",
+      "description": "T-1日涨幅<9.8%；T-10至T（含）至少5日收涨（收盘>昨收）且当日收盘站上5日线且5>10>20；上述命中日中至少一半满足5日与10日均线斜率向上。T日是否涨停仅作打标（main_force_t_limit_up_tag），不参与是否命中。",
+      "strategy": {
+        "conditions": [
+          { "type": "main_force_build_position", "date1": 0, "windowDays": 10 }
+        ],
+        "exclude": {
+          "kcb": true,
+          "cyb": true,
+          "bjs": true,
+          "st": true,
+          "delist": true
+        },
+        "timeRange": 120
+      }
+    },
+    {
       "name": "龙头战法",
       "description": "捕捉连续涨停的龙头股，适合追涨策略",
       "strategy": {
@@ -201,23 +218,6 @@
           "delist": true
         },
         "timeRange": 90
-      }
-    },
-    {
-      "name": "主力建仓",
-      "description": "T-1日涨幅<9.8%；T-10至T（含）至少5日收涨（收盘>昨收）且当日收盘站上5日线且5>10>20；上述命中日中至少一半满足5日与10日均线斜率向上。T日是否涨停仅作打标（main_force_t_limit_up_tag），不参与是否命中。",
-      "strategy": {
-        "conditions": [
-          { "type": "main_force_build_position", "date1": 0, "windowDays": 10 }
-        ],
-        "exclude": {
-          "kcb": true,
-          "cyb": true,
-          "bjs": true,
-          "st": true,
-          "delist": true
-        },
-        "timeRange": 120
       }
     },
     {
