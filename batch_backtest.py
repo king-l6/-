@@ -18,6 +18,9 @@
 
 5. 串行执行：
    python batch_backtest.py --no-parallel
+
+6. 仅本地缓存回测（不访问 AkShare / 不拉 K 线）：
+   python batch_backtest.py --cache-only --no-parallel
 """
 
 import json
@@ -96,7 +99,7 @@ def print_summary(results):
     print('=' * 80)
 
 
-def execute_single_strategy(strategy_config, worker_id, total_workers, timeout=None):
+def execute_single_strategy(strategy_config, worker_id, total_workers, timeout=None, cache_only=False):
     """执行单个策略（用于并行执行）"""
     strategy_name = strategy_config['name']
     strategy = strategy_config['strategy']
@@ -104,6 +107,8 @@ def execute_single_strategy(strategy_config, worker_id, total_workers, timeout=N
     
     # 每个策略使用独立的引擎实例（避免线程冲突）
     fetcher = DataFetcher()
+    if cache_only:
+        fetcher.cache_only = True
     engine = StrategyEngine(fetcher, max_workers=total_workers)
     
     try:
@@ -159,7 +164,12 @@ def main():
                        help='单个策略的超时时间（秒），默认无超时')
     parser.add_argument('--verbose', action='store_true',
                        help='显示详细错误信息')
-    
+    parser.add_argument(
+        '--cache-only',
+        action='store_true',
+        help='仅使用本地 cache/stock_data 与 stock_list.json 回测，不访问 AkShare（ensure_sufficient_data 跳过）',
+    )
+
     args = parser.parse_args()
     
     print('=' * 80)
@@ -170,6 +180,8 @@ def main():
     print(f'执行模式: {"并行" if args.parallel else "串行"}')
     if args.max_parallel:
         print(f'最大并行策略数: {args.max_parallel}')
+    if args.cache_only:
+        print('数据模式: 仅本地缓存（--cache-only，不拉网）')
     print()
     
     # 加载策略
@@ -201,7 +213,14 @@ def main():
         with ThreadPoolExecutor(max_workers=max_parallel) as executor:
             # 提交所有任务
             future_to_strategy = {
-                executor.submit(execute_single_strategy, strategy_config, idx + 1, args.workers, args.timeout): strategy_config
+                executor.submit(
+                    execute_single_strategy,
+                    strategy_config,
+                    idx + 1,
+                    args.workers,
+                    args.timeout,
+                    args.cache_only,
+                ): strategy_config
                 for idx, strategy_config in enumerate(strategies)
             }
             
@@ -290,6 +309,8 @@ def main():
             
             # 每个策略使用独立的引擎实例
             fetcher = DataFetcher()
+            if args.cache_only:
+                fetcher.cache_only = True
             engine = StrategyEngine(fetcher, max_workers=args.workers)
             
             try:

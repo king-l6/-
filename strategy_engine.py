@@ -218,12 +218,14 @@ class StrategyEngine:
             elif cond_type == 'main_force_build_position':
                 max_backward_offset = max(max_backward_offset, int(c.get('windowDays', 10)) + 20)
 
-        end_date = datetime.now()
+        # 与本地 K 缓存右端对齐：自然日「今天」若在周末，用最近周五，避免 c_end < end_date 误判未覆盖而全网拉取
         if only_t_date:
             try:
                 end_date = datetime.strptime(only_t_date[:10], '%Y-%m-%d')
             except Exception:
-                pass
+                end_date = datetime.strptime(self.data_fetcher._get_last_trading_day(), '%Y-%m-%d')
+        else:
+            end_date = datetime.strptime(self.data_fetcher._get_last_trading_day(), '%Y-%m-%d')
         required_trading_days = time_range + max_backward_offset + 1
         calendar_days = int(required_trading_days * 1.6) + 10  # 覆盖 timeRange + 历史依赖窗口
         start_date = end_date - timedelta(days=calendar_days)

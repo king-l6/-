@@ -55,15 +55,15 @@
         </div>
       </div>
 
-      <!-- 左侧导航栏（仅 md 及以上显示） -->
-      <div class="hidden md:block w-64 flex-shrink-0 bg-gray-50 border-r-2 border-gray-300 pr-0">
-        <div class="p-2 border-b border-gray-200 bg-white">
-          <div class="flex items-center justify-between mb-1">
-            <span class="text-sm font-semibold text-gray-800">文件列表</span>
-            <span class="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">共 {{ fileList.length }} 个</span>
+      <!-- 左侧导航栏（仅 md 及以上显示，偏窄以让右侧表格更早露出） -->
+      <div class="hidden md:block w-48 lg:w-52 flex-shrink-0 bg-gray-50 border-r border-gray-300 pr-0">
+        <div class="px-2 py-1.5 border-b border-gray-200 bg-white">
+          <div class="flex items-center justify-between gap-1">
+            <span class="text-xs font-semibold text-gray-800 truncate">文件列表</span>
+            <span class="text-[10px] text-gray-500 bg-gray-100 px-1 py-0.5 rounded shrink-0">共{{ fileList.length }}</span>
           </div>
         </div>
-        <div class="overflow-y-auto" style="max-height: calc(100vh - 180px);">
+        <div class="overflow-y-auto" style="max-height: calc(100vh - 160px);">
           <Menu
             v-model:selectedKeys="selectedKeys"
             mode="inline"
@@ -100,11 +100,11 @@
       </div>
       
       <!-- 右侧内容区：小屏全宽、可横向滚动 -->
-      <div class="flex-1 min-w-0 overflow-auto pl-2 pr-2 md:pl-3">
+      <div class="flex-1 min-w-0 overflow-auto pl-1.5 pr-2 md:pl-2">
 
       <!-- 元数据信息 -->
-      <div v-if="metaInfo" class="mb-2 p-2 bg-blue-50 border-l-4 border-blue-500 rounded">
-        <div class="text-xs text-gray-700">
+      <div v-if="metaInfo" class="mb-1.5 py-1 px-2 bg-blue-50 border-l-4 border-blue-500 rounded">
+        <div class="text-[11px] leading-snug text-gray-700">
           <span class="font-semibold">策略名称:</span> {{ metaInfo.strategy_name || '未知' }} | 
           <span class="font-semibold">运行时间:</span> {{ formatDate(metaInfo.run_at) }} | 
           <span class="font-semibold">数据条数:</span> {{ metaInfo.count || results.length }}
@@ -135,8 +135,8 @@
       <!-- 数据区域：先展示图表，再 Tabs -->
       <div v-else>
         <!-- 每日趋势图：数据加载好后直接渲染在可见区域 -->
-        <Card title="每个交易日匹配数量" size="small" class="mb-3">
-          <div class="relative w-full min-w-0" style="height: 280px;">
+        <Card title="每个交易日匹配数量" size="small" class="mb-2" :body-style="{ padding: '8px 10px' }">
+          <div class="relative w-full min-w-0" style="height: 200px;">
             <div :ref="setChartRef" class="w-full h-full" style="min-width: 300px;"></div>
             <div v-if="dailyChartData.dates.length === 0" class="absolute inset-0 flex items-center justify-center bg-gray-50 text-gray-500 text-sm">
               暂无按日数据，无法绘制趋势图
@@ -144,7 +144,7 @@
           </div>
         </Card>
 
-        <Tabs v-model:activeKey="contentTabKey" type="card" size="small" class="mb-3">
+        <Tabs v-model:activeKey="contentTabKey" type="card" size="small" class="mb-2">
           <TabPane key="favorites" :tab="`我的自选${collectedItems.length > 0 ? ` (${collectedItems.length})` : ''}`">
             <Card :title="`我的自选${collectedItems.length > 0 ? ` (${collectedItems.length} 条)` : ''}`" size="small" class="mb-0">
               <div v-if="collectedItems.length === 0" class="py-6 text-center text-gray-500 text-sm">
@@ -168,7 +168,7 @@
             </Card>
           </TabPane>
           <TabPane :key="'table'" :tab="`数据列表 (${filteredResults.length} 只)`">
-            <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <div class="mb-1.5 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
               <div class="text-sm font-semibold text-primary">
                 找到 {{ filteredResults.length }} 只符合条件的股票
               </div>
@@ -190,6 +190,10 @@
                 class="w-[148px]"
                 placeholder="收涨日数>="
               />
+              <Button size="small" @click="openColumnModal">
+                <template #icon><MenuOutlined /></template>
+                列设置
+              </Button>
             </div>
             <div :class="['overflow-x-auto w-full -mx-2 px-2 md:mx-0 md:px-0', { 'history-table-mobile': isNarrowScreen }]">
               <Table
@@ -255,16 +259,67 @@
       </div>
       </div>
     </div>
+
+    <Modal
+      v-model:open="columnModalOpen"
+      title="数据列表 — 列展示与顺序"
+      :width="420"
+      destroy-on-close
+    >
+      <p class="text-xs text-gray-500 mb-2">
+        拖拽左侧手柄调整列顺序；取消勾选可隐藏列（代码、名称不可隐藏）。设置按「密集 / 普通」分别保存。
+      </p>
+      <draggable
+        v-model="draftColumnRows"
+        item-key="key"
+        handle=".col-pref-drag-handle"
+        :animation="160"
+        class="border border-gray-200 rounded max-h-[55vh] overflow-y-auto"
+      >
+        <template #item="{ element }">
+          <div
+            class="flex items-center gap-2 px-2 py-1.5 border-b border-gray-100 last:border-b-0 bg-white hover:bg-gray-50"
+          >
+            <HolderOutlined class="col-pref-drag-handle text-gray-400 shrink-0 cursor-move text-sm" />
+            <Checkbox
+              :checked="element.visible"
+              :disabled="element.required"
+              @update:checked="(v: boolean | string) => onDraftVisibleChange(element, !!v)"
+            />
+            <span class="text-sm text-gray-800 flex-1 min-w-0 truncate" :title="element.title">{{ element.title }}</span>
+            <span v-if="element.required" class="text-[10px] text-gray-400 shrink-0">必选</span>
+          </div>
+        </template>
+      </draggable>
+      <template #footer>
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <Button size="small" @click="restoreDraftColumnDefault">恢复默认</Button>
+          <div class="flex gap-2">
+            <Button size="small" @click="columnModalOpen = false">取消</Button>
+            <Button type="primary" size="small" @click="applyColumnModal">确定</Button>
+          </div>
+        </div>
+      </template>
+    </Modal>
   </Card>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
-import { Card, Table, Spin, Alert, Button, Space, Input, InputNumber, Menu, MenuItem, Select, Tabs, TabPane, Checkbox } from 'ant-design-vue'
-import { SearchOutlined, PlusOutlined } from '@ant-design/icons-vue'
+import { Card, Table, Spin, Alert, Button, Space, Input, InputNumber, Menu, MenuItem, Select, Tabs, TabPane, Checkbox, Modal } from 'ant-design-vue'
+import { SearchOutlined, PlusOutlined, HolderOutlined, MenuOutlined } from '@ant-design/icons-vue'
+import draggable from 'vuedraggable'
 import type { ColumnsType } from 'ant-design-vue/es/table'
 import type { StockResult } from '@/types'
 import { useHistoryResults } from '@/hooks/history-results/useHistoryResults'
+import {
+  applyHistoryColumnPrefs,
+  buildDraftFromBase,
+  getColumnKey,
+  useHistoryTableColumnPrefs,
+  type HistoryColumnDraftRow,
+  type HistoryColumnPrefs
+} from '@/hooks/history-results/useHistoryTableColumnPrefs'
 import { getTradingDays } from '@/api'
 import * as echarts from 'echarts'
 
@@ -327,6 +382,61 @@ const {
   isNarrowScreen,
   filterDay2Strong
 } = useHistoryResults()
+
+const { densePrefs, normalPrefs, setDensePrefs, setNormalPrefs, resetDensePrefs, resetNormalPrefs } =
+  useHistoryTableColumnPrefs()
+
+const columnModalOpen = ref(false)
+/** 打开弹窗时快照：密集 / 普通 各一套偏好 */
+const columnModalIsDense = ref(false)
+const draftColumnRows = ref<HistoryColumnDraftRow[]>([])
+
+function stripColumnWidths<T extends Record<string, unknown>>(cols: ColumnsType<T>): ColumnsType<T> {
+  return cols.map((col) => {
+    const { width, fixed, ...rest } = col
+    return { ...rest, fixed: undefined, width: undefined }
+  })
+}
+
+function openColumnModal() {
+  columnModalIsDense.value = isDense.value
+  const base = isDense.value ? denseColumns.value : columns.value
+  const prefs = isDense.value ? densePrefs.value : normalPrefs.value
+  draftColumnRows.value = buildDraftFromBase(base, prefs)
+  columnModalOpen.value = true
+}
+
+function onDraftVisibleChange(row: HistoryColumnDraftRow, checked: boolean) {
+  if (row.required) return
+  row.visible = checked
+}
+
+function restoreDraftColumnDefault() {
+  const base = columnModalIsDense.value ? denseColumns.value : columns.value
+  draftColumnRows.value = buildDraftFromBase(base, null)
+}
+
+function draftMatchesDefaultBase(draft: HistoryColumnDraftRow[], base: ColumnsType<StockResult>): boolean {
+  const keys = base.map(getColumnKey).filter(Boolean)
+  if (draft.length !== keys.length) return false
+  if (!draft.every((r) => r.visible)) return false
+  return draft.every((r, i) => r.key === keys[i])
+}
+
+function applyColumnModal() {
+  const base = columnModalIsDense.value ? denseColumns.value : columns.value
+  if (draftMatchesDefaultBase(draftColumnRows.value, base)) {
+    if (columnModalIsDense.value) resetDensePrefs()
+    else resetNormalPrefs()
+  } else {
+    const hidden = draftColumnRows.value.filter((r) => !r.visible && !r.required).map((r) => r.key)
+    const order = draftColumnRows.value.map((r) => r.key)
+    const prefs: HistoryColumnPrefs = { order, hidden }
+    if (columnModalIsDense.value) setDensePrefs(prefs)
+    else setNormalPrefs(prefs)
+  }
+  columnModalOpen.value = false
+}
 
 const collectedColumns = computed<ColumnsType<StockResult>>(() => {
   const head: ColumnsType<StockResult> = [
@@ -580,20 +690,14 @@ const tenDayHitStats = computed(() => {
 })
 
 const displayColumns = computed(() => {
-  const cols = columns.value
+  const cols = applyHistoryColumnPrefs(columns.value, normalPrefs.value)
   if (!isNarrowScreen.value) return cols
-  return cols.map(col => {
-    const { width, fixed, ...rest } = col
-    return { ...rest, fixed: undefined, width: undefined }
-  })
+  return stripColumnWidths(cols)
 })
 const displayDenseColumns = computed(() => {
-  const cols = denseColumns.value
+  const cols = applyHistoryColumnPrefs(denseColumns.value, densePrefs.value)
   if (!isNarrowScreen.value) return cols
-  return cols.map(col => {
-    const { width, fixed, ...rest } = col
-    return { ...rest, fixed: undefined, width: undefined }
-  })
+  return stripColumnWidths(cols)
 })
 
 // 按 match_date 聚合每日匹配数量，用于趋势图；若有交易日列表则按全部交易日展示，无数据日显示 0
@@ -631,9 +735,8 @@ function updateChart() {
     return
   }
   const option: echarts.EChartsOption = {
-    title: { text: '每个交易日匹配数量', left: 'center', textStyle: { fontSize: 14 } },
     tooltip: { trigger: 'axis' },
-    grid: { left: 48, right: 24, top: 40, bottom: 48 },
+    grid: { left: 42, right: 12, top: 8, bottom: 36 },
     xAxis: {
       type: 'category',
       data: dates,
@@ -773,12 +876,12 @@ watch(
 }
 
 :deep(.ant-menu-item) {
-  margin: 2px 4px;
-  padding: 6px 10px;
+  margin: 1px 2px;
+  padding: 4px 6px;
   height: auto;
-  min-height: 48px;
-  line-height: 1.4;
-  border-radius: 4px;
+  min-height: 40px;
+  line-height: 1.35;
+  border-radius: 3px;
   transition: all 0.2s;
   border: 1px solid transparent;
 }

@@ -226,6 +226,18 @@ class DataFetcher:
         except Exception as e:
             print(f"[WARNING] 读取缓存文件失败: {e}")
 
+        if getattr(self, 'cache_only', False):
+            if fallback_stocks:
+                self.stock_list_cache = fallback_stocks
+                self.stock_list_cache_time = fallback_cache_time or datetime.now()
+                print(
+                    f'[INFO] cache_only：股票列表仅用本地 stock_list.json（不访问 AkShare），共 {len(fallback_stocks)} 只',
+                    flush=True,
+                )
+                return fallback_stocks
+            print('[ERROR] cache_only 模式需要有效的 cache/stock_list.json', flush=True)
+            return []
+
         stock_list = fetch_main_board_stocks_akshare() or []
         if stock_list:
             print(
@@ -465,7 +477,14 @@ class DataFetcher:
                     self._trading_days_cache[cache_key] = result
                     return result
 
-            # 3. 调用 API 获取
+            # 3. cache_only：仅从本地 K 缓存推导交易日，不打 000001
+            if getattr(self, 'cache_only', False):
+                result = self.get_trading_days_from_cache(start_s, end_s) or []
+                if result:
+                    self._trading_days_cache[cache_key] = result
+                return result
+
+            # 4. 调用 API 获取
             result = self._fetch_trading_days_from_api(start_s, end_s)
             if result:
                 self._trading_days_cache[cache_key] = result
@@ -999,7 +1018,7 @@ class DataFetcher:
         
         # 计算需要的日历日数：约 1 交易日 ≈ 1.4 日历日，多取一些确保覆盖
         calendar_days = int(time_range * 1.6) + 10
-        end_date = datetime.now()
+        end_date = datetime.strptime(self._get_last_trading_day(), '%Y-%m-%d')
         required_start_date = (end_date - timedelta(days=calendar_days)).strftime('%Y%m%d')
         end_date_str = end_date.strftime('%Y%m%d')
         
@@ -1034,9 +1053,8 @@ class DataFetcher:
                 if end_str > by_code[code]['end']:
                     by_code[code]['end'] = end_str
 
-        last_trade_raw = self._get_last_trading_day_available() or ''
-        # 与 cache_end（YYYYMMDD）统一口径，禁止和 'YYYY-MM-DD' 做字符串比较（会误判 20260508 >= 2026-05-08）
-        last_trade_ymd = last_trade_raw.replace('-', '')[:8]
+        # 与「自然日今天」无关：用工作日口径的最后交易日 YYYYMMDD，与 get_stock_data 右端对齐；不调用 AkShare，避免非交易日误判缺数
+        last_trade_ymd = self._get_last_trading_day().replace('-', '')[:8]
 
         # 检查哪些股票需要拉取更多数据
         for code in all_codes:
@@ -1047,7 +1065,7 @@ class DataFetcher:
                 cache_start = by_code[code]['start']
                 cache_end = by_code[code]['end']
 
-                # 若缓存已经覆盖到最近可用交易日，优先使用缓存，不再预拉取
+                # 若缓存已覆盖到最后交易日（本地有最后一根 K），不要求再拉尾部
                 if last_trade_ymd and len(last_trade_ymd) == 8 and cache_end >= last_trade_ymd:
                     pass  # 尾部已够，仍要检查历史深度
                 elif last_trade_ymd and len(last_trade_ymd) == 8:
@@ -1203,12 +1221,22 @@ class DataFetcher:
             force_refresh: 为 True 时跳过缓存，强制从网络拉取新数据
         """
         if end_date is None:
-            end_date = datetime.now().strftime('%Y%m%d')
+            end_date = self._get_last_trading_day().replace('-', '')
         if start_date is None:
             start_date = (datetime.now() - timedelta(days=90)).strftime('%Y%m%d')
 
         start_date = str(start_date).replace('-', '')
         end_date = str(end_date).replace('-', '')
+        # 日 K 只存在到最后一个「工作日口径」的交易日；若请求 end 晚于该日，会误判缓存未全覆盖从而反复打网。
+        last_cal = self._get_last_trading_day().replace('-', '')
+        if (
+            len(last_cal) == 8
+            and last_cal.isdigit()
+            and len(end_date) == 8
+            and end_date.isdigit()
+            and end_date > last_cal
+        ):
+            end_date = last_cal
 
         if getattr(self, 'cache_only', False):
             return self._get_stock_data_cache_only(code, start_date, end_date)
@@ -1269,8 +1297,16 @@ class DataFetcher:
                         cache_min_str = cache_min.strftime('%Y%m%d')
                         cache_max_str = cache_max.strftime('%Y%m%d')
                         need_back = start_date < cache_min_str
-                        last_trade_day = self._get_last_trading_day()
-                        need_front = (end_date > cache_max_str) and (cache_max_str < last_trade_day)
+                        last_trade_ymd = self._get_last_trading_day().replace('-', '')[:8]
+                        # 仅当请求区间超出缓存右端、且右端仍早于「应存在的最后交易日」时才向前补（YYYYMMDD 比较）
+                        need_front = (end_date > cache_max_str) and (
+                            len(last_trade_ymd) == 8 and cache_max_str < last_trade_ymd
+                        )
+                        if not need_back and not need_front:
+                            s, e = pd.to_datetime(start_date), pd.to_datetime(end_date)
+                            df_hit = df_existing[(df_existing['日期'] >= s) & (df_existing['日期'] <= e)]
+                            if not df_hit.empty:
+                                return df_hit.reset_index(drop=True)
                         if need_back or need_front:
                             to_merge = [df_existing]
                             new_start = cache_data.get('start_date', cache_min_str)
