@@ -182,9 +182,10 @@
                   </template>
                   <template v-else-if="column.key === 'linkage_text'">
                     <Tooltip :title="formatLinkageTableCell(record as StockResult)">
-                      <span class="text-xs text-gray-800 max-w-[14rem] inline-block truncate align-top">
-                        {{ formatLinkageTableCell(record as StockResult) }}
-                      </span>
+                      <LinkageTableCell
+                        :record="record as StockResult"
+                        text-class="text-xs text-gray-800 max-w-[14rem] inline-block truncate align-top"
+                      />
                     </Tooltip>
                   </template>
                 </template>
@@ -298,9 +299,10 @@
                   </template>
                   <template v-else-if="column.key === 'linkage_text'">
                     <Tooltip :title="formatLinkageTableCell(record as StockResult)">
-                      <span class="text-xs text-gray-800 max-w-[min(48rem,88vw)] inline-block truncate align-top">
-                        {{ formatLinkageTableCell(record as StockResult) }}
-                      </span>
+                      <LinkageTableCell
+                        :record="record as StockResult"
+                        text-class="text-xs text-gray-800 max-w-[min(48rem,88vw)] inline-block truncate align-top"
+                      />
                     </Tooltip>
                   </template>
                 </template>
@@ -357,13 +359,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
+import { computed, ref, watch, onMounted, onUnmounted, h } from 'vue'
 import { Card, Table, Spin, Alert, Button, Space, Input, InputNumber, Menu, MenuItem, Select, Tabs, TabPane, Checkbox, Modal, Tag, Tooltip } from 'ant-design-vue'
 import { SearchOutlined, PlusOutlined, HolderOutlined, MenuOutlined } from '@ant-design/icons-vue'
 import draggable from 'vuedraggable'
 import type { ColumnsType } from 'ant-design-vue/es/table'
 import type { StockResult } from '@/types'
 import { formatLinkageTableCell } from '@/utils/linkageDisplay'
+import LinkageTableCell from '@/components/LinkageTableCell.vue'
 import {
   STOCK_CODE_NAME_COLUMN_KEY,
   STOCK_CODE_NAME_COLUMN_TITLE
@@ -515,7 +518,8 @@ const collectedColumns = computed<ColumnsType<StockResult>>(() => {
       key: 'linkage_text',
       width: 200,
       ellipsis: true,
-      customRender: ({ record }) => formatLinkageTableCell(record as StockResult)
+      customRender: ({ record }) =>
+        h(LinkageTableCell, { record: record as StockResult })
     },
     { title: '匹配价', dataIndex: 'match_price', key: 'match_price', width: 80, customRender: ({ text }) => text != null ? text.toFixed(2) : '-' },
     { title: '当前价', dataIndex: 'current_price', key: 'current_price', width: 80, customRender: ({ text }) => text != null ? text.toFixed(2) : '-' }
@@ -639,7 +643,8 @@ const historyHeadColumns: ColumnsType<StockResult> = [
     key: 'linkage_text',
     width: 280,
     ellipsis: true,
-    customRender: ({ record }) => formatLinkageTableCell(record as StockResult)
+    customRender: ({ record }) =>
+      h(LinkageTableCell, { record: record as StockResult })
   },
   { title: '匹配价', dataIndex: 'match_price', key: 'match_price', width: 120, customRender: ({ text }) => text ? text.toFixed(2) : '-' },
   { title: '当前价', dataIndex: 'current_price', key: 'current_price', width: 120, customRender: ({ text }) => text ? text.toFixed(2) : '-' }
@@ -712,7 +717,8 @@ const historyHeadDenseColumns: ColumnsType<StockResult> = [
     key: 'linkage_text',
     width: 200,
     ellipsis: true,
-    customRender: ({ record }) => formatLinkageTableCell(record as StockResult)
+    customRender: ({ record }) =>
+      h(LinkageTableCell, { record: record as StockResult })
   },
   { title: '匹配价', dataIndex: 'match_price', key: 'match_price', width: 80, align: 'right', sorter: (a, b) => (a.match_price || 0) - (b.match_price || 0) },
   { title: '当前价', dataIndex: 'current_price', key: 'current_price', width: 80, align: 'right', sorter: (a, b) => (a.current_price || 0) - (b.current_price || 0) }
@@ -848,7 +854,8 @@ const multiStrategyOverlapColumns: ColumnsType<StockResult> = [
     key: 'linkage_text',
     width: 280,
     ellipsis: true,
-    customRender: ({ record }) => formatLinkageTableCell(record as StockResult)
+    customRender: ({ record }) =>
+      h(LinkageTableCell, { record: record as StockResult })
   },
   {
     title: '命中策略数',

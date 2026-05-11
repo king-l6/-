@@ -7,6 +7,14 @@ function fmtBoardPct(p: number): string {
   return `${sign}${n.toFixed(2)}%`
 }
 
+/** 概念涨幅榜名次 ≤ 此值时 UI 高亮（含第 10 名） */
+export const LINKAGE_TOP_CONCEPT_RANK = 10
+
+export function isLinkageConceptTopRank(rank: unknown): boolean {
+  const n = Number(rank)
+  return Number.isFinite(n) && n >= 1 && n <= LINKAGE_TOP_CONCEPT_RANK
+}
+
 /** 与后端 sector_linkage.concept_hits_rank_pct_averages 一致：对全部概念条求名次均值、涨幅均值 */
 function conceptAveragesFromConcepts(
   lc: { pct?: number; rank?: number }[]
@@ -44,6 +52,40 @@ function formatConceptMeanSuffix(row: StockResult, lc: NonNullable<StockResult['
   return `｜概念均值:名次均${rankAvg.toFixed(1)}·涨幅均${fmtBoardPct(pctAvg)}`
 }
 
+export function formatLinkageConceptMeanSuffix(
+  row: StockResult,
+  lc: NonNullable<StockResult['linkage_concepts']>
+): string {
+  return formatConceptMeanSuffix(row, lc)
+}
+
+export function linkageConceptChunks(
+  lc: NonNullable<StockResult['linkage_concepts']>
+): { text: string; highlight: boolean }[] {
+  return lc.map((c) => {
+    const rk =
+      c.rank != null && Number.isFinite(Number(c.rank))
+        ? `·涨幅第${c.rank}名`
+        : ''
+    const text = `${c.name}(${fmtBoardPct(Number(c.pct))}${rk})`
+    return { text, highlight: isLinkageConceptTopRank(c.rank) }
+  })
+}
+
+/** 行业联动一行文案；无行业时返回 null */
+export function formatLinkageIndustryLine(row: StockResult): string | null {
+  const ind = row.linkage_industry?.trim()
+  if (!ind) return null
+  const ip = row.linkage_industry_pct
+  const ir = row.linkage_industry_rank
+  const rankSuffix =
+    typeof ir === 'number' && Number.isFinite(ir) ? `·涨幅第${ir}名` : ''
+  if (typeof ip === 'number' && !Number.isNaN(ip)) {
+    return `行业:${ind}(${fmtBoardPct(ip)}${rankSuffix})`
+  }
+  return `行业:${ind}${rankSuffix || ''}`
+}
+
 /**
  * 表格/导出用：优先用 linkage_concepts（含板块当日涨跌幅），避免旧 linkage_text 无涨幅时页面不显示。
  */
@@ -65,18 +107,8 @@ export function formatLinkageTableCell(row: StockResult): string {
         formatConceptMeanSuffix(row, lc)
     )
   }
-  const ind = row.linkage_industry?.trim()
-  if (ind) {
-    const ip = row.linkage_industry_pct
-    const ir = row.linkage_industry_rank
-    const rankSuffix =
-      typeof ir === 'number' && Number.isFinite(ir) ? `·涨幅第${ir}名` : ''
-    if (typeof ip === 'number' && !Number.isNaN(ip)) {
-      parts.push(`行业:${ind}(${fmtBoardPct(ip)}${rankSuffix})`)
-    } else {
-      parts.push(`行业:${ind}${rankSuffix || ''}`)
-    }
-  }
+  const industry = formatLinkageIndustryLine(row)
+  if (industry) parts.push(industry)
   if (parts.length > 0) {
     return parts.join('；')
   }

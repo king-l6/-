@@ -159,13 +159,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, onMounted, h } from 'vue'
 import { Card, Table, Spin, Alert, Button, Space, Input, InputNumber, Switch, message } from 'ant-design-vue'
 import { SearchOutlined, PlusOutlined } from '@ant-design/icons-vue'
 import { useStrategyStore } from '@/store/modules/strategy'
 import type { ColumnsType } from 'ant-design-vue/es/table'
 import type { StockResult } from '@/types'
 import { formatLinkageTableCell } from '@/utils/linkageDisplay'
+import LinkageTableCell from '@/components/LinkageTableCell.vue'
 import {
   STOCK_CODE_NAME_COLUMN_KEY,
   STOCK_CODE_NAME_COLUMN_TITLE
@@ -358,7 +359,8 @@ const columns: ColumnsType<StockResult> = [
     key: 'linkage_text',
     width: 280,
     ellipsis: true,
-    customRender: ({ record }) => formatLinkageTableCell(record as StockResult)
+    customRender: ({ record }) =>
+      h(LinkageTableCell, { record: record as StockResult })
   },
   {
     title: '匹配价',
@@ -504,7 +506,8 @@ const denseColumns: ColumnsType<StockResult> = [
     key: 'linkage_text',
     width: 200,
     ellipsis: true,
-    customRender: ({ record }) => formatLinkageTableCell(record as StockResult)
+    customRender: ({ record }) =>
+      h(LinkageTableCell, { record: record as StockResult })
   },
   {
     title: '匹配价',
