@@ -143,6 +143,10 @@ import type { TableColumnsType } from 'ant-design-vue'
 import * as echarts from 'echarts'
 import { getEmotionCycle, getEmotionCycleHealth, getCacheUpdateTaskStatus, startCacheUpdateTask } from '@/api'
 import type { CacheUpdateTaskStatus, EmotionCycleHealth, EmotionCycleReport } from '@/types'
+import {
+  STOCK_CODE_NAME_COLUMN_KEY,
+  STOCK_CODE_NAME_COLUMN_TITLE
+} from '@/constants/stockTable'
 
 const loading = ref(false)
 const healthLoading = ref(false)
@@ -175,8 +179,14 @@ const cacheTaskStatusText = computed(() => {
 })
 
 const leaderSegmentColumns: TableColumnsType = [
-  { title: '代码', dataIndex: 'code', key: 'code', width: 96 },
-  { title: '名称', dataIndex: 'name', key: 'name', ellipsis: true },
+  {
+    title: STOCK_CODE_NAME_COLUMN_TITLE,
+    key: STOCK_CODE_NAME_COLUMN_KEY,
+    width: 168,
+    ellipsis: true,
+    customRender: ({ record }: { record: { code?: string; name?: string } }) =>
+      `${record?.code ?? ''} ${record?.name ?? ''}`.trim() || '—'
+  },
   { title: '段内最高连板', dataIndex: 'max_consecutive_boards', key: 'max_consecutive_boards', width: 120 },
   { title: '开始', dataIndex: 'start_date', key: 'start_date' },
   { title: '结束', dataIndex: 'end_date', key: 'end_date' },

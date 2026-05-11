@@ -42,6 +42,22 @@ os.environ.setdefault('NO_PROXY', '*')
 os.environ.setdefault('no_proxy', '*')
 
 
+def _enrich_sector_linkage_after_main_write(filepath: str) -> None:
+    """主结果文件排序重写后补充板块/概念联动（与 strategy_engine / incremental 一致）。"""
+    if not filepath:
+        return
+    try:
+        import importlib.util
+        p = os.path.join(PROJECT_ROOT, 'scripts', 'enrich_sector_linkage.py')
+        spec = importlib.util.spec_from_file_location('esl_dynamic_append', p)
+        mod = importlib.util.module_from_spec(spec)
+        assert spec.loader is not None
+        spec.loader.exec_module(mod)
+        mod.enrich_results_jsonl_after_backtest(filepath)
+    except Exception as e:
+        print(f'[WARN] 板块联动 enrich: {filepath} — {e}', flush=True)
+
+
 def _read_one_results_file(filepath):
     """读取单个 .jsonl 结果文件，返回 (meta_dict, results_list[仅日期字符串])。"""
     meta = None
@@ -304,14 +320,12 @@ def _normalize_date_str(value):
         return s
 
 
-def append_results_to_main_file(results_dir, strategy_name, new_results, strategy_engine=None):
+def append_results_to_main_file(results_dir, strategy_name, new_results):
     """
     将新增结果追加到同一个 {策略名}_结果.jsonl 中：
     - 读取原文件所有记录 + 新记录
     - 按 (code, match_date, name) 去重
-    - 所有策略统一：连续三个 A 股交易日内同股只保留第一次（需传入 strategy_engine）
-    - 按 match_date, code 排序（含去重后再次排序，因同股三日去重会打乱全局顺序）
-    - 重写同一个文件
+    - 按 match_date, code 排序后重写同一个文件
 
     Returns:
         (写入路径或 None, 落盘后的总条数)；失败时为 (None, 0)。
@@ -347,14 +361,6 @@ def append_results_to_main_file(results_dir, strategy_name, new_results, strateg
     # 排序：先 match_date，再 code（字符串化，避免 int/str 混用导致顺序错乱）
     unique.sort(key=_result_row_sort_key)
 
-    # 默认：连续三个 A 股交易日内同股只保留第一次
-    # 连阳上影例外：保留 3 日内重复信号
-    if strategy_engine is not None and strategy_name != '连阳上影':
-        unique = strategy_engine._dedupe_same_stock_within_three_trading_days(unique, trading_days=3)
-
-    # 同股三日去重按 code 分组 extend，会打乱「按日期全局序」；落盘前再排一次
-    unique.sort(key=_result_row_sort_key)
-
     try:
         with open(filepath, 'w', encoding='utf-8') as f:
             meta = {
@@ -368,6 +374,7 @@ def append_results_to_main_file(results_dir, strategy_name, new_results, strateg
             f.write(json.dumps(meta, ensure_ascii=False, default=str) + '\n')
             for r in unique:
                 f.write(json.dumps(r, ensure_ascii=False, default=str) + '\n')
+        _enrich_sector_linkage_after_main_write(filepath)
         return filepath, len(unique)
     except Exception as e:
         print(f"[WARNING] 写入 {filepath} 失败: {e}")
@@ -416,11 +423,8 @@ def write_shard_results(results_dir, shard_id, task_index, all_results):
 def merge_shard_results(results_dir, shard_id, config_file):
     """
     将指定 shard_id 下所有分片结果文件合并回各自主结果文件，使用 append_results_to_main_file
-    进行去重和「三交易日内同股只保留一次」规则，然后清理分片文件。
+    按 (code, match_date, name) 去重合并，然后清理分片文件。
     """
-    from data_fetcher import DataFetcher
-    from strategy_engine import StrategyEngine
-
     shard_root = os.path.join(results_dir, 'incremental_shards', str(shard_id))
     if not os.path.isdir(shard_root):
         print(f'[ERROR] 分片目录不存在: {shard_root}')
@@ -431,7 +435,6 @@ def merge_shard_results(results_dir, shard_id, config_file):
         print('[ERROR] 未从配置文件中加载到任何策略，无法合并分片结果。')
         return
 
-    engine = StrategyEngine(DataFetcher(), max_workers=50)
     merged_total = 0
 
     print()
@@ -459,7 +462,7 @@ def merge_shard_results(results_dir, shard_id, config_file):
             print(f'{name}: 分片文件中无有效数据，跳过')
             continue
 
-        path, final_n = append_results_to_main_file(results_dir, name, shard_rows, strategy_engine=engine)
+        path, final_n = append_results_to_main_file(results_dir, name, shard_rows)
         if path:
             print(f'{name}: 分片合计 {len(shard_rows)} 条 → 与主文件合并去重后落盘 {final_n} 条 → {os.path.basename(path)}')
             merged_total += final_n
@@ -780,7 +783,7 @@ def main():
             name = s['name']
             rows = all_results.get(name, [])
             if rows:
-                path, final_n = append_results_to_main_file(results_dir, name, rows, strategy_engine=engine)
+                path, final_n = append_results_to_main_file(results_dir, name, rows)
                 if path:
                     print(f'{name}: 本次扫描 {len(rows)} 条，与主文件合并去重后落盘 {final_n} 条 → {os.path.basename(path)}')
                     total_written += final_n
@@ -791,7 +794,7 @@ def main():
         print()
         print('=' * 60)
         print(f'增量回测完成，共 {len(trading_days)} 个 T 日 × {len(strategies)} 个策略；'
-              f'本次扫描合计 {total_count} 条，写入文件合计 {total_written} 条（已含去重与三日同股规则）')
+              f'本次扫描合计 {total_count} 条，写入文件合计 {total_written} 条（已含 code+match_date+name 合并去重）')
         print('=' * 60)
 
 

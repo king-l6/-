@@ -1,0 +1,14 @@
+{
+"board_id": "hangye_ZA03",
+"board_name": "畜牧业",
+"provider": "sina",
+"em_board_kind": "industry",
+"codes": [
+"000663",
+"002200",
+"002679",
+"600189",
+"600265"
+],
+"fetched_at": "2026-05-10T07:21:24+00:00"
+}

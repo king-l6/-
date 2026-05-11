@@ -1,10 +1,10 @@
 import { computed, ref } from 'vue'
 import type { ColumnsType } from 'ant-design-vue/es/table'
 
-const STORAGE_KEY = 'history-results-column-prefs-v1'
+const STORAGE_KEY = 'history-results-column-prefs-v2'
 
-/** 不可隐藏：至少保留代码与名称 */
-export const HISTORY_TABLE_REQUIRED_KEYS = ['code', 'name'] as const
+/** 不可隐藏：合并列「代码·名称」 */
+export const HISTORY_TABLE_REQUIRED_KEYS = ['code_name'] as const
 
 /** 默认可吸右侧固定区（顺序可改，但会作为整块贴在表格右侧） */
 export const HISTORY_TABLE_RIGHT_FIXED_KEYS = [
@@ -110,7 +110,7 @@ export function reconcileFixedColumns<T extends Record<string, unknown>>(cols: C
   })
   if (out.length === 0) return out
 
-  if (getColumnKey(out[0]) === 'code') {
+  if (getColumnKey(out[0]) === 'code_name') {
     ;(out[0] as ColumnsType<T>[number] & { fixed?: string }).fixed = 'left'
   }
 

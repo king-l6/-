@@ -4,6 +4,8 @@
 
 - **股票列表（仅代码与简称）**：**AkShare** 优先拉交易所公开主板清单（沪市「主板A股」、深市「A股列表」中板块为「主板」）；失败或结果过少时依次尝试东财 `stock_zh_a_spot_em`（必要时 `stock_sh_a_spot_em` / `stock_sz_a_spot_em`）、新浪 `stock_zh_a_spot`；均与项目内主板规则一致；再失败则用本地 `cache/stock_list.json` 过期缓存（若有）。
 - **日 K 线（开高低收、量额、涨跌幅等）**：**AkShare** 优先 `stock_zh_a_hist`（东方财富，不复权）；失败时依次尝试 `stock_zh_a_daily`（新浪）、`stock_zh_a_hist_tx`（腾讯，若当前版本提供）；统一落成与缓存一致的中文列。腾讯路径无官方成交额字段时成交额记为 0，由下游 `_normalize_hist_df` 等仍可读数。**熔断**：批量拉取时若东财对「单只股票单次调用」累计失败达到 `data_fetcher.EASTMONEY_HIST_CB_THRESHOLD`（默认 50）只，本会话内不再请求东财，后续股票直接走新浪/腾讯。
+- **板块/概念联动（enrich 脚本）**：优先东财 EM 概念/行业板块排行与成份；不可用时自动改用新浪 `stock_sector_spot`（「概念」「行业」）+ `stock_sector_detail` 拉成份，缓存见 `cache/sector_linkage/`。东财长期不可用时可用 `python scripts/enrich_sector_linkage.py --source sina` 跳过东财、仅用新浪。与 `match_date` 无历史对齐，详见 `sector_linkage.py` 注释。  
+  **全量回测**（`strategy_engine` / `batch_backtest`）在写入各策略 `策略名_结果.jsonl` 后会自动 enrich；**增量按日** `scripts/incremental_backtest.py`、**按最后日期追加** `scripts/backtest_append_from_last.py` 在主文件重写后也会 enrich。上述入口统一为 `enrich_sector_linkage.enrich_results_jsonl_after_backtest`（多策略并行 batch 时 **互斥**，避免 enrich 竞态导致整文件无 `linkage_*`）。可用 `SKIP_SECTOR_LINKAGE_ENRICH=1` 关闭；`SECTOR_LINKAGE_SOURCE=auto` 恢复东财优先；`SECTOR_LINKAGE_CLEAR_PROXY=1` 清除代理；默认 **新浪优先**。**多策略同日聚合**从各策略行合并已有 `linkage_*`。
 - **交易日历 / 「最近可用交易日」**：用 AkShare 拉 **000001** 日 K 的日期序列推断（与旧版用基准股探测思路一致）。
 - **情绪周期页 / 已落盘缓存**：计算时只读本地 `cache/stock_data`，**最快**；**准度**等于当前缓存里已写入的交易日数据（见下文「当日数据何时可用」）。
 

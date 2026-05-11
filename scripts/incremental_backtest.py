@@ -44,6 +44,22 @@ def load_strategies(config_file='common_strategies.json'):
         sys.exit(1)
 
 
+def _enrich_sector_linkage_jsonl(filepath: str) -> None:
+    """增量日文件写盘后补充板块联动（与全量 strategy_engine 同一入口）。"""
+    try:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            'esl_dynamic',
+            os.path.join(PROJECT_ROOT, 'scripts', 'enrich_sector_linkage.py'),
+        )
+        mod = importlib.util.module_from_spec(spec)
+        assert spec.loader is not None
+        spec.loader.exec_module(mod)
+        mod.enrich_results_jsonl_after_backtest(filepath)
+    except Exception as e:
+        print(f'       [WARN] 板块联动 enrich 跳过: {e}', flush=True)
+
+
 def write_daily_results(results_dir, strategy_name, trading_date_str, results):
     """写入 策略名_YYYYMMDD_结果.jsonl"""
     date_compact = trading_date_str.replace('-', '')
@@ -128,6 +144,7 @@ def main():
                 path = write_daily_results(results_dir, name, trading_date, results)
                 if path:
                     print(f'       -> {len(results)} 条 -> {os.path.basename(path)}', flush=True)
+                    _enrich_sector_linkage_jsonl(path)
                 total_count += len(results)
             else:
                 print(f'       -> 0 条', flush=True)

@@ -83,7 +83,7 @@
       <!-- 我的自选：放在表格上方，添加后一眼能看到 -->
       <Card :title="`我的自选${collectedItems.length > 0 ? ` (${collectedItems.length} 条)` : ''}`" class="mb-3" size="small">
         <div v-if="collectedItems.length === 0" class="py-2 text-center text-gray-500 text-sm">
-          点击下方表格「名称」列前的 ＋ 图标可加入自选
+          点击下方表格「代码·名称」列前的 ＋ 图标可加入自选
         </div>
         <Table
           v-else
@@ -127,16 +127,20 @@
         :row-class-name="isDense ? getRowClassName : undefined"
       >
         <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'name' || column.dataIndex === 'name'">
-            <div class="flex items-center gap-1.5">
+          <template v-if="column.key === 'code_name'">
+            <div class="flex items-center gap-1.5 flex-wrap min-w-0">
               <span
-                class="cursor-pointer text-primary hover:opacity-80 inline-flex items-center"
+                class="cursor-pointer text-primary hover:opacity-80 inline-flex items-center shrink-0"
                 title="加入自选"
                 @click.stop="handleAddToCollection(record as StockResult)"
               >
                 <PlusOutlined />
               </span>
-              <span>{{ record.name }}</span>
+              <span
+                class="font-mono font-semibold shrink-0"
+                :class="isDense ? 'text-xs' : 'text-sm'"
+              >{{ (record as any).code }}</span>
+              <span class="min-w-0" :class="isDense ? 'text-xs' : ''">{{ (record as any).name }}</span>
             </div>
           </template>
           <template v-else-if="isDense && column.key === 'match_date'">
@@ -147,9 +151,6 @@
           </template>
           <template v-else-if="isDense && column.key === 'current_price'">
             <span class="font-mono text-xs">{{ formatPrice((record as any).current_price) }}</span>
-          </template>
-          <template v-else-if="isDense && column.key === 'code'">
-            <span class="font-mono text-xs font-semibold">{{ (record as any).code }}</span>
           </template>
         </template>
       </Table>
@@ -164,6 +165,11 @@ import { SearchOutlined, PlusOutlined } from '@ant-design/icons-vue'
 import { useStrategyStore } from '@/store/modules/strategy'
 import type { ColumnsType } from 'ant-design-vue/es/table'
 import type { StockResult } from '@/types'
+import { formatLinkageTableCell } from '@/utils/linkageDisplay'
+import {
+  STOCK_CODE_NAME_COLUMN_KEY,
+  STOCK_CODE_NAME_COLUMN_TITLE
+} from '@/constants/stockTable'
 
 const strategyStore = useStrategyStore()
 
@@ -200,7 +206,7 @@ function saveFavoritesToStorage() {
 
 const paginationDense = ref({
   current: 1,
-  pageSize: 50,
+  pageSize: 200,
   showSizeChanger: true,
   pageSizeOptions: ['20', '50', '100', '200'],
   showTotal: (total: number) => `共 ${total} 条`,
@@ -208,7 +214,7 @@ const paginationDense = ref({
 })
 const paginationNormal = ref({
   current: 1,
-  pageSize: 20,
+  pageSize: 200,
   showSizeChanger: true,
   showTotal: (total: number) => `共 ${total} 条`
 })
@@ -223,8 +229,16 @@ function onTableChange(pag: { current?: number; pageSize?: number }) {
 }
 
 const collectedColumns: ColumnsType<StockResult> = [
-  { title: '代码', dataIndex: 'code', key: 'code', width: 80 },
-  { title: '名称', dataIndex: 'name', key: 'name', width: 100 },
+  {
+    title: STOCK_CODE_NAME_COLUMN_TITLE,
+    key: STOCK_CODE_NAME_COLUMN_KEY,
+    width: 160,
+    ellipsis: true,
+    customRender: ({ record }) => {
+      const r = record as StockResult
+      return `${r.code ?? ''} ${r.name ?? ''}`.trim() || '-'
+    }
+  },
   { title: '匹配日期', dataIndex: 'match_date', key: 'match_date', width: 100 },
   { title: '匹配价', dataIndex: 'match_price', key: 'match_price', width: 80, customRender: ({ text }) => text != null ? text.toFixed(2) : '-' },
   { title: '当前价', dataIndex: 'current_price', key: 'current_price', width: 80, customRender: ({ text }) => text != null ? text.toFixed(2) : '-' },
@@ -322,17 +336,14 @@ function renderDay2BuyHitCell(record: StockResult): string {
 
 const columns: ColumnsType<StockResult> = [
   {
-    title: '代码',
-    dataIndex: 'code',
-    key: 'code',
-    width: 100,
-    fixed: 'left'
-  },
-  {
-    title: '名称',
-    dataIndex: 'name',
-    key: 'name',
-    width: 120
+    title: STOCK_CODE_NAME_COLUMN_TITLE,
+    key: STOCK_CODE_NAME_COLUMN_KEY,
+    width: 160,
+    fixed: 'left',
+    ellipsis: true,
+    sorter: (a, b) =>
+      String(a.code || '').localeCompare(String(b.code || '')) ||
+      String(a.name || '').localeCompare(String(b.name || ''))
   },
   {
     title: '匹配日期',
@@ -340,6 +351,14 @@ const columns: ColumnsType<StockResult> = [
     key: 'match_date',
     width: 120,
     customRender: ({ text }) => formatDate(text ?? '')
+  },
+  {
+    title: '板块/概念联动',
+    dataIndex: 'linkage_text',
+    key: 'linkage_text',
+    width: 280,
+    ellipsis: true,
+    customRender: ({ record }) => formatLinkageTableCell(record as StockResult)
   },
   {
     title: '匹配价',
@@ -454,19 +473,14 @@ const columns: ColumnsType<StockResult> = [
 
 const denseColumns: ColumnsType<StockResult> = [
   {
-    title: '代码',
-    dataIndex: 'code',
-    key: 'code',
-    width: 80,
+    title: STOCK_CODE_NAME_COLUMN_TITLE,
+    key: STOCK_CODE_NAME_COLUMN_KEY,
+    width: 160,
     fixed: 'left',
-    sorter: (a, b) => a.code.localeCompare(b.code)
-  },
-  {
-    title: '名称',
-    dataIndex: 'name',
-    key: 'name',
-    width: 100,
-    sorter: (a, b) => a.name.localeCompare(b.name)
+    ellipsis: true,
+    sorter: (a, b) =>
+      String(a.code || '').localeCompare(String(b.code || '')) ||
+      String(a.name || '').localeCompare(String(b.name || ''))
   },
   {
     title: '匹配日期',
@@ -483,6 +497,14 @@ const denseColumns: ColumnsType<StockResult> = [
       return dateA.localeCompare(dateB)
     },
     customRender: ({ text }) => formatDate(text ?? '')
+  },
+  {
+    title: '联动',
+    dataIndex: 'linkage_text',
+    key: 'linkage_text',
+    width: 200,
+    ellipsis: true,
+    customRender: ({ record }) => formatLinkageTableCell(record as StockResult)
   },
   {
     title: '匹配价',
@@ -635,11 +657,11 @@ function handleExport() {
   })
 
   // 构建 CSV 内容
-  const headers = ['代码', '名称', '匹配日期', '匹配价', '当前价', '连阳天数', '上影线幅度%', '连阳触板', '次日涨跌%', '第三日涨跌%', 'T日涨停标记', '主力建仓结构', '收涨个数', '斜率向上收涨个数']
+  const headers = ['代码·名称', '匹配日期', '板块概念联动', '匹配价', '当前价', '连阳天数', '上影线幅度%', '连阳触板', '次日涨跌%', '第三日涨跌%', 'T日涨停标记', '主力建仓结构', '收涨个数', '斜率向上收涨个数']
   const rows = sortedData.map(item => [
-    item.code,
-    item.name,
+    `${item.code ?? ''} ${item.name ?? ''}`.trim(),
     formatDate(item.match_date),
+    formatLinkageTableCell(item),
     item.match_price?.toFixed(2) || '',
     item.current_price?.toFixed(2) || '',
     item.consecutive_up_days ?? '',

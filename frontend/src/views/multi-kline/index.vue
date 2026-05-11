@@ -89,6 +89,10 @@ import type { ColumnsType } from 'ant-design-vue/es/table'
 import type { EChartsOption } from 'echarts'
 import { getEmotionCycle, getStockDaily } from '@/api'
 import type { EmotionCycleReport, MarketLeaderSegmentRow } from '@/types'
+import {
+  STOCK_CODE_NAME_COLUMN_KEY,
+  STOCK_CODE_NAME_COLUMN_TITLE
+} from '@/constants/stockTable'
 import MultiStockKlineWorkbench from '@/components/charts/MultiStockKlineWorkbench.vue'
 import type { DailyBar, KlineSeriesModel, MarkerModel, PhaseModel } from '@/utils/multiKlineChart'
 import {
@@ -151,8 +155,16 @@ const segmentColumns: ColumnsType<SegmentRow> = [
   { title: '#', dataIndex: 'idx', key: 'idx', width: 44, align: 'right' },
   { title: '开始', dataIndex: 'start_date', key: 'start_date', width: 112 },
   { title: '结束', dataIndex: 'end_date', key: 'end_date', width: 112 },
-  { title: '代码', dataIndex: 'code', key: 'code', width: 88 },
-  { title: '名称', dataIndex: 'name', key: 'name', ellipsis: true },
+  {
+    title: STOCK_CODE_NAME_COLUMN_TITLE,
+    key: STOCK_CODE_NAME_COLUMN_KEY,
+    width: 160,
+    ellipsis: true,
+    customRender: ({ record }) => {
+      const r = record as SegmentRow
+      return `${r.code ?? ''} ${r.name ?? ''}`.trim() || '—'
+    }
+  },
   { title: '天数', dataIndex: 'days', key: 'days', width: 64, align: 'right' },
   { title: '段内最高连板', dataIndex: 'max_boards', key: 'max_boards', width: 112, align: 'right' },
   { title: '本页叠K', dataIndex: 'on_chart', key: 'on_chart', width: 88, align: 'center' }

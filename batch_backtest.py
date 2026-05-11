@@ -21,10 +21,15 @@
 
 6. 仅本地缓存回测（不访问 AkShare / 不拉 K 线）：
    python batch_backtest.py --cache-only --no-parallel
+
+7. 窗口内「每个命中日」都写入 jsonl（日频图=当日真实命中数；同股可多日多行）：
+   python batch_backtest.py --all-match-dates --cache-only --no-parallel
+   （等价于环境变量 BACKTEST_EMIT_ALL_MATCH_DATES=1）
 """
 
 import json
 import argparse
+import os
 import sys
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -169,8 +174,15 @@ def main():
         action='store_true',
         help='仅使用本地 cache/stock_data 与 stock_list.json 回测，不访问 AkShare（ensure_sufficient_data 跳过）',
     )
+    parser.add_argument(
+        '--all-match-dates',
+        action='store_true',
+        help='全量回测输出窗口内每个命中日（同股可多条），便于日频图与单日扫描口径一致',
+    )
 
     args = parser.parse_args()
+    if args.all_match_dates:
+        os.environ['BACKTEST_EMIT_ALL_MATCH_DATES'] = '1'
     
     print('=' * 80)
     print('批量策略回测工具')
@@ -182,6 +194,8 @@ def main():
         print(f'最大并行策略数: {args.max_parallel}')
     if args.cache_only:
         print('数据模式: 仅本地缓存（--cache-only，不拉网）')
+    if args.all_match_dates:
+        print('命中输出: --all-match-dates（每命中日一行，日频为真实命中数）')
     print()
     
     # 加载策略

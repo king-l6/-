@@ -1,0 +1,14 @@
+{
+"board_id": "hangye_ZC14",
+"board_name": "食品制造业",
+"provider": "sina",
+"em_board_kind": "industry",
+"codes": [
+"002494",
+"002674",
+"600439",
+"603608",
+"603958"
+],
+"fetched_at": "2026-05-10T07:21:20+00:00"
+}

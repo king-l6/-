@@ -7,9 +7,9 @@
         </Button>
         <Button v-if="hasResults" size="small" @click="handleExport">导出CSV</Button>
         <Input
-          v-if="hasResults && isDense"
+          v-if="hasResults && (isDense || isMultiStrategyOverlapFile)"
           v-model:value="searchText"
-          placeholder="搜索代码或名称"
+          :placeholder="isMultiStrategyOverlapFile ? '搜索代码、名称或策略名' : '搜索代码或名称'"
           allow-clear
           size="small"
           class="w-32 sm:w-36 md:w-[150px]"
@@ -104,7 +104,17 @@
 
       <!-- 元数据信息 -->
       <div v-if="metaInfo" class="mb-1.5 py-1 px-2 bg-blue-50 border-l-4 border-blue-500 rounded">
-        <div class="text-[11px] leading-snug text-gray-700">
+        <div v-if="isMultiStrategyOverlapFile" class="text-[11px] leading-snug text-gray-700 space-y-0.5">
+          <div v-if="(metaInfo as any).note" class="text-gray-800">{{ (metaInfo as any).note }}</div>
+          <div>
+            <span class="font-semibold">类型:</span> 多策略同日汇总（{{ (metaInfo as any).kind || 'overlap' }}） |
+            <span class="font-semibold">数据条数:</span> {{ metaInfo.count ?? results.length }}
+            <template v-if="(metaInfo as any).run_at">
+              | <span class="font-semibold">生成时间:</span> {{ formatDate((metaInfo as any).run_at) }}
+            </template>
+          </div>
+        </div>
+        <div v-else class="text-[11px] leading-snug text-gray-700">
           <span class="font-semibold">策略名称:</span> {{ metaInfo.strategy_name || '未知' }} | 
           <span class="font-semibold">运行时间:</span> {{ formatDate(metaInfo.run_at) }} | 
           <span class="font-semibold">数据条数:</span> {{ metaInfo.count || results.length }}
@@ -142,13 +152,20 @@
               暂无按日数据，无法绘制趋势图
             </div>
           </div>
+          <p v-if="!isMultiStrategyOverlapFile" class="text-[11px] text-gray-500 mt-1 leading-snug">
+            按每条结果的 <span class="font-mono">match_date</span> 计数。默认全量 jsonl 常为「每只股票只保留窗口内最后一次命中」，日频不等于「当日全市场真实命中数」；需要后者时请用
+            <span class="font-mono text-[10px]">batch_backtest.py --all-match-dates</span> 重新生成结果文件。
+          </p>
+          <p v-else class="text-[11px] text-gray-500 mt-1 leading-snug">
+            按 <span class="font-mono">match_date</span> 计数；本文件为「同日多策略重叠」汇总，表格中「重叠策略」列为当日同时命中的策略名。
+          </p>
         </Card>
 
         <Tabs v-model:activeKey="contentTabKey" type="card" size="small" class="mb-2">
           <TabPane key="favorites" :tab="`我的自选${collectedItems.length > 0 ? ` (${collectedItems.length})` : ''}`">
             <Card :title="`我的自选${collectedItems.length > 0 ? ` (${collectedItems.length} 条)` : ''}`" size="small" class="mb-0">
               <div v-if="collectedItems.length === 0" class="py-6 text-center text-gray-500 text-sm">
-                点击「数据列表」中表格「名称」列前的 ＋ 图标可加入自选
+                点击「数据列表」中表格「代码·名称」列前的 ＋ 图标可加入自选
               </div>
               <Table
                 v-else
@@ -163,6 +180,13 @@
                   <template v-if="column.key === 'action'">
                     <Button type="link" danger size="small" @click="handleRemove(record as StockResult)">删除</Button>
                   </template>
+                  <template v-else-if="column.key === 'linkage_text'">
+                    <Tooltip :title="formatLinkageTableCell(record as StockResult)">
+                      <span class="text-xs text-gray-800 max-w-[14rem] inline-block truncate align-top">
+                        {{ formatLinkageTableCell(record as StockResult) }}
+                      </span>
+                    </Tooltip>
+                  </template>
                 </template>
               </Table>
             </Card>
@@ -172,13 +196,13 @@
               <div class="text-sm font-semibold text-primary">
                 找到 {{ filteredResults.length }} 只符合条件的股票
               </div>
-              <div class="text-xs text-slate-600" v-if="tenDayHitStats.validCount > 0">
+              <div class="text-xs text-slate-600" v-if="!isMultiStrategyOverlapFile && tenDayHitStats.validCount > 0">
                 次日开盘买入后10个交易日内最高涨幅&gt;5% 概率：
                 <span class="font-semibold text-rose-600">
                   {{ tenDayHitStats.hitCount }}/{{ tenDayHitStats.validCount }} ({{ tenDayHitStats.hitRateText }})
                 </span>
               </div>
-              <Checkbox v-model:checked="filterDay2Strong" class="text-sm">
+              <Checkbox v-if="!isMultiStrategyOverlapFile" v-model:checked="filterDay2Strong" class="text-sm">
                 当日涨幅&gt;3% 或 振幅&gt;3%
               </Checkbox>
               <InputNumber
@@ -190,14 +214,14 @@
                 class="w-[148px]"
                 placeholder="收涨日数>="
               />
-              <Button size="small" @click="openColumnModal">
+              <Button v-if="!isMultiStrategyOverlapFile" size="small" @click="openColumnModal">
                 <template #icon><MenuOutlined /></template>
                 列设置
               </Button>
             </div>
             <div :class="['overflow-x-auto w-full -mx-2 px-2 md:mx-0 md:px-0', { 'history-table-mobile': isNarrowScreen }]">
               <Table
-                :columns="isDense ? displayDenseColumns : displayColumns"
+                :columns="listTableColumns"
                 :data-source="filteredResults"
                 :loading="loading"
                 :pagination="isDense ? paginationDense : paginationNormal"
@@ -213,10 +237,10 @@
                 }"
               >
                 <template #bodyCell="{ column, record }">
-                  <template v-if="column.key === 'name' || column.dataIndex === 'name'">
-                    <div class="flex items-center gap-1.5 flex-wrap">
+                  <template v-if="column.key === 'code_name'">
+                    <div class="flex items-center gap-1.5 flex-wrap min-w-0">
                       <span
-                        class="cursor-pointer text-primary hover:opacity-80 inline-flex items-center"
+                        class="cursor-pointer text-primary hover:opacity-80 inline-flex items-center shrink-0"
                         title="加入自选"
                         @click.stop="handleAddToCollection(record as StockResult)"
                       >
@@ -224,19 +248,23 @@
                       </span>
                       <span
                         v-if="getDayLeaderLabel(record as StockResult)"
-                        class="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-700 font-medium"
+                        class="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-700 font-medium shrink-0"
                         :title="getDayLeaderLabel(record as StockResult)"
                       >
                         {{ getDayLeaderLabel(record as StockResult) }}
                       </span>
                       <span
                         v-if="(record as any).touch_limit_not_close"
-                        class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-700 font-medium"
+                        class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-700 font-medium shrink-0"
                         title="T日最高价到涨停，收盘未封板；且近30日三连板、近10日有涨停"
                       >
                         摸板未封
                       </span>
-                      <span>{{ record.name }}</span>
+                      <span
+                        class="font-mono font-semibold shrink-0"
+                        :class="isDense ? 'text-xs' : 'text-sm'"
+                      >{{ (record as any).code }}</span>
+                      <span class="min-w-0" :class="isDense ? 'text-xs' : ''">{{ (record as any).name }}</span>
                     </div>
                   </template>
                   <template v-else-if="isDense && column.key === 'match_date'">
@@ -248,8 +276,32 @@
                   <template v-else-if="isDense && column.key === 'current_price'">
                     <span class="font-mono text-xs">{{ formatPrice((record as any).current_price) }}</span>
                   </template>
-                  <template v-else-if="isDense && column.key === 'code'">
-                    <span class="font-mono text-xs font-semibold">{{ (record as any).code }}</span>
+                  <template v-else-if="column.key === 'overlap_strategies'">
+                    <div class="flex flex-wrap gap-1 max-w-[min(100vw-4rem,28rem)]">
+                      <Tag
+                        v-for="(s, i) in overlapStrategyLabels(record as StockResult)"
+                        :key="`${(record as any).code}-${i}`"
+                        color="processing"
+                        class="m-0"
+                      >
+                        {{ s }}
+                      </Tag>
+                      <span v-if="overlapStrategyLabels(record as StockResult).length === 0" class="text-gray-400 text-xs">-</span>
+                    </div>
+                  </template>
+                  <template v-else-if="column.key === 'overlap_summary'">
+                    <Tooltip :title="String((record as any).overlap_summary || '').trim() || undefined">
+                      <span class="text-xs text-gray-700 line-clamp-2 cursor-default">
+                        {{ (record as any).overlap_summary || '-' }}
+                      </span>
+                    </Tooltip>
+                  </template>
+                  <template v-else-if="column.key === 'linkage_text'">
+                    <Tooltip :title="formatLinkageTableCell(record as StockResult)">
+                      <span class="text-xs text-gray-800 max-w-[min(48rem,88vw)] inline-block truncate align-top">
+                        {{ formatLinkageTableCell(record as StockResult) }}
+                      </span>
+                    </Tooltip>
                   </template>
                 </template>
               </Table>
@@ -267,7 +319,7 @@
       destroy-on-close
     >
       <p class="text-xs text-gray-500 mb-2">
-        拖拽左侧手柄调整列顺序；取消勾选可隐藏列（代码、名称不可隐藏）。设置按「密集 / 普通」分别保存。
+        拖拽左侧手柄调整列顺序；取消勾选可隐藏列（「代码·名称」不可隐藏）。设置按「密集 / 普通」分别保存。
       </p>
       <draggable
         v-model="draftColumnRows"
@@ -306,11 +358,16 @@
 
 <script setup lang="ts">
 import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
-import { Card, Table, Spin, Alert, Button, Space, Input, InputNumber, Menu, MenuItem, Select, Tabs, TabPane, Checkbox, Modal } from 'ant-design-vue'
+import { Card, Table, Spin, Alert, Button, Space, Input, InputNumber, Menu, MenuItem, Select, Tabs, TabPane, Checkbox, Modal, Tag, Tooltip } from 'ant-design-vue'
 import { SearchOutlined, PlusOutlined, HolderOutlined, MenuOutlined } from '@ant-design/icons-vue'
 import draggable from 'vuedraggable'
 import type { ColumnsType } from 'ant-design-vue/es/table'
 import type { StockResult } from '@/types'
+import { formatLinkageTableCell } from '@/utils/linkageDisplay'
+import {
+  STOCK_CODE_NAME_COLUMN_KEY,
+  STOCK_CODE_NAME_COLUMN_TITLE
+} from '@/constants/stockTable'
 import { useHistoryResults } from '@/hooks/history-results/useHistoryResults'
 import {
   applyHistoryColumnPrefs,
@@ -380,7 +437,8 @@ const {
   getDayLeaderLabel,
   handleExport,
   isNarrowScreen,
-  filterDay2Strong
+  filterDay2Strong,
+  isMultiStrategyOverlapFile
 } = useHistoryResults()
 
 const { densePrefs, normalPrefs, setDensePrefs, setNormalPrefs, resetDensePrefs, resetNormalPrefs } =
@@ -440,9 +498,25 @@ function applyColumnModal() {
 
 const collectedColumns = computed<ColumnsType<StockResult>>(() => {
   const head: ColumnsType<StockResult> = [
-    { title: '代码', dataIndex: 'code', key: 'code', width: 80 },
-    { title: '名称', dataIndex: 'name', key: 'name', width: 100 },
+    {
+      title: STOCK_CODE_NAME_COLUMN_TITLE,
+      key: STOCK_CODE_NAME_COLUMN_KEY,
+      width: 168,
+      ellipsis: true,
+      customRender: ({ record }) => {
+        const r = record as StockResult
+        return `${r.code ?? ''} ${r.name ?? ''}`.trim() || '-'
+      }
+    },
     { title: '匹配日期', dataIndex: 'match_date', key: 'match_date', width: 100, customRender: ({ text }) => formatDate(text ?? '') },
+    {
+      title: '联动',
+      dataIndex: 'linkage_text',
+      key: 'linkage_text',
+      width: 200,
+      ellipsis: true,
+      customRender: ({ record }) => formatLinkageTableCell(record as StockResult)
+    },
     { title: '匹配价', dataIndex: 'match_price', key: 'match_price', width: 80, customRender: ({ text }) => text != null ? text.toFixed(2) : '-' },
     { title: '当前价', dataIndex: 'current_price', key: 'current_price', width: 80, customRender: ({ text }) => text != null ? text.toFixed(2) : '-' }
   ]
@@ -548,9 +622,25 @@ const historyMainForceDenseColumns: ColumnsType<StockResult> = [
 ]
 
 const historyHeadColumns: ColumnsType<StockResult> = [
-  { title: '代码', dataIndex: 'code', key: 'code', width: 100, fixed: 'left' },
-  { title: '名称', dataIndex: 'name', key: 'name', width: 120 },
+  {
+    title: STOCK_CODE_NAME_COLUMN_TITLE,
+    key: STOCK_CODE_NAME_COLUMN_KEY,
+    width: 168,
+    fixed: 'left',
+    ellipsis: true,
+    sorter: (a, b) =>
+      String(a.code || '').localeCompare(String(b.code || '')) ||
+      String(a.name || '').localeCompare(String(b.name || ''))
+  },
   { title: '匹配日期', dataIndex: 'match_date', key: 'match_date', width: 120, customRender: ({ text }) => formatDate(text ?? '') },
+  {
+    title: '板块/概念联动',
+    dataIndex: 'linkage_text',
+    key: 'linkage_text',
+    width: 280,
+    ellipsis: true,
+    customRender: ({ record }) => formatLinkageTableCell(record as StockResult)
+  },
   { title: '匹配价', dataIndex: 'match_price', key: 'match_price', width: 120, customRender: ({ text }) => text ? text.toFixed(2) : '-' },
   { title: '当前价', dataIndex: 'current_price', key: 'current_price', width: 120, customRender: ({ text }) => text ? text.toFixed(2) : '-' }
 ]
@@ -605,9 +695,25 @@ const historyDayColumns: ColumnsType<StockResult> = [
 ]
 
 const historyHeadDenseColumns: ColumnsType<StockResult> = [
-  { title: '代码', dataIndex: 'code', key: 'code', width: 80, fixed: 'left', sorter: (a, b) => a.code.localeCompare(b.code) },
-  { title: '名称', dataIndex: 'name', key: 'name', width: 100, sorter: (a, b) => a.name.localeCompare(b.name) },
+  {
+    title: STOCK_CODE_NAME_COLUMN_TITLE,
+    key: STOCK_CODE_NAME_COLUMN_KEY,
+    width: 160,
+    fixed: 'left',
+    ellipsis: true,
+    sorter: (a, b) =>
+      String(a.code || '').localeCompare(String(b.code || '')) ||
+      String(a.name || '').localeCompare(String(b.name || ''))
+  },
   { title: '匹配日期', dataIndex: 'match_date', key: 'match_date', width: 100, sortDirections: ['ascend', 'descend'], sorter: (a, b) => ((a.match_date || '').trim()).localeCompare((b.match_date || '').trim()), customRender: ({ text }) => formatDate(text ?? '') },
+  {
+    title: '联动',
+    dataIndex: 'linkage_text',
+    key: 'linkage_text',
+    width: 200,
+    ellipsis: true,
+    customRender: ({ record }) => formatLinkageTableCell(record as StockResult)
+  },
   { title: '匹配价', dataIndex: 'match_price', key: 'match_price', width: 80, align: 'right', sorter: (a, b) => (a.match_price || 0) - (b.match_price || 0) },
   { title: '当前价', dataIndex: 'current_price', key: 'current_price', width: 80, align: 'right', sorter: (a, b) => (a.current_price || 0) - (b.current_price || 0) }
 ]
@@ -698,6 +804,70 @@ const displayDenseColumns = computed(() => {
   const cols = applyHistoryColumnPrefs(denseColumns.value, densePrefs.value)
   if (!isNarrowScreen.value) return cols
   return stripColumnWidths(cols)
+})
+
+function overlapStrategyLabels(record: StockResult): string[] {
+  const r = record as any
+  if (Array.isArray(r.overlap_strategies) && r.overlap_strategies.length) {
+    return r.overlap_strategies.map((s: unknown) => String(s).trim()).filter(Boolean)
+  }
+  const t = r.overlap_strategies_text || r.strategies_joined
+  if (t && typeof t === 'string') {
+    return t.split(/[、,，]/).map((s: string) => s.trim()).filter(Boolean)
+  }
+  return []
+}
+
+/** 多策略同日_*.jsonl：固定列，展示当日重叠的策略名 */
+const multiStrategyOverlapColumns: ColumnsType<StockResult> = [
+  {
+    title: '匹配日期',
+    dataIndex: 'match_date',
+    key: 'match_date',
+    width: 110,
+    sortDirections: ['ascend', 'descend'],
+    sorter: (a, b) => (String(a.match_date || '').trim()).localeCompare(String(b.match_date || '').trim()),
+    customRender: ({ text }) => formatDate(text ?? '')
+  },
+  {
+    title: STOCK_CODE_NAME_COLUMN_TITLE,
+    key: STOCK_CODE_NAME_COLUMN_KEY,
+    width: 160,
+    ellipsis: true,
+    sorter: (a, b) =>
+      String(a.code || '').localeCompare(String(b.code || '')) ||
+      String(a.name || '').localeCompare(String(b.name || '')),
+    customRender: ({ record }) => {
+      const r = record as StockResult
+      return `${r.code ?? ''} ${r.name ?? ''}`.trim() || '-'
+    }
+  },
+  {
+    title: '板块/概念联动',
+    dataIndex: 'linkage_text',
+    key: 'linkage_text',
+    width: 280,
+    ellipsis: true,
+    customRender: ({ record }) => formatLinkageTableCell(record as StockResult)
+  },
+  {
+    title: '命中策略数',
+    dataIndex: 'strategy_count',
+    key: 'strategy_count',
+    width: 105,
+    align: 'right',
+    sorter: (a, b) => ((a as any).strategy_count ?? 0) - ((b as any).strategy_count ?? 0),
+    customRender: ({ text }) => (text != null && text !== '' ? String(text) : '-')
+  },
+  { title: '重叠策略', key: 'overlap_strategies', width: 300 },
+  { title: '说明', key: 'overlap_summary', width: 220 }
+]
+
+const listTableColumns = computed<ColumnsType<StockResult>>(() => {
+  if (isMultiStrategyOverlapFile.value) {
+    return isNarrowScreen.value ? stripColumnWidths(multiStrategyOverlapColumns) : multiStrategyOverlapColumns
+  }
+  return isDense.value ? displayDenseColumns.value : displayColumns.value
 })
 
 // 按 match_date 聚合每日匹配数量，用于趋势图；若有交易日列表则按全部交易日展示，无数据日显示 0

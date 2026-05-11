@@ -3,9 +3,18 @@ from data_fetcher import DataFetcher
 import pandas as pd
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from threading import Lock
+import importlib.util
 import json
 import os
 from collections import defaultdict
+
+
+def _emit_all_match_dates_enabled():
+    """为 True 时：全量回测在 timeRange 窗口内枚举每个 T，输出所有命中日（多行/股）。
+    环境变量 BACKTEST_EMIT_ALL_MATCH_DATES=1 / true / on 开启；便于日频图与「当日真实命中数」一致。"""
+    v = os.environ.get('BACKTEST_EMIT_ALL_MATCH_DATES', '').strip().lower()
+    return v in ('1', 'true', 'yes', 'on')
+
 
 class StrategyEngine:
     """策略回测引擎"""
@@ -234,6 +243,11 @@ class StrategyEngine:
         total_stocks = len(stocks)
         processed_count = [0]  # 使用列表以便在闭包中修改
         
+        if _emit_all_match_dates_enabled():
+            print(
+                '[INFO] BACKTEST_EMIT_ALL_MATCH_DATES 已开启：窗口内每个命中日各写一行（日频统计为真实命中数）。',
+                flush=True,
+            )
         print(f"开始回测，共 {total_stocks} 只股票，回测最近 {time_range} 个交易日，使用 {self.max_workers} 个并发线程")
         
         # 使用线程池并发处理
@@ -306,91 +320,12 @@ class StrategyEngine:
 
         print(f"回测完成！共检查 {total_stocks} 只股票，找到 {len(results)} 条符合条件的记录")
         if results:
-            # 默认规则：连续三个 A 股交易日内同一只股票只保留第一次出现的日期
-            # 连阳上影策略例外：保留 3 个交易日内重复出现，用于观察连阳阶段内的连续信号
-            if strategy_name != '连阳上影':
-                results = self._dedupe_same_stock_within_three_trading_days(results, trading_days=3)
             results.sort(key=lambda r: (r.get('match_date', '9999-99-99'), r.get('code', '')))
             if write_results and results_filepath:
                 self._write_sorted_results(results_filepath, strategy_name, results)
                 print(f"结果已保存（按符合日期排序）: {results_filepath}")
+                self._try_enrich_sector_linkage(results_filepath)
         return results
-    
-    def _dedupe_same_stock_within_three_trading_days(self, results, trading_days=3):
-        """所有策略通用：连续 N 个 A 股交易日内同一只股票只能出现一次，只保留第一次出现的日期。
-        使用真实 A 股交易日历（AkShare，失败时用缓存 K 线中的日期序列）。"""
-        if not results:
-            return results
-
-        def count_trading_days_fallback(d1, d2):
-            """兜底：仅按周一到周五（无节假日数据时使用）"""
-            if d1 > d2:
-                d1, d2 = d2, d1
-            n = 0
-            cur = d1
-            while cur < d2:
-                if cur.weekday() < 5:
-                    n += 1
-                cur = cur + timedelta(days=1)
-            return n
-
-        # 一次拉取整个结果集日期范围内的 A 股交易日历，避免对每对日期都重复请求
-        dates_in_results = []
-        for r in results:
-            md = (r.get('match_date') or '')[:10]
-            if len(md) == 10 and md[4] == '-' and md[7] == '-':
-                dates_in_results.append(md)
-        if dates_in_results:
-            min_d, max_d = min(dates_in_results), max(dates_in_results)
-            full_days_list = self.data_fetcher.get_trading_days_between(min_d, max_d)
-            if not full_days_list:
-                full_days_list = self.data_fetcher.get_trading_days_from_cache(min_d, max_d)
-            # 有序列表，用于计算两日之间交易日个数（含首尾）
-            trading_day_list_sorted = sorted(full_days_list) if full_days_list else None
-        else:
-            trading_day_list_sorted = None
-
-        def count_trading_days_inclusive(d1_str, d2_str):
-            if not trading_day_list_sorted:
-                d1 = datetime.strptime(d1_str[:10], '%Y-%m-%d')
-                d2 = datetime.strptime(d2_str[:10], '%Y-%m-%d')
-                return count_trading_days_fallback(d1, d2) + 1
-            # 在已拉取的交易日列表中数 [d1_str, d2_str] 含首尾的个数
-            if d1_str > d2_str:
-                d1_str, d2_str = d2_str, d1_str
-            n = 0
-            for d in trading_day_list_sorted:
-                if d < d1_str:
-                    continue
-                if d > d2_str:
-                    break
-                n += 1
-            return n if n >= 1 else 1
-
-        by_code = {}
-        for r in results:
-            by_code.setdefault(r.get('code', ''), []).append(r)
-        out = []
-        for rows in by_code.values():
-            rows = sorted(rows, key=lambda x: x.get('match_date', '9999-99-99'))
-            kept = []
-            for r in rows:
-                try:
-                    d = datetime.strptime(r.get('match_date', '')[:10], '%Y-%m-%d')
-                    d_str = d.strftime('%Y-%m-%d')
-                except Exception:
-                    kept.append(r)
-                    continue
-                if not kept:
-                    kept.append(r)
-                    continue
-                last_str = kept[-1]['match_date'][:10]
-                n_between = count_trading_days_inclusive(last_str, d_str)
-                # 连续 3 个交易日内不能出现两次 => 保留后一条仅当 [last, d] 内交易日数 > 3
-                if n_between > trading_days:
-                    kept.append(r)
-            out.extend(kept)
-        return out
 
     def _append_result(self, filepath, strategy_name, result, count):
         """每找到一条符合条件的结果就写入（缓冲批量刷盘）。"""
@@ -409,6 +344,16 @@ class StrategyEngine:
                     f.write(json.dumps(r, ensure_ascii=False, default=str) + '\n')
         except Exception as e:
             print(f"[WARNING] 保存排序结果失败: {e}")
+
+    def _try_enrich_sector_linkage(self, results_filepath: str) -> None:
+        """回测落盘后补充板块/概念联动（含当日涨幅名次）；失败不影响主结果。"""
+        root = os.path.dirname(os.path.abspath(__file__))
+        p = os.path.join(root, 'scripts', 'enrich_sector_linkage.py')
+        spec = importlib.util.spec_from_file_location('esl_dynamic', p)
+        mod = importlib.util.module_from_spec(spec)
+        assert spec.loader is not None
+        spec.loader.exec_module(mod)
+        mod.enrich_results_jsonl_after_backtest(results_filepath)
     
     def _process_stock(self, stock, conditions, start_date, end_date, time_range=30, only_t_date=None):
         """处理单只股票（用于并发）。only_t_date 有值时仅检查该 T 日。"""
@@ -518,6 +463,18 @@ class StrategyEngine:
                 return False
 
             min_i = max(min_required_idx, len(df) - time_range)
+            if _emit_all_match_dates_enabled():
+                acc = []
+                for i in range(min_i, len(df)):
+                    base_date = df.iloc[i]['日期']
+                    if self._check_conditions_from_date_fast(
+                        conditions, base_date, df, date_map, dates_sorted,
+                        dates_str=dates_str, date_pos=date_pos, indicator_ctx=indicator_ctx,
+                    ):
+                        acc.append({'df': df, 'base_date': base_date, **ctx_tail})
+                if not acc:
+                    return False
+                return acc[0] if len(acc) == 1 else acc
             for i in range(len(df) - 1, min_i - 1, -1):
                 base_date = df.iloc[i]['日期']
                 if self._check_conditions_from_date_fast(
@@ -599,6 +556,18 @@ class StrategyEngine:
                 return False
 
             min_i = max(min_required_idx, len(df) - time_range)
+            if _emit_all_match_dates_enabled():
+                acc = []
+                for i in range(min_i, len(df)):
+                    base_date = df.iloc[i]['日期']
+                    if self._check_conditions_from_date_fast(
+                        conditions, base_date, df, date_map, dates_sorted,
+                        dates_str=dates_str, date_pos=date_pos, indicator_ctx=indicator_ctx,
+                    ):
+                        acc.append({'df': df, 'base_date': base_date, **ctx_tail})
+                if not acc:
+                    return False
+                return acc[0] if len(acc) == 1 else acc
             for i in range(len(df) - 1, min_i - 1, -1):
                 base_date = df.iloc[i]['日期']
                 if self._check_conditions_from_date_fast(
@@ -1714,7 +1683,7 @@ class StrategyEngine:
         return False
 
     def _compute_main_force_build_detail(self, base_idx, dates_str, date_map, indicator_ctx):
-        """主力建仓规则计算（T-10~T：收涨日=收盘>前一交易日收盘，即涨跌幅>0；叠加均线形态）。"""
+        """主力建仓规则计算（T-10~T：收涨日=收盘>昨收且收盘>开盘；叠加均线形态）。"""
         out = {
             'main_force_build_tag': False,
             'main_force_t_limit_up_tag': False,
@@ -1752,7 +1721,10 @@ class StrategyEngine:
                 continue
             prev_close = float(prev_row.get('收盘') or 0)
             close_v = float(row.get('收盘') or 0)
+            open_v = float(row.get('开盘') or 0)
             if prev_close <= 0 or close_v <= 0 or close_v <= prev_close:
+                continue
+            if close_v <= open_v:
                 continue
             m5 = ma5[i]
             m10 = ma10[i]

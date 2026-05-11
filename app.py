@@ -554,15 +554,6 @@ def get_results_by_strategy():
                 unique.append(r)
             unique.sort(key=lambda x: (x.get('match_date', '9999-99-99'), x.get('code', '')))
 
-            # 所有策略统一：连续三个 A 股交易日内同股只保留第一次出现的日期
-            try:
-                fetcher = DataFetcher()
-                engine = StrategyEngine(fetcher)
-                unique = engine._dedupe_same_stock_within_three_trading_days(unique, trading_days=3)
-                unique.sort(key=lambda x: (x.get('match_date', '9999-99-99'), x.get('code', '')))
-            except Exception:
-                pass
-
             return {'meta': meta_merged, 'results': unique, 'count': len(unique)}
 
         data, cached = _get_results_with_cache(cache_key, fetch)

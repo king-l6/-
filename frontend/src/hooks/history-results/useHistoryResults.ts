@@ -2,10 +2,16 @@ import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
 import { getResultsList, getResultsFile, getResultsByStrategy } from '@/api'
 import type { StockResult, ResultFile } from '@/types'
+import { formatLinkageTableCell } from '@/utils/linkageDisplay'
 
 const STORAGE_KEY_FAVORITES = 'history-favorites-by-file'
 /** 顺序即左侧文件列表中「按策略聚合」项的展示顺序；主力建仓置顶 */
 const strategyNames = ['主力建仓', '龙头战法', '断板反包', '均线上穿', '情绪周期', '三连板', '筑底突破']
+
+/** 多策略同日汇总文件（与 aggregate_same_day_multi_strategy.py 产出文件名一致） */
+export function isMultiStrategyOverlapFilename(filename: string): boolean {
+  return typeof filename === 'string' && filename.startsWith('多策略同日_') && filename.endsWith('.jsonl')
+}
 
 export function useHistoryResults() {
   const loadingFiles = ref(false)
@@ -39,7 +45,7 @@ export function useHistoryResults() {
 
   const paginationDense = ref({
     current: 1,
-    pageSize: 50,
+    pageSize: 200,
     showSizeChanger: true,
     pageSizeOptions: ['20', '50', '100', '200'],
     showTotal: (total: number) => `共 ${total} 条`,
@@ -47,7 +53,7 @@ export function useHistoryResults() {
   })
   const paginationNormal = ref({
     current: 1,
-    pageSize: 20,
+    pageSize: 200,
     showSizeChanger: true,
     showTotal: (total: number) => `共 ${total} 条`
   })
@@ -109,7 +115,10 @@ export function useHistoryResults() {
     return ''
   }
 
+  const isMultiStrategyOverlapFile = computed(() => isMultiStrategyOverlapFilename(activeFile.value))
+
   const showMainForceBullishFilter = computed(() => {
+    if (isMultiStrategyOverlapFile.value) return false
     const sn = String(metaInfo.value?.strategy_name || '').trim()
     if (sn === '主力建仓') return true
     return results.value.some(r => (r as StockResult).main_force_bullish_days != null)
@@ -117,14 +126,19 @@ export function useHistoryResults() {
 
   const filteredResults = computed(() => {
     let sourceData = results.value
-    if (isDense.value && searchText.value) {
+    if ((isDense.value || isMultiStrategyOverlapFile.value) && searchText.value) {
       const search = searchText.value.toLowerCase()
       sourceData = sourceData.filter(item =>
         item.code.toLowerCase().includes(search) ||
-        item.name.toLowerCase().includes(search)
+        item.name.toLowerCase().includes(search) ||
+        String((item as any).overlap_strategies_text || '')
+          .toLowerCase()
+          .includes(search) ||
+        (Array.isArray((item as any).overlap_strategies) &&
+          (item as any).overlap_strategies.some((s: string) => String(s).toLowerCase().includes(search)))
       )
     }
-    if (filterDay2Strong.value) {
+    if (filterDay2Strong.value && !isMultiStrategyOverlapFile.value) {
       sourceData = sourceData.filter(item => {
         const r = item as any
         // 优先用匹配日当天(day1)，没有则用次日(day2)兼容老数据
@@ -369,8 +383,15 @@ export function useHistoryResults() {
       }
       return getIndex(baseNameA) - getIndex(baseNameB)
     })
-    otherFiles.sort((a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime())
-    return [...strategyFiles, ...otherFiles]
+    const multiDay: ResultFile[] = []
+    const restOther: ResultFile[] = []
+    otherFiles.forEach(f => {
+      if (f.filename.startsWith('多策略同日_')) multiDay.push(f)
+      else restOther.push(f)
+    })
+    multiDay.sort((a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime())
+    restOther.sort((a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime())
+    return [...strategyFiles, ...multiDay, ...restOther]
   }
 
   /** 在文件列表前插入「按策略聚合」虚拟项（每个策略名一条），且不再重复列出策略的实体文件 */
@@ -472,19 +493,34 @@ export function useHistoryResults() {
           return true
         })
 
-        // 按 match_date 倒序（最新在前），同一天内按涨幅、振幅降序，再按 code 升序
-        newResults.sort((a, b) => {
-          const dA = a.match_date || ''
-          const dB = b.match_date || ''
-          if (dB !== dA) return dB.localeCompare(dA)
-          const pctA = (a as any).day1_change_pct ?? (a as any).day2_change_pct ?? -9999
-          const pctB = (b as any).day1_change_pct ?? (b as any).day2_change_pct ?? -9999
-          if (pctB !== pctA) return pctB - pctA
-          const ampA = (a as any).day1_amplitude ?? (a as any).day2_amplitude ?? -9999
-          const ampB = (b as any).day1_amplitude ?? (b as any).day2_amplitude ?? -9999
-          if (ampB !== ampA) return ampB - ampA
-          return (a.code || '').localeCompare(b.code || '')
-        })
+        if (isMultiStrategyOverlapFilename(filename)) {
+          filterDay2Strong.value = false
+          minMainForceBullishDays.value = null
+          // 与脚本一致：日期倒序；同一天内命中策略数多的在前
+          newResults.sort((a, b) => {
+            const dA = a.match_date || ''
+            const dB = b.match_date || ''
+            if (dB !== dA) return dB.localeCompare(dA)
+            const na = Number((a as any).strategy_count) || 0
+            const nb = Number((b as any).strategy_count) || 0
+            if (nb !== na) return nb - na
+            return (a.code || '').localeCompare(b.code || '')
+          })
+        } else {
+          // 按 match_date 倒序（最新在前），同一天内按涨幅、振幅降序，再按 code 升序
+          newResults.sort((a, b) => {
+            const dA = a.match_date || ''
+            const dB = b.match_date || ''
+            if (dB !== dA) return dB.localeCompare(dA)
+            const pctA = (a as any).day1_change_pct ?? (a as any).day2_change_pct ?? -9999
+            const pctB = (b as any).day1_change_pct ?? (b as any).day2_change_pct ?? -9999
+            if (pctB !== pctA) return pctB - pctA
+            const ampA = (a as any).day1_amplitude ?? (a as any).day2_amplitude ?? -9999
+            const ampB = (b as any).day1_amplitude ?? (b as any).day2_amplitude ?? -9999
+            if (ampB !== ampA) return ampB - ampA
+            return (a.code || '').localeCompare(b.code || '')
+          })
+        }
 
         results.value = newResults
         metaInfo.value = meta
@@ -506,11 +542,36 @@ export function useHistoryResults() {
       if (dateCompare !== 0) return dateCompare
       return (a.code || '').localeCompare(b.code || '')
     })
-    const headers = ['代码', '名称', '匹配日期', '匹配价', '当前价']
+    if (isMultiStrategyOverlapFile.value) {
+      const headers = ['代码·名称', '匹配日期', '板块概念联动', '命中策略数', '重叠策略', '说明']
+      const rows = sortedData.map(item => {
+        const r = item as any
+        return [
+          `${item.code ?? ''} ${item.name ?? ''}`.trim(),
+          formatDate(item.match_date),
+          formatLinkageTableCell(item),
+          String(r.strategy_count ?? ''),
+          (r.overlap_strategies_text || r.strategies_joined || (Array.isArray(r.overlap_strategies) ? r.overlap_strategies.join('、') : '')) || '',
+          (r.overlap_summary || '').replace(/"/g, '""')
+        ]
+      })
+      const csvContent = [headers.join(','), ...rows.map(row => row.map(c => `"${String(c)}"`).join(','))].join('\n')
+      const BOM = '\uFEFF'
+      const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' })
+      const link = document.createElement('a')
+      link.setAttribute('href', URL.createObjectURL(blob))
+      link.setAttribute('download', `回测结果_${activeFile.value.replace('.jsonl', '')}_${new Date().toISOString().slice(0, 10)}.csv`)
+      link.style.visibility = 'hidden'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      return
+    }
+    const headers = ['代码·名称', '匹配日期', '板块概念联动', '匹配价', '当前价']
     const rows = sortedData.map(item => [
-      item.code,
-      item.name,
+      `${item.code ?? ''} ${item.name ?? ''}`.trim(),
       formatDate(item.match_date),
+      formatLinkageTableCell(item),
       item.match_price?.toFixed(2) || '',
       item.current_price?.toFixed(2) || ''
     ])
@@ -555,6 +616,7 @@ export function useHistoryResults() {
     filterDay2Strong,
     minMainForceBullishDays,
     showMainForceBullishFilter,
+    isMultiStrategyOverlapFile,
     isNarrowScreen,
     tableScroll,
     collectedItems,

@@ -93,6 +93,28 @@ export interface StockResult {
   upper_shadow_pct?: number
   /** 连阳区间内是否出现过最高价触及涨停价（触板/涨停） */
   consecutive_up_has_limit_touch?: boolean
+  /**
+   * 板块/概念联动文案（由 `scripts/enrich_sector_linkage.py` 写入；含概念/行业板块当日涨跌幅；与 match_date 无历史对齐）
+   */
+  linkage_text?: string
+  linkage_concepts?: { name: string; pct: number; rank?: number }[]
+  /** 命中全部强势概念的「涨幅榜名次」算术平均（与 linkage_concepts 条数一致口径） */
+  linkage_concept_rank_avg?: number | null
+  /** 命中全部强势概念的板块当日涨跌幅（%）算术平均 */
+  linkage_concept_pct_avg?: number | null
+  linkage_industry?: string
+  /** 联动行业板块当日涨跌幅（%），与 linkage_industry 对应 */
+  linkage_industry_pct?: number | null
+  /** 联动行业在当前排序板块列表中的涨幅名次（1-based） */
+  linkage_industry_rank?: number | null
+  linkage_fetched_at?: string
+  /** 多策略同日重叠 jsonl（scripts/aggregate_same_day_multi_strategy.py） */
+  strategy_count?: number
+  overlap_strategies?: string[]
+  overlap_strategies_text?: string
+  overlap_summary?: string
+  strategies?: string[]
+  strategies_joined?: string
 }
 
 export interface BacktestResponse {

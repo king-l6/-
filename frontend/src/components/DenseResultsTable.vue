@@ -45,7 +45,7 @@
         :data-source="filteredResults"
         :loading="loading"
         :pagination="{
-          pageSize: 50,
+          pageSize: 200,
           showSizeChanger: true,
           pageSizeOptions: ['20', '50', '100', '200'],
           showTotal: (total) => `共 ${total} 条`,
@@ -58,7 +58,13 @@
         :row-class-name="getRowClassName"
       >
         <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'match_date'">
+          <template v-if="column.key === 'code_name'">
+            <div class="flex items-center gap-1 min-w-0">
+              <span class="font-mono text-xs font-semibold shrink-0">{{ record.code }}</span>
+              <span class="text-xs truncate">{{ record.name }}</span>
+            </div>
+          </template>
+          <template v-else-if="column.key === 'match_date'">
             <span class="text-xs">{{ formatDate(record.match_date) }}</span>
           </template>
           <template v-else-if="column.key === 'match_price'">
@@ -66,9 +72,6 @@
           </template>
           <template v-else-if="column.key === 'current_price'">
             <span class="font-mono text-xs">{{ formatPrice(record.current_price) }}</span>
-          </template>
-          <template v-else-if="column.key === 'code'">
-            <span class="font-mono text-xs font-semibold">{{ record.code }}</span>
           </template>
         </template>
       </Table>
@@ -83,6 +86,10 @@ import { SearchOutlined } from '@ant-design/icons-vue'
 import { useStrategyStore } from '@/store/modules/strategy'
 import type { ColumnsType } from 'ant-design-vue/es/table'
 import type { StockResult } from '@/types'
+import {
+  STOCK_CODE_NAME_COLUMN_KEY,
+  STOCK_CODE_NAME_COLUMN_TITLE
+} from '@/constants/stockTable'
 
 const strategyStore = useStrategyStore()
 
@@ -110,19 +117,14 @@ const filteredResults = computed(() => {
 
 const columns: ColumnsType<StockResult> = [
   {
-    title: '代码',
-    dataIndex: 'code',
-    key: 'code',
-    width: 80,
+    title: STOCK_CODE_NAME_COLUMN_TITLE,
+    key: STOCK_CODE_NAME_COLUMN_KEY,
+    width: 160,
     fixed: 'left',
-    sorter: (a, b) => a.code.localeCompare(b.code)
-  },
-  {
-    title: '名称',
-    dataIndex: 'name',
-    key: 'name',
-    width: 100,
-    sorter: (a, b) => a.name.localeCompare(b.name)
+    ellipsis: true,
+    sorter: (a, b) =>
+      String(a.code || '').localeCompare(String(b.code || '')) ||
+      String(a.name || '').localeCompare(String(b.name || ''))
   },
   {
     title: '匹配日期',
@@ -243,10 +245,9 @@ function handleExport() {
   })
 
   // 构建 CSV 内容
-  const headers = ['代码', '名称', '匹配日期', '匹配价', '当前价', '次日涨跌%', '第三日涨跌%']
+  const headers = ['代码·名称', '匹配日期', '匹配价', '当前价', '次日涨跌%', '第三日涨跌%']
   const rows = sortedData.map(item => [
-    item.code,
-    item.name,
+    `${item.code ?? ''} ${item.name ?? ''}`.trim(),
     formatDate(item.match_date),
     item.match_price?.toFixed(2) || '',
     item.current_price?.toFixed(2) || '',

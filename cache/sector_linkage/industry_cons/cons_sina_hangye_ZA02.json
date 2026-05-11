@@ -1,0 +1,12 @@
+{
+"board_id": "hangye_ZA02",
+"board_name": "林业",
+"provider": "sina",
+"em_board_kind": "industry",
+"codes": [
+"000592",
+"002200",
+"002679"
+],
+"fetched_at": "2026-05-10T07:21:22+00:00"
+}
