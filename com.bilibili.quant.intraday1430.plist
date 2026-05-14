@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.bilibili.quant.intraday1430</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/bilibili/Desktop/test/量化/venv/bin/python3</string>
+        <string>/Users/bilibili/Desktop/test/量化/scripts/intraday_snapshot_main_force.py</string>
+        <string>--skip-ensure</string>
+    </array>
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>14</integer>
+        <key>Minute</key>
+        <integer>30</integer>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>/Users/bilibili/Desktop/test/量化/logs/intraday_main_force.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/bilibili/Desktop/test/量化/logs/intraday_main_force_error.log</string>
+    <key>WorkingDirectory</key>
+    <string>/Users/bilibili/Desktop/test/量化</string>
+    <key>RunAtLoad</key>
+    <false/>
+</dict>
+</plist>

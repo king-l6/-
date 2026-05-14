@@ -380,21 +380,22 @@ def get_results_list():
                         'count': _count_one_results_file(filepath)
                     })
         
-        # 战法名称列表（用于置顶），与前端历史页、common 策略配置对齐；含分片文件名前缀匹配
-        strategy_names = [
-            '主力建仓', '龙头战法', '断板反包', '均线上穿', '情绪周期', '三连板',
-            '筑底突破', '超跌反弹+量能确认',
-        ]
-        
-        # 判断文件是否属于战法策略（精确匹配，避免匹配到组合名称）
+        # 战法名称顺序：与 common_strategies.json 一致（用于置顶）；结果文件本身用后缀识别，旧战法 jsonl 仍可列出
+        config_path = os.path.join(os.path.dirname(__file__), 'common_strategies.json')
+        strategy_names = []
+        try:
+            with open(config_path, 'r', encoding='utf-8') as cf:
+                cfg = json.load(cf)
+            strategy_names = [s['name'] for s in cfg.get('strategies', [])]
+        except Exception:
+            strategy_names = [
+                '主力建仓', '断板反包', '筑底突破', '连阳上影', '四连阳摸板',
+            ]
+
         def is_strategy_file(filename):
-            # 移除.jsonl后缀和"结果"等后缀，只保留核心名称
-            base_name = filename.replace('_结果.jsonl', '').replace('.jsonl', '')
-            # 检查是否完全匹配某个战法名称，或者以战法名称开头
-            for name in strategy_names:
-                if base_name == name or base_name.startswith(name + '_') or base_name.startswith(name + '-'):
-                    return True
-            return False
+            if not filename.endswith('.jsonl') or filename.startswith('多策略同日_'):
+                return False
+            return filename.endswith('_结果.jsonl')
         
         # 分离战法文件和其他文件
         strategy_files = []
@@ -405,18 +406,16 @@ def get_results_list():
             else:
                 other_files.append(file)
         
-        # 战法文件内部按固定顺序排序（优先匹配纯战法名称）
+        # 战法文件内部按配置顺序排序；未在配置中的旧文件名排在后面
         def get_strategy_index(filename):
-            base_name = filename.replace('_结果.jsonl', '').replace('.jsonl', '')
-            # 优先匹配完全匹配的战法名称
+            base_name = filename.replace('_结果.jsonl', '')
             for idx, name in enumerate(strategy_names):
                 if base_name == name:
-                    return idx * 100  # 完全匹配优先级更高
-            # 其次匹配以战法名称开头的
+                    return (idx * 100, base_name)
             for idx, name in enumerate(strategy_names):
                 if base_name.startswith(name + '_') or base_name.startswith(name + '-'):
-                    return idx * 100 + 50  # 部分匹配优先级稍低
-            return len(strategy_names) * 100
+                    return (idx * 100 + 50, base_name)
+            return (len(strategy_names) * 100 + 200, base_name)
         
         strategy_files.sort(key=lambda x: get_strategy_index(x['filename']))
         

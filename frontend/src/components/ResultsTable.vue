@@ -26,7 +26,7 @@
           un-checked-children="全部"
         />
         <InputNumber
-          v-if="hasResults"
+          v-if="hasResults && currentStrategyName !== '连阳超五无涨停'"
           v-model:value="minMainForceBullishDays"
           :min="0"
           :max="11"
@@ -75,14 +75,14 @@
       />
     </div>
     
-    <div v-else-if="!hasResults" class="py-6 text-center text-gray-500">
+    <div v-else-if="!hasResults" class="py-6 text-center text-gray-500 dark:text-neutral-400">
       暂无回测结果
     </div>
     
     <div v-else>
       <!-- 我的自选：放在表格上方，添加后一眼能看到 -->
       <Card :title="`我的自选${collectedItems.length > 0 ? ` (${collectedItems.length} 条)` : ''}`" class="mb-3" size="small">
-        <div v-if="collectedItems.length === 0" class="py-2 text-center text-gray-500 text-sm">
+        <div v-if="collectedItems.length === 0" class="py-2 text-center text-sm text-gray-500 dark:text-neutral-400">
           点击下方表格「代码·名称」列前的 ＋ 图标可加入自选
         </div>
         <Table
@@ -155,11 +155,12 @@
         </template>
       </Table>
     </div>
+    <ConsecutiveUpVolumeChartModal v-model:open="volumeChartOpen" :record="volumeChartRecord" />
   </Card>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, h } from 'vue'
+import { computed, ref, onMounted, h, watch } from 'vue'
 import { Card, Table, Spin, Alert, Button, Space, Input, InputNumber, Switch, message } from 'ant-design-vue'
 import { SearchOutlined, PlusOutlined } from '@ant-design/icons-vue'
 import { useStrategyStore } from '@/store/modules/strategy'
@@ -167,17 +168,26 @@ import type { ColumnsType } from 'ant-design-vue/es/table'
 import type { StockResult } from '@/types'
 import { formatLinkageTableCell } from '@/utils/linkageDisplay'
 import LinkageTableCell from '@/components/LinkageTableCell.vue'
+import ConsecutiveUpVolumeChartModal from '@/components/ConsecutiveUpVolumeChartModal.vue'
 import {
   STOCK_CODE_NAME_COLUMN_KEY,
   STOCK_CODE_NAME_COLUMN_TITLE
 } from '@/constants/stockTable'
 
 const strategyStore = useStrategyStore()
+const currentStrategyName = computed(() => String(strategyStore.strategyName || '').trim())
 
 const loading = computed(() => strategyStore.loading)
 const error = computed(() => strategyStore.error)
 const results = computed(() => strategyStore.results)
 const hasResults = computed(() => strategyStore.hasResults)
+
+const volumeChartOpen = ref(false)
+const volumeChartRecord = ref<StockResult | null>(null)
+function openConsecutiveUpVolumeChart(record: StockResult) {
+  volumeChartRecord.value = record
+  volumeChartOpen.value = true
+}
 
 const isDense = ref(true)
 const searchText = ref('')
@@ -186,6 +196,13 @@ const minMainForceBullishDays = ref<number | null>(null)
 const minConsecutiveUpDays = ref<number | null>(3)
 const minUpperShadowPct = ref<number | null>(2)
 const onlyConsecutiveLimitTouch = ref(false)
+
+watch(currentStrategyName, (name) => {
+  if (name === '连阳超五无涨停') {
+    minMainForceBullishDays.value = null
+    minConsecutiveUpDays.value = null
+  }
+})
 const STORAGE_KEY_FAVORITES = 'backtest-favorites'
 const collectedItems = ref<StockResult[]>([])
 
@@ -277,7 +294,7 @@ const filteredResults = computed(() => {
   if (onlyMainForceTag.value) {
     sourceData = sourceData.filter(item => !!item.main_force_t_limit_up_tag)
   }
-  if (minMainForceBullishDays.value != null) {
+  if (minMainForceBullishDays.value != null && currentStrategyName.value !== '连阳超五无涨停') {
     sourceData = sourceData.filter(item => (item.main_force_bullish_days ?? 0) >= minMainForceBullishDays.value!)
   }
   if (minConsecutiveUpDays.value != null) {
@@ -407,6 +424,21 @@ const columns: ColumnsType<StockResult> = [
     width: 100,
     align: 'right',
     sorter: (a, b) => (a.consecutive_up_days || 0) - (b.consecutive_up_days || 0)
+  },
+  {
+    title: '连涨量图',
+    key: 'consecutive_up_volume_chart',
+    width: 92,
+    align: 'center',
+    customRender: ({ record }) => {
+      const r = record as StockResult
+      if ((r.consecutive_up_days ?? 0) < 2) return '-'
+      return h(
+        Button,
+        { type: 'link', size: 'small', onClick: () => openConsecutiveUpVolumeChart(r) },
+        () => '趋势'
+      )
+    }
   },
   {
     title: '上影线幅度%',
@@ -566,6 +598,21 @@ const denseColumns: ColumnsType<StockResult> = [
     width: 70,
     align: 'right',
     sorter: (a, b) => (a.consecutive_up_days || 0) - (b.consecutive_up_days || 0)
+  },
+  {
+    title: '量图',
+    key: 'consecutive_up_volume_chart',
+    width: 64,
+    align: 'center',
+    customRender: ({ record }) => {
+      const r = record as StockResult
+      if ((r.consecutive_up_days ?? 0) < 2) return '-'
+      return h(
+        Button,
+        { type: 'link', size: 'small', onClick: () => openConsecutiveUpVolumeChart(r) },
+        () => '图'
+      )
+    }
   },
   {
     title: '上影%',

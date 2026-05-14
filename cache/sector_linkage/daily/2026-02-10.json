@@ -1,0 +1,151 @@
+{
+"version": 2,
+"trade_date": "2026-02-10",
+"built_at": "2026-05-13T15:06:48+00:00",
+"builder": "ths_concept_ths_industry",
+"concept_daily": "ths",
+"industry_daily": "ths",
+"concepts": [],
+"industries": [
+{
+"name": "影视院线",
+"board_id": "881274",
+"pct": 11.306903506489817,
+"source": "ths_hist",
+"rank": 1
+},
+{
+"name": "文化传媒",
+"board_id": "881164",
+"pct": 4.412461309662263,
+"source": "ths_hist",
+"rank": 2
+},
+{
+"name": "游戏",
+"board_id": "881275",
+"pct": 3.2324758052442615,
+"source": "ths_hist",
+"rank": 3
+},
+{
+"name": "黑色家电",
+"board_id": "881132",
+"pct": 2.320366605056501,
+"source": "ths_hist",
+"rank": 4
+},
+{
+"name": "通信服务",
+"board_id": "881162",
+"pct": 1.9426761167365303,
+"source": "ths_hist",
+"rank": 5
+},
+{
+"name": "教育",
+"board_id": "881178",
+"pct": 1.733624651047938,
+"source": "ths_hist",
+"rank": 6
+},
+{
+"name": "元件",
+"board_id": "881270",
+"pct": 1.1669593770727182,
+"source": "ths_hist",
+"rank": 7
+},
+{
+"name": "IT服务",
+"board_id": "881271",
+"pct": 1.1551305303453496,
+"source": "ths_hist",
+"rank": 8
+},
+{
+"name": "电机",
+"board_id": "881277",
+"pct": 0.7690875185269341,
+"source": "ths_hist",
+"rank": 9
+},
+{
+"name": "软件开发",
+"board_id": "881272",
+"pct": 0.6411273926326455,
+"source": "ths_hist",
+"rank": 10
+},
+{
+"name": "电子化学品",
+"board_id": "881172",
+"pct": 0.5554123412051082,
+"source": "ths_hist",
+"rank": 11
+},
+{
+"name": "化学制药",
+"board_id": "881140",
+"pct": 0.5244217310021559,
+"source": "ths_hist",
+"rank": 12
+},
+{
+"name": "煤炭开采加工",
+"board_id": "881105",
+"pct": 0.46294976830587586,
+"source": "ths_hist",
+"rank": 13
+},
+{
+"name": "互联网电商",
+"board_id": "881177",
+"pct": 0.3973441193642069,
+"source": "ths_hist",
+"rank": 14
+},
+{
+"name": "包装印刷",
+"board_id": "881138",
+"pct": 0.3495715344636663,
+"source": "ths_hist",
+"rank": 15
+},
+{
+"name": "医疗服务",
+"board_id": "881175",
+"pct": 0.3495416612118163,
+"source": "ths_hist",
+"rank": 16
+},
+{
+"name": "旅游及酒店",
+"board_id": "881160",
+"pct": 0.33165993477279887,
+"source": "ths_hist",
+"rank": 17
+},
+{
+"name": "生物制品",
+"board_id": "881142",
+"pct": 0.29647560277847873,
+"source": "ths_hist",
+"rank": 18
+},
+{
+"name": "通信设备",
+"board_id": "881129",
+"pct": 0.2650224051958361,
+"source": "ths_hist",
+"rank": 19
+},
+{
+"name": "港口航运",
+"board_id": "881148",
+"pct": 0.2594052565480842,
+"source": "ths_hist",
+"rank": 20
+}
+]
+}

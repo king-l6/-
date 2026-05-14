@@ -18,27 +18,6 @@
       }
     },
     {
-      "name": "龙头战法",
-      "description": "捕捉连续涨停的龙头股，适合追涨策略",
-      "strategy": {
-        "conditions": [
-          { "type": "limit_up", "date1": -2 },
-          { "type": "limit_up", "date1": -1 },
-          { "type": "pct_change_gt", "date1": 0, "value": 0 },
-          { "type": "volume_ratio", "date1": -1, "date2": -2, "ratio": 1.2 },
-          { "type": "volume_ratio", "date1": 0, "date2": -2, "ratio": 1.5 }
-        ],
-        "exclude": {
-          "kcb": true,
-          "cyb": true,
-          "bjs": true,
-          "st": true,
-          "delist": true
-        },
-        "timeRange": 90
-      }
-    },
-    {
       "name": "断板反包",
       "description": "捕捉涨停后回调再反包的股票，适合低吸策略",
       "strategy": {
@@ -48,111 +27,6 @@
           { "type": "limit_up", "date1": 0 },
           { "type": "volume_ratio", "date1": -1, "date2": -2, "ratio": 1.1 },
           { "type": "volume_ratio", "date1": 0, "date2": -2, "ratio": 1.3 }
-        ],
-        "exclude": {
-          "kcb": true,
-          "cyb": true,
-          "bjs": true,
-          "st": true,
-          "delist": true
-        },
-        "timeRange": 90
-      }
-    },
-    {
-      "name": "均线上穿",
-      "description": "捕捉涨停后均线上穿的股票，结合技术面确认",
-      "strategy": {
-        "conditions": [
-          { "type": "limit_up", "date1": -1 },
-          { "type": "ma_cross_up", "date1": 0, "shortPeriod": 5, "longPeriod": 10 },
-          { "type": "pct_change_gt", "date1": 0, "value": 0 },
-          { "type": "volume_ratio", "date1": 0, "date2": -1, "ratio": 1.1 }
-        ],
-        "exclude": {
-          "kcb": true,
-          "cyb": true,
-          "bjs": true,
-          "st": true,
-          "delist": true
-        },
-        "timeRange": 90
-      }
-    },
-    {
-      "name": "情绪周期",
-      "description": "捕捉情绪周期中的上涨股票，适合情绪追涨策略",
-      "strategy": {
-        "conditions": [
-          { "type": "limit_up", "date1": -3 },
-          { "type": "pct_change_gt", "date1": -2, "value": 3 },
-          { "type": "pct_change_gt", "date1": -1, "value": 0 },
-          { "type": "limit_up", "date1": 0 },
-          { "type": "volume_ratio", "date1": -1, "date2": -3, "ratio": 1.2 },
-          { "type": "volume_ratio", "date1": 0, "date2": -3, "ratio": 1.5 }
-        ],
-        "exclude": {
-          "kcb": true,
-          "cyb": true,
-          "bjs": true,
-          "st": true,
-          "delist": true
-        },
-        "timeRange": 90
-      }
-    },
-    {
-      "name": "三连板",
-      "description": "捕捉连续三个交易日涨停的股票，适合强势追涨策略",
-      "strategy": {
-        "conditions": [
-          { "type": "limit_up", "date1": -2 },
-          { "type": "limit_up", "date1": -1 },
-          { "type": "limit_up", "date1": 0 },
-          { "type": "volume_ratio", "date1": -1, "date2": -2, "ratio": 1.1 },
-          { "type": "volume_ratio", "date1": 0, "date2": -2, "ratio": 1.2 }
-        ],
-        "exclude": {
-          "kcb": true,
-          "cyb": true,
-          "bjs": true,
-          "st": true,
-          "delist": true
-        },
-        "timeRange": 90
-      }
-    },
-    {
-      "name": "月内三连板+首板涨停",
-      "description": "T日前一个月内出现过三连板，且T日为首板涨停（T日涨停且T-1日非涨停），结合情绪周期与龙头战法的强度和安全性。",
-      "strategy": {
-        "conditions": [
-          { "type": "limit_up", "date1": 0 },
-          { "type": "pct_change_lt", "date1": -1, "value": 9.8 },
-          { "type": "three_limit_up", "date1": -1, "days": 30 },
-          { "type": "recent_limit_up", "date1": -1, "days": 10 }
-        ],
-        "exclude": {
-          "kcb": true,
-          "cyb": true,
-          "bjs": true,
-          "st": true,
-          "delist": true
-        },
-        "timeRange": 90
-      }
-    },
-    {
-      "name": "超跌反弹+量能确认",
-      "description": "近5日急跌后，收盘显著偏离20日线，且出现止跌迹象（长下影或放量）并处于RSI超卖区，适合T+1短线反抽。",
-      "strategy": {
-        "conditions": [
-          { "type": "listed_days_gte", "days": 120 },
-          { "type": "avg_amount_gte", "date1": 0, "days": 20, "value": 200000000 },
-          { "type": "recent_n_day_pct_change_lt", "date1": 0, "days": 5, "value": -12 },
-          { "type": "close_below_ma_deviation", "date1": 0, "period": 20, "deviation": 0.06 },
-          { "type": "stop_fall_signal", "date1": 0, "lowerShadowRatio": 0.4, "volumeDays": 5, "volumeRatio": 1.3 },
-          { "type": "rsi_lt", "date1": 0, "period": 6, "value": 25 }
         ],
         "exclude": {
           "kcb": true,
@@ -182,198 +56,6 @@
       }
     },
     {
-      "name": "摸板首板",
-      "description": "T日最高价摸到涨停但收盘未涨停，且前一日非涨停、近月内走出过三连板的强势股首板机会。",
-      "strategy": {
-        "conditions": [
-          { "type": "touch_limit_not_close", "date1": 0 },
-          { "type": "pct_change_lt", "date1": -1, "value": 9.8 },
-          { "type": "three_limit_up", "date1": -1, "days": 30 },
-          { "type": "recent_limit_up", "date1": -1, "days": 10 }
-        ],
-        "exclude": {
-          "kcb": true,
-          "cyb": true,
-          "bjs": true,
-          "st": true,
-          "delist": true
-        },
-        "timeRange": 90
-      }
-    },
-    {
-      "name": "打板二版",
-      "description": "上个交易日首板涨停，今天最高价触及涨停价。T-1日首板涨停（T-2日非涨停），T日最高价触及涨停价，观察次日涨跌幅。",
-      "strategy": {
-        "conditions": [
-          { "type": "limit_up", "date1": -1 },
-          { "type": "pct_change_lt", "date1": -2, "value": 9.8 },
-          { "type": "high_is_limit_up", "date1": 0 }
-        ],
-        "exclude": {
-          "kcb": true,
-          "cyb": true,
-          "bjs": true,
-          "st": true,
-          "delist": true
-        },
-        "timeRange": 90
-      }
-    },
-    {
-      "name": "游资合力接力",
-      "description": "游资风格的分歧转一致接力：近10日有涨停识别度，T-1日小幅回踩，T日放量涨停并满足流动性门槛。",
-      "strategy": {
-        "conditions": [
-          { "type": "listed_days_gte", "date1": 0, "days": 120 },
-          { "type": "avg_amount_gte", "date1": 0, "days": 20, "value": 500000000 },
-          { "type": "recent_limit_up", "date1": -1, "days": 10 },
-          { "type": "pct_change_between", "date1": -1, "minValue": -5, "maxValue": 3 },
-          { "type": "limit_up", "date1": 0 },
-          { "type": "volume_ratio", "date1": 0, "date2": -1, "ratio": 1.3 }
-        ],
-        "exclude": {
-          "kcb": true,
-          "cyb": true,
-          "bjs": true,
-          "st": true,
-          "delist": true
-        },
-        "timeRange": 120
-      }
-    },
-    {
-      "name": "游资首板试错",
-      "description": "游资试错型策略：T日首板涨停，前一日非涨停，且满足中高流动性与当日放量，用于捕捉题材启动首板。",
-      "strategy": {
-        "conditions": [
-          { "type": "listed_days_gte", "date1": 0, "days": 120 },
-          { "type": "avg_amount_gte", "date1": 0, "days": 20, "value": 300000000 },
-          { "type": "pct_change_lt", "date1": -1, "value": 9.8 },
-          { "type": "limit_up", "date1": 0 },
-          { "type": "volume_ratio", "date1": 0, "date2": -1, "ratio": 1.2 }
-        ],
-        "exclude": {
-          "kcb": true,
-          "cyb": true,
-          "bjs": true,
-          "st": true,
-          "delist": true
-        },
-        "timeRange": 120
-      }
-    },
-    {
-      "name": "游资分歧转一致",
-      "description": "游资主流接力型策略：近10日有涨停，T-1日分歧回踩，T日放量涨停确认一致性。",
-      "strategy": {
-        "conditions": [
-          { "type": "listed_days_gte", "date1": 0, "days": 120 },
-          { "type": "avg_amount_gte", "date1": 0, "days": 20, "value": 500000000 },
-          { "type": "recent_limit_up", "date1": -1, "days": 10 },
-          { "type": "pct_change_between", "date1": -1, "minValue": -5, "maxValue": 3 },
-          { "type": "limit_up", "date1": 0 },
-          { "type": "volume_ratio", "date1": 0, "date2": -1, "ratio": 1.3 }
-        ],
-        "exclude": {
-          "kcb": true,
-          "cyb": true,
-          "bjs": true,
-          "st": true,
-          "delist": true
-        },
-        "timeRange": 120
-      }
-    },
-    {
-      "name": "游资二波加速",
-      "description": "游资二波策略：近30日出现过三连板，T-1日非涨停，T日再次涨停并放量，尝试捕捉龙头二波启动。",
-      "strategy": {
-        "conditions": [
-          { "type": "listed_days_gte", "date1": 0, "days": 120 },
-          { "type": "avg_amount_gte", "date1": 0, "days": 20, "value": 600000000 },
-          { "type": "three_limit_up", "date1": -1, "days": 30 },
-          { "type": "pct_change_lt", "date1": -1, "value": 9.8 },
-          { "type": "limit_up", "date1": 0 },
-          { "type": "volume_ratio", "date1": 0, "date2": -1, "ratio": 1.2 }
-        ],
-        "exclude": {
-          "kcb": true,
-          "cyb": true,
-          "bjs": true,
-          "st": true,
-          "delist": true
-        },
-        "timeRange": 120
-      }
-    },
-    {
-      "name": "游资策略包-弱势",
-      "description": "弱势防守版：提高流动性门槛，要求更充分分歧与更强放量后再做转一致，减少噪音交易。",
-      "strategy": {
-        "conditions": [
-          { "type": "listed_days_gte", "date1": 0, "days": 120 },
-          { "type": "avg_amount_gte", "date1": 0, "days": 20, "value": 800000000 },
-          { "type": "recent_limit_up", "date1": -1, "days": 10 },
-          { "type": "pct_change_between", "date1": -1, "minValue": -6, "maxValue": 2 },
-          { "type": "limit_up", "date1": 0 },
-          { "type": "volume_ratio", "date1": 0, "date2": -1, "ratio": 1.5 }
-        ],
-        "exclude": {
-          "kcb": true,
-          "cyb": true,
-          "bjs": true,
-          "st": true,
-          "delist": true
-        },
-        "timeRange": 120
-      }
-    },
-    {
-      "name": "游资策略包-中性",
-      "description": "中性均衡版：使用标准分歧转一致参数，在胜率与样本数量之间平衡。",
-      "strategy": {
-        "conditions": [
-          { "type": "listed_days_gte", "date1": 0, "days": 120 },
-          { "type": "avg_amount_gte", "date1": 0, "days": 20, "value": 500000000 },
-          { "type": "recent_limit_up", "date1": -1, "days": 10 },
-          { "type": "pct_change_between", "date1": -1, "minValue": -5, "maxValue": 3 },
-          { "type": "limit_up", "date1": 0 },
-          { "type": "volume_ratio", "date1": 0, "date2": -1, "ratio": 1.3 }
-        ],
-        "exclude": {
-          "kcb": true,
-          "cyb": true,
-          "bjs": true,
-          "st": true,
-          "delist": true
-        },
-        "timeRange": 120
-      }
-    },
-    {
-      "name": "游资策略包-强势",
-      "description": "强势进攻版：聚焦历史龙头二波加速，适合主升阶段追求弹性。",
-      "strategy": {
-        "conditions": [
-          { "type": "listed_days_gte", "date1": 0, "days": 120 },
-          { "type": "avg_amount_gte", "date1": 0, "days": 20, "value": 600000000 },
-          { "type": "three_limit_up", "date1": -1, "days": 30 },
-          { "type": "pct_change_lt", "date1": -1, "value": 9.8 },
-          { "type": "limit_up", "date1": 0 },
-          { "type": "volume_ratio", "date1": 0, "date2": -1, "ratio": 1.2 }
-        ],
-        "exclude": {
-          "kcb": true,
-          "cyb": true,
-          "bjs": true,
-          "st": true,
-          "delist": true
-        },
-        "timeRange": 120
-      }
-    },
-    {
       "name": "连阳上影",
       "description": "筛选连续连阳后的上影线个股：默认要求T日向前至少连阳3天，且连阳3天都满足5日线>10日线，并且这3天里至少1天上影线幅度大于2%。",
       "strategy": {
@@ -389,6 +71,43 @@
           "delist": true
         },
         "timeRange": 120
+      }
+    },
+    {
+      "name": "四连阳摸板",
+      "description": "T日前（截至T-1日）连续涨跌幅>0的交易日不少于4天，且该连阳段内每日均未涨停（涨跌幅<9.8%）；T日最高价相对昨收涨幅≥9.8%（触及涨停价，收盘是否涨停不限）。",
+      "strategy": {
+        "conditions": [
+          { "type": "consecutive_up_days_gte", "date1": -1, "consecutiveDays": 4 },
+          { "type": "consecutive_up_window_no_limit_up", "date1": -1, "limitPct": 9.8 },
+          { "type": "high_is_limit_up", "date1": 0 }
+        ],
+        "exclude": {
+          "kcb": true,
+          "cyb": true,
+          "bjs": true,
+          "st": true,
+          "delist": true
+        },
+        "timeRange": 90
+      }
+    },
+    {
+      "name": "连阳超五无涨停",
+      "description": "T日涨跌幅>0，且截至T日连续「涨跌幅>0」的交易日不少于6天（连涨天数>5）；该连阳区间内每日涨跌幅均<9.8%（无涨停，与现有涨停口径一致）。结果含 consecutive_up_days：截至条件锚点的连阳天数（本策略为 T）。",
+      "strategy": {
+        "conditions": [
+          { "type": "consecutive_up_days_gte", "date1": 0, "consecutiveDays": 6 },
+          { "type": "consecutive_up_window_no_limit_up", "date1": 0, "limitPct": 9.8 }
+        ],
+        "exclude": {
+          "kcb": true,
+          "cyb": true,
+          "bjs": true,
+          "st": true,
+          "delist": true
+        },
+        "timeRange": 90
       }
     }
   ]

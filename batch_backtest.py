@@ -22,9 +22,7 @@
 6. 仅本地缓存回测（不访问 AkShare / 不拉 K 线）：
    python batch_backtest.py --cache-only --no-parallel
 
-7. 窗口内「每个命中日」都写入 jsonl（日频图=当日真实命中数；同股可多日多行）：
-   python batch_backtest.py --all-match-dates --cache-only --no-parallel
-   （等价于环境变量 BACKTEST_EMIT_ALL_MATCH_DATES=1）
+7. 全量回测默认即窗口内「每个命中日」各一行（同股可多日多行；日频图与当日扫描口径一致）。
 """
 
 import json
@@ -177,13 +175,11 @@ def main():
     parser.add_argument(
         '--all-match-dates',
         action='store_true',
-        help='全量回测输出窗口内每个命中日（同股可多条），便于日频图与单日扫描口径一致',
+        help='已废弃：全量默认即输出窗口内每个命中日，此参数无效果（保留仅为兼容旧命令行）',
     )
 
     args = parser.parse_args()
-    if args.all_match_dates:
-        os.environ['BACKTEST_EMIT_ALL_MATCH_DATES'] = '1'
-    
+
     print('=' * 80)
     print('批量策略回测工具')
     print('=' * 80)
@@ -194,8 +190,6 @@ def main():
         print(f'最大并行策略数: {args.max_parallel}')
     if args.cache_only:
         print('数据模式: 仅本地缓存（--cache-only，不拉网）')
-    if args.all_match_dates:
-        print('命中输出: --all-match-dates（每命中日一行，日频为真实命中数）')
     print()
     
     # 加载策略

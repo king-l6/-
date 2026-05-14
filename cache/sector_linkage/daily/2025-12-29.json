@@ -1,0 +1,151 @@
+{
+"version": 2,
+"trade_date": "2025-12-29",
+"built_at": "2026-05-14T10:24:41+00:00",
+"builder": "ths_concept_ths_industry",
+"concept_daily": "ths",
+"industry_daily": "ths",
+"concepts": [],
+"industries": [
+{
+"name": "化学纤维",
+"board_id": "881264",
+"pct": 2.866187366181583,
+"source": "ths_hist",
+"rank": 1
+},
+{
+"name": "多元金融",
+"board_id": "881283",
+"pct": 2.7217863036564482,
+"source": "ths_hist",
+"rank": 2
+},
+{
+"name": "塑料制品",
+"board_id": "881265",
+"pct": 1.941938970444368,
+"source": "ths_hist",
+"rank": 3
+},
+{
+"name": "军工装备",
+"board_id": "881166",
+"pct": 1.6176622859261025,
+"source": "ths_hist",
+"rank": 4
+},
+{
+"name": "自动化设备",
+"board_id": "881171",
+"pct": 1.3322580160711084,
+"source": "ths_hist",
+"rank": 5
+},
+{
+"name": "元件",
+"board_id": "881270",
+"pct": 1.0673846381611618,
+"source": "ths_hist",
+"rank": 6
+},
+{
+"name": "石油加工贸易",
+"board_id": "881180",
+"pct": 0.9987901150774858,
+"source": "ths_hist",
+"rank": 7
+},
+{
+"name": "电机",
+"board_id": "881277",
+"pct": 0.9269971459087145,
+"source": "ths_hist",
+"rank": 8
+},
+{
+"name": "机场航运",
+"board_id": "881151",
+"pct": 0.8559430270457913,
+"source": "ths_hist",
+"rank": 9
+},
+{
+"name": "汽车零部件",
+"board_id": "881126",
+"pct": 0.8464785551940635,
+"source": "ths_hist",
+"rank": 10
+},
+{
+"name": "军工电子",
+"board_id": "881276",
+"pct": 0.7799906151691793,
+"source": "ths_hist",
+"rank": 11
+},
+{
+"name": "风电设备",
+"board_id": "881280",
+"pct": 0.713078458484584,
+"source": "ths_hist",
+"rank": 12
+},
+{
+"name": "光伏设备",
+"board_id": "881279",
+"pct": 0.6955134827095755,
+"source": "ths_hist",
+"rank": 13
+},
+{
+"name": "燃气",
+"board_id": "881146",
+"pct": 0.5782658177232225,
+"source": "ths_hist",
+"rank": 14
+},
+{
+"name": "银行",
+"board_id": "881155",
+"pct": 0.5331244380801348,
+"source": "ths_hist",
+"rank": 15
+},
+{
+"name": "轨交设备",
+"board_id": "881269",
+"pct": 0.5204097797961715,
+"source": "ths_hist",
+"rank": 16
+},
+{
+"name": "通用设备",
+"board_id": "881117",
+"pct": 0.48082987707838143,
+"source": "ths_hist",
+"rank": 17
+},
+{
+"name": "纺织制造",
+"board_id": "881135",
+"pct": 0.42334228412113095,
+"source": "ths_hist",
+"rank": 18
+},
+{
+"name": "油气开采及服务",
+"board_id": "881107",
+"pct": 0.3820703139347792,
+"source": "ths_hist",
+"rank": 19
+},
+{
+"name": "建筑装饰",
+"board_id": "881116",
+"pct": 0.35844569475527166,
+"source": "ths_hist",
+"rank": 20
+}
+]
+}

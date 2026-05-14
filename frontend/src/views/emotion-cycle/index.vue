@@ -8,7 +8,7 @@
         <Button :loading="healthLoading" @click="loadHealth">数据自检</Button>
         <Button type="dashed" :loading="cacheTaskStarting" @click="startCacheTask">一键补缓存</Button>
       </div>
-      <div class="text-xs text-gray-500 mt-2">
+      <div class="mt-2 text-xs text-gray-500 dark:text-neutral-400">
         `days` 为按天温度图窗口。按日序列来自本地滚动缓存（股票日线缓存文件变更时重读并合并）。
       </div>
     </Card>
@@ -20,16 +20,16 @@
       <div v-if="report" class="space-y-3">
         <Card size="small" title="数据状态">
           <div class="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
-            <div class="p-2 rounded bg-gray-50">缓存文件数：{{ health?.cache_file_count ?? 0 }}</div>
-            <div class="p-2 rounded bg-gray-50">缓存最新日：{{ health?.latest_date || '-' }}</div>
-            <div class="p-2 rounded bg-gray-50">当日样本数：{{ health?.latest_snapshot_size ?? 0 }}</div>
-            <div v-if="report.timeline_rolling_meta" class="p-2 rounded bg-gray-50 md:col-span-4">
+            <div class="rounded bg-gray-50 p-2 dark:bg-neutral-900/70 dark:text-neutral-200">缓存文件数：{{ health?.cache_file_count ?? 0 }}</div>
+            <div class="rounded bg-gray-50 p-2 dark:bg-neutral-900/70 dark:text-neutral-200">缓存最新日：{{ health?.latest_date || '-' }}</div>
+            <div class="rounded bg-gray-50 p-2 dark:bg-neutral-900/70 dark:text-neutral-200">当日样本数：{{ health?.latest_snapshot_size ?? 0 }}</div>
+            <div v-if="report.timeline_rolling_meta" class="rounded bg-gray-50 p-2 md:col-span-4 dark:bg-neutral-900/70 dark:text-neutral-200">
               温度图合并：本次重读 {{ report.timeline_rolling_meta.files_merged }} 个股票缓存文件，跳过
               {{ report.timeline_rolling_meta.files_skipped }} 个；滚动表保留约
               {{ report.timeline_rolling_meta.dates_in_store }} 个交易日截面
             </div>
           </div>
-          <div class="mt-2 p-2 rounded bg-slate-50 text-xs text-slate-700">
+          <div class="mt-2 rounded bg-slate-50 p-2 text-xs text-slate-700 dark:bg-neutral-900/80 dark:text-neutral-200">
             <div>
               补缓存任务：
               <span class="font-medium">{{ cacheTaskStatusText }}</span>
@@ -37,9 +37,9 @@
                 进度 {{ cacheTask.progress.current }}/{{ cacheTask.progress.total }} ({{ cacheTask.progress.percent }}%)
               </span>
             </div>
-            <div v-if="cacheTaskLogLine" class="mt-1 text-slate-500 truncate">{{ cacheTaskLogLine }}</div>
+            <div v-if="cacheTaskLogLine" class="mt-1 truncate text-slate-500 dark:text-neutral-400">{{ cacheTaskLogLine }}</div>
           </div>
-          <div class="mt-2 text-xs text-gray-500">
+          <div class="mt-2 text-xs text-gray-500 dark:text-neutral-400">
             可用代码样例：
             <template v-if="(health?.sample_stocks?.length || 0) > 0">
               <span v-for="s in health?.sample_stocks || []" :key="s.code" class="mr-2">
@@ -52,24 +52,24 @@
 
         <Card size="small">
           <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div class="p-3 rounded bg-gray-50">
-              <div class="text-xs text-gray-500">交易日</div>
+            <div class="rounded bg-gray-50 p-3 dark:bg-neutral-900/70">
+              <div class="text-xs text-gray-500 dark:text-neutral-400">交易日</div>
               <div class="text-base font-semibold">{{ report.date }}</div>
             </div>
-            <div class="p-3 rounded bg-blue-50">
-              <div class="text-xs text-gray-500">市场温度分（= 综合情绪分）</div>
-              <div class="text-base font-semibold text-blue-600">{{ report.scores.market_score }}</div>
+            <div class="rounded bg-blue-50 p-3 dark:bg-blue-950/40">
+              <div class="text-xs text-gray-500 dark:text-neutral-400">市场温度分（= 综合情绪分）</div>
+              <div class="text-base font-semibold text-blue-600 dark:text-blue-300">{{ report.scores.market_score }}</div>
             </div>
-            <div class="p-3 rounded bg-orange-50">
-              <div class="text-xs text-gray-500">周期判定</div>
-              <div class="text-base font-semibold text-orange-600">
+            <div class="rounded bg-orange-50 p-3 dark:bg-orange-950/35">
+              <div class="text-xs text-gray-500 dark:text-neutral-400">周期判定</div>
+              <div class="text-base font-semibold text-orange-600 dark:text-orange-300">
                 {{ report.scores.total_score }} / {{ report.cycle }}
               </div>
             </div>
           </div>
           <Alert type="info" show-icon class="mt-3" message="分数含义">
             <template #description>
-              <div class="text-sm text-gray-700 space-y-2">
+              <div class="space-y-2 text-sm text-gray-700 dark:text-neutral-200">
                 <p>
                   当前<strong>仅按全市场主板缓存截面</strong>计算 0～100 的温度分：综合涨停占比、强势（≥5%）占比、大跌（≤-5%）占比与平均涨跌幅（详见下方「按天情绪温度」图例）。不再使用自选「代表票锚点」加权，避免小样本与公式截断造成误解。
                 </p>
@@ -80,17 +80,17 @@
 
         <Card size="small" title="市场温度指标">
           <div class="grid grid-cols-2 md:grid-cols-5 gap-2 text-sm">
-            <div class="p-2 rounded bg-gray-50">样本数：{{ report.market_metrics.total }}</div>
-            <div class="p-2 rounded bg-red-50">
+            <div class="rounded bg-gray-50 p-2 dark:bg-neutral-900/70 dark:text-neutral-200">样本数：{{ report.market_metrics.total }}</div>
+            <div class="rounded bg-red-50 p-2 dark:bg-red-950/30 dark:text-neutral-200">
               涨停：{{ report.market_metrics.limit_up_count }} ({{ report.market_metrics.limit_up_ratio_pct }}%)
             </div>
-            <div class="p-2 rounded bg-emerald-50">
+            <div class="rounded bg-emerald-50 p-2 dark:bg-emerald-950/25 dark:text-neutral-200">
               强势(>=5%)：{{ report.market_metrics.strong_count }} ({{ report.market_metrics.strong_ratio_pct }}%)
             </div>
-            <div class="p-2 rounded bg-rose-50">
+            <div class="rounded bg-rose-50 p-2 dark:bg-rose-950/30 dark:text-neutral-200">
               大跌(<=-5%)：{{ report.market_metrics.big_drop_count }} ({{ report.market_metrics.big_drop_ratio_pct }}%)
             </div>
-            <div class="p-2 rounded bg-blue-50">均涨跌幅：{{ report.market_metrics.avg_pct_change }}%</div>
+            <div class="rounded bg-blue-50 p-2 dark:bg-blue-950/35 dark:text-neutral-200">均涨跌幅：{{ report.market_metrics.avg_pct_change }}%</div>
           </div>
         </Card>
 
@@ -109,7 +109,7 @@
 
         <Card size="small" title="市场龙头周期（全市场按日）">
           <Alert type="info" show-icon class="mb-3" :message="leaderNote" />
-          <div v-if="leaderSegments.length === 0" class="text-sm text-gray-500 mb-3">
+          <div v-if="leaderSegments.length === 0" class="mb-3 text-sm text-gray-500 dark:text-neutral-400">
             窗口内无连续主线龙头（常见于涨停家数极少或缓存截面不足）。
           </div>
           <Table
@@ -121,7 +121,7 @@
             size="small"
             class="mb-3"
           />
-          <div class="text-xs text-gray-500 mb-1">
+          <div class="mb-1 text-xs text-gray-500 dark:text-neutral-400">
             横轴为交易日；纵轴在「全窗口天数 + 近30日主线条数 + 末次出现日」综合排序下多留几行独立标的；仍未进前排的日主线落在「其它」，且<strong>按股票代码分色</strong>（一日一格颜色可辨轮动，不再整条同色）。主板涨停线约9.8%，300/301/688/689约20cm线；主线按连板数优先，同连板比收盘×成交量再比涨幅。
           </div>
           <div class="relative w-full h-[400px]">

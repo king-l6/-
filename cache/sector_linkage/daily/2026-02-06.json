@@ -1,0 +1,151 @@
+{
+"version": 2,
+"trade_date": "2026-02-06",
+"built_at": "2026-05-13T15:05:44+00:00",
+"builder": "ths_concept_ths_industry",
+"concept_daily": "ths",
+"industry_daily": "ths",
+"concepts": [],
+"industries": [
+{
+"name": "油气开采及服务",
+"board_id": "881107",
+"pct": 4.282908251407358,
+"source": "ths_hist",
+"rank": 1
+},
+{
+"name": "能源金属",
+"board_id": "881267",
+"pct": 2.2559112314399554,
+"source": "ths_hist",
+"rank": 2
+},
+{
+"name": "电池",
+"board_id": "881281",
+"pct": 2.1232026989368435,
+"source": "ths_hist",
+"rank": 3
+},
+{
+"name": "化学原料",
+"board_id": "881108",
+"pct": 1.827211293174602,
+"source": "ths_hist",
+"rank": 4
+},
+{
+"name": "非金属材料",
+"board_id": "881167",
+"pct": 1.639038384249325,
+"source": "ths_hist",
+"rank": 5
+},
+{
+"name": "化学纤维",
+"board_id": "881264",
+"pct": 1.5903378470043306,
+"source": "ths_hist",
+"rank": 6
+},
+{
+"name": "中药",
+"board_id": "881141",
+"pct": 1.5492415150738958,
+"source": "ths_hist",
+"rank": 7
+},
+{
+"name": "化学制品",
+"board_id": "881109",
+"pct": 1.5204426869570797,
+"source": "ths_hist",
+"rank": 8
+},
+{
+"name": "包装印刷",
+"board_id": "881138",
+"pct": 1.4892558808370815,
+"source": "ths_hist",
+"rank": 9
+},
+{
+"name": "光伏设备",
+"board_id": "881279",
+"pct": 1.4565092310643069,
+"source": "ths_hist",
+"rank": 10
+},
+{
+"name": "石油加工贸易",
+"board_id": "881180",
+"pct": 1.4542703408389812,
+"source": "ths_hist",
+"rank": 11
+},
+{
+"name": "农化制品",
+"board_id": "881263",
+"pct": 1.3989951396514266,
+"source": "ths_hist",
+"rank": 12
+},
+{
+"name": "小金属",
+"board_id": "881170",
+"pct": 1.212250299612072,
+"source": "ths_hist",
+"rank": 13
+},
+{
+"name": "电网设备",
+"board_id": "881278",
+"pct": 1.1870266853419187,
+"source": "ths_hist",
+"rank": 14
+},
+{
+"name": "自动化设备",
+"board_id": "881171",
+"pct": 1.1680316727132212,
+"source": "ths_hist",
+"rank": 15
+},
+{
+"name": "塑料制品",
+"board_id": "881265",
+"pct": 1.1585538207029789,
+"source": "ths_hist",
+"rank": 16
+},
+{
+"name": "服装家纺",
+"board_id": "881136",
+"pct": 1.0149714254969577,
+"source": "ths_hist",
+"rank": 17
+},
+{
+"name": "电机",
+"board_id": "881277",
+"pct": 0.8925247922829893,
+"source": "ths_hist",
+"rank": 18
+},
+{
+"name": "轨交设备",
+"board_id": "881269",
+"pct": 0.8117185885404998,
+"source": "ths_hist",
+"rank": 19
+},
+{
+"name": "橡胶制品",
+"board_id": "881266",
+"pct": 0.8065945321268142,
+"source": "ths_hist",
+"rank": 20
+}
+]
+}

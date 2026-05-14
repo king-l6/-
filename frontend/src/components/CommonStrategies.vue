@@ -33,22 +33,22 @@
           </template>
           
           <div class="space-y-1">
-            <p class="text-xs text-gray-600 mb-1">{{ strategy.description }}</p>
+            <p class="mb-1 text-xs text-gray-600 dark:text-neutral-300">{{ strategy.description }}</p>
             
-            <div class="border-t pt-1">
-              <div class="text-xs text-gray-500 mb-1">策略条件：</div>
+            <div class="border-t border-gray-100 pt-1 dark:border-neutral-700">
+              <div class="mb-1 text-xs text-gray-500 dark:text-neutral-400">策略条件：</div>
               <div class="space-y-0.5">
                 <div
                   v-for="(condition, index) in strategy.conditions"
                   :key="index"
-                  class="text-xs text-gray-700 bg-gray-50 px-1.5 py-0.5 rounded"
+                  class="rounded bg-gray-50 px-1.5 py-0.5 text-xs text-gray-700 dark:bg-neutral-900/90 dark:text-neutral-200"
                 >
                   {{ formatCondition(condition) }}
                 </div>
               </div>
             </div>
             
-            <div class="flex items-center justify-between text-xs text-gray-500 mt-1 pt-1 border-t">
+            <div class="mt-1 flex items-center justify-between border-t border-gray-100 pt-1 text-xs text-gray-500 dark:border-neutral-700 dark:text-neutral-400">
               <span>回测范围：{{ strategy.timeRange }}个交易日</span>
             </div>
           </div>

@@ -1,7 +1,7 @@
 <template>
-  <div class="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+  <div class="flex items-center gap-2 rounded-lg bg-gray-50 p-3 dark:bg-neutral-900/80">
     <Tooltip title="拖拽调整顺序">
-      <span class="drag-handle cursor-move text-gray-400 hover:text-gray-600 flex-shrink-0">
+      <span class="drag-handle flex-shrink-0 cursor-move text-gray-400 hover:text-gray-600 dark:text-neutral-500 dark:hover:text-neutral-300">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16" />
         </svg>
@@ -23,6 +23,7 @@
         <SelectOption value="ma_cross_up">均线上穿</SelectOption>
         <SelectOption value="volume_ratio">成交量比例</SelectOption>
         <SelectOption value="consecutive_up_days_gte">连阳天数>=N</SelectOption>
+        <SelectOption value="consecutive_up_window_no_limit_up">连阳段无涨停</SelectOption>
         <SelectOption value="upper_shadow_pct_gt">上影线幅度&gt;N%</SelectOption>
       </Select>
     </Tooltip>
@@ -59,7 +60,7 @@
           :step="0.1"
         />
       </Tooltip>
-      <span class="text-gray-500">且</span>
+      <span class="text-gray-500 dark:text-neutral-400">且</span>
       <Tooltip title="最大涨幅百分比，例如：10 表示涨幅小于等于 10%">
         <InputNumber
           v-model:value="localCondition.maxValue"
@@ -95,6 +96,20 @@
       </Tooltip>
     </template>
 
+    <template v-if="localCondition.type === 'consecutive_up_window_no_limit_up'">
+      <Tooltip title="该连阳段内单日涨跌幅须均低于此值（与涨停判定一致，默认9.8）">
+        <InputNumber
+          v-model:value="localCondition.limitPct"
+          placeholder="涨停阈值%"
+          class="w-32"
+          :precision="2"
+          :step="0.1"
+          :min="0"
+          :max="30"
+        />
+      </Tooltip>
+    </template>
+
     <template v-if="localCondition.type === 'upper_shadow_pct_gt'">
       <Tooltip title="上影线幅度阈值（%）：最高涨幅-收盘涨幅">
         <InputNumber
@@ -118,7 +133,7 @@
           :max="100"
         />
       </Tooltip>
-      <span class="text-gray-500">上穿</span>
+      <span class="text-gray-500 dark:text-neutral-400">上穿</span>
       <Tooltip title="长期均线周期（默认10日）">
         <InputNumber
           v-model:value="localCondition.longPeriod"
@@ -263,6 +278,17 @@ function handleTypeChange() {
     delete localCondition.value.shortPeriod
     delete localCondition.value.longPeriod
     localCondition.value.consecutiveDays = localCondition.value.consecutiveDays || 3
+  } else if (localCondition.value.type === 'consecutive_up_window_no_limit_up') {
+    delete localCondition.value.value
+    delete localCondition.value.minValue
+    delete localCondition.value.maxValue
+    delete localCondition.value.date2
+    delete localCondition.value.ratio
+    delete localCondition.value.days
+    delete localCondition.value.shortPeriod
+    delete localCondition.value.longPeriod
+    delete localCondition.value.consecutiveDays
+    localCondition.value.limitPct = localCondition.value.limitPct ?? 9.8
   } else if (localCondition.value.type === 'upper_shadow_pct_gt') {
     localCondition.value.value = localCondition.value.value ?? 2
     delete localCondition.value.minValue
@@ -317,6 +343,10 @@ watch(() => localCondition.value.type, (type) => {
     case 'consecutive_up_days_gte':
       date1Tooltip.value = '检查日期偏移：以该交易日为结束日，向前统计连续阳线（涨跌幅>0）天数'
       date1Placeholder.value = '检查日期'
+      break
+    case 'consecutive_up_window_no_limit_up':
+      date1Tooltip.value = '连阳段结束日偏移：从该日向前连续涨跌幅>0的区间内，要求每日涨跌幅均低于涨停阈值'
+      date1Placeholder.value = '连阳结束日'
       break
     case 'upper_shadow_pct_gt':
       date1Tooltip.value = '检查日期偏移：上影线幅度=最高涨幅-收盘涨幅（均相对前收盘）'

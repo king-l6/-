@@ -4,7 +4,7 @@
 每天下午 5 点自动：拉取数据 + 跑六个常用策略回测
 
 用法：
-  # 立即执行一次（拉取数据 + 六策略回测）
+  # 立即执行一次（拉取数据 + common_strategies 全部策略回测）
   python scripts/daily_backtest_17h.py
   python scripts/daily_backtest_17h.py --now
 
@@ -38,7 +38,7 @@ os.environ.setdefault('no_proxy', '*')
 
 
 def run_job(workers=100):
-    """执行一次：拉取数据 + 六策略回测"""
+    """执行一次：拉取数据 + 预设策略回测"""
     script = os.path.join(PROJECT_ROOT, 'scripts', 'update_cache_and_backtest.py')
     cmd = [sys.executable, script, '--workers', str(workers)]
     return subprocess.run(cmd, cwd=PROJECT_ROOT).returncode
@@ -64,7 +64,7 @@ def main():
             print(f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] 定时任务：结束，退出码 {code}\n')
 
         schedule.every().day.at('17:00').do(job)
-        print('已设置每天 17:00 执行拉取数据 + 六策略回测。按 Ctrl+C 退出。')
+        print('已设置每天 17:00 执行拉取数据 + 预设策略回测。按 Ctrl+C 退出。')
         while True:
             schedule.run_pending()
             import time

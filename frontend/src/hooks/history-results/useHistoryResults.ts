@@ -6,7 +6,7 @@ import { formatLinkageTableCell } from '@/utils/linkageDisplay'
 
 const STORAGE_KEY_FAVORITES = 'history-favorites-by-file'
 /** 顺序即左侧文件列表中「按策略聚合」项的展示顺序；主力建仓置顶 */
-const strategyNames = ['主力建仓', '龙头战法', '断板反包', '均线上穿', '情绪周期', '三连板', '筑底突破']
+const strategyNames = ['主力建仓', '断板反包', '筑底突破', '连阳上影', '四连阳摸板', '连阳超五无涨停']
 
 /** 多策略同日汇总文件（与 aggregate_same_day_multi_strategy.py 产出文件名一致） */
 export function isMultiStrategyOverlapFilename(filename: string): boolean {
@@ -30,6 +30,8 @@ export function useHistoryResults() {
   const filterDay2Strong = ref(false)
   /** 主力建仓：T-10~T 命中收涨日个数下限（与即时回测 ResultsTable 一致） */
   const minMainForceBullishDays = ref<number | null>(null)
+  /** 连阳超五无涨停：按 consecutive_up_days 下限筛选（与即时回测「连阳天数>=」一致） */
+  const minConsecutiveUpDaysFilter = ref<number | null>(null)
 
   const isNarrowScreen = ref(typeof window !== 'undefined' && window.innerWidth < 768)
 
@@ -120,8 +122,14 @@ export function useHistoryResults() {
   const showMainForceBullishFilter = computed(() => {
     if (isMultiStrategyOverlapFile.value) return false
     const sn = String(metaInfo.value?.strategy_name || '').trim()
+    if (sn === '连阳超五无涨停') return false
     if (sn === '主力建仓') return true
     return results.value.some(r => (r as StockResult).main_force_bullish_days != null)
+  })
+
+  const showConsecutiveUpDaysFilter = computed(() => {
+    if (isMultiStrategyOverlapFile.value) return false
+    return String(metaInfo.value?.strategy_name || '').trim() === '连阳超五无涨停'
   })
 
   const filteredResults = computed(() => {
@@ -152,6 +160,10 @@ export function useHistoryResults() {
     if (showMainForceBullishFilter.value && minMainForceBullishDays.value != null) {
       const minD = minMainForceBullishDays.value
       sourceData = sourceData.filter(item => (item.main_force_bullish_days ?? 0) >= minD)
+    }
+    if (showConsecutiveUpDaysFilter.value && minConsecutiveUpDaysFilter.value != null) {
+      const minU = minConsecutiveUpDaysFilter.value
+      sourceData = sourceData.filter(item => (item.consecutive_up_days ?? 0) >= minU)
     }
     return [...sourceData]
   })
@@ -333,6 +345,7 @@ export function useHistoryResults() {
 
   function isStrategyFile(filename: string): boolean {
     if (filename.startsWith('__strategy__')) return true
+    if (/_intraday_\d{8}_\d{6}_结果\.jsonl$/i.test(filename)) return false
     const baseName = filename.replace('_结果.jsonl', '').replace('.jsonl', '')
     return strategyNames.some(name =>
       baseName === name ||
@@ -344,6 +357,8 @@ export function useHistoryResults() {
   /** 从文件名解析策略名：含分片/任务后缀的归入对应策略（如 主力建仓_task0.jsonl -> 主力建仓） */
   function getStrategyNameFromFilename(filename: string): string | null {
     if (filename.startsWith('__strategy__')) return filename.replace('__strategy__', '')
+    /** 盘中快照脚本产出：不参与按策略聚合，需在左侧单独可选 */
+    if (/_intraday_\d{8}_\d{6}_结果\.jsonl$/i.test(filename)) return null
     const withDate = filename.match(/^(.+)_\d{8}_结果\.jsonl$/)
     if (withDate && strategyNames.includes(withDate[1])) return withDate[1]
     const main = filename.replace(/_结果\.jsonl$/, '').replace(/\.jsonl$/, '')
@@ -496,6 +511,7 @@ export function useHistoryResults() {
         if (isMultiStrategyOverlapFilename(filename)) {
           filterDay2Strong.value = false
           minMainForceBullishDays.value = null
+          minConsecutiveUpDaysFilter.value = null
           // 与脚本一致：日期倒序；同一天内命中策略数多的在前
           newResults.sort((a, b) => {
             const dA = a.match_date || ''
@@ -567,14 +583,25 @@ export function useHistoryResults() {
       document.body.removeChild(link)
       return
     }
-    const headers = ['代码·名称', '匹配日期', '板块概念联动', '匹配价', '当前价']
-    const rows = sortedData.map(item => [
-      `${item.code ?? ''} ${item.name ?? ''}`.trim(),
-      formatDate(item.match_date),
-      formatLinkageTableCell(item),
-      item.match_price?.toFixed(2) || '',
-      item.current_price?.toFixed(2) || ''
-    ])
+    const sn = String(metaInfo.value?.strategy_name || '').trim()
+    const includeStreak = sn === '连阳上影' || sn === '四连阳摸板' || sn === '连阳超五无涨停'
+    const headers = includeStreak
+      ? ['代码·名称', '匹配日期', '板块概念联动', '匹配价', '当前价', '连阳天数']
+      : ['代码·名称', '匹配日期', '板块概念联动', '匹配价', '当前价']
+    const rows = sortedData.map((item) => {
+      const row: string[] = [
+        `${item.code ?? ''} ${item.name ?? ''}`.trim(),
+        formatDate(item.match_date),
+        formatLinkageTableCell(item),
+        item.match_price?.toFixed(2) || '',
+        item.current_price?.toFixed(2) || ''
+      ]
+      if (includeStreak) {
+        const v = (item as StockResult).consecutive_up_days
+        row.push(v != null ? String(v) : '')
+      }
+      return row
+    })
     const csvContent = [headers.join(','), ...rows.map(row => row.join(','))].join('\n')
     const BOM = '\uFEFF'
     const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' })
@@ -615,7 +642,9 @@ export function useHistoryResults() {
     collectedByFile,
     filterDay2Strong,
     minMainForceBullishDays,
+    minConsecutiveUpDaysFilter,
     showMainForceBullishFilter,
+    showConsecutiveUpDaysFilter,
     isMultiStrategyOverlapFile,
     isNarrowScreen,
     tableScroll,

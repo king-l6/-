@@ -1,0 +1,432 @@
+{
+"version": 2,
+"trade_date": "2026-03-31",
+"built_at": "2026-05-13T12:30:07+00:00",
+"builder": "ths_concept_ths_industry",
+"concept_daily": "ths",
+"industry_daily": "ths",
+"concepts": [
+{
+"name": "赛马概念",
+"board_id": "301602",
+"pct": 2.4688986468849095,
+"source": "ths_hist",
+"rank": 1
+},
+{
+"name": "高铁",
+"board_id": "301518",
+"pct": 0.26125395084044545,
+"source": "ths_hist",
+"rank": 2
+},
+{
+"name": "足球概念",
+"board_id": "301100",
+"pct": 0.18328033031065338,
+"source": "ths_hist",
+"rank": 3
+},
+{
+"name": "冰雪产业",
+"board_id": "307550",
+"pct": 0.021615341028025092,
+"source": "ths_hist",
+"rank": 4
+},
+{
+"name": "同花顺出海50",
+"board_id": "309127",
+"pct": -0.13591316238898976,
+"source": "ths_hist",
+"rank": 5
+},
+{
+"name": "成飞概念",
+"board_id": "309045",
+"pct": -0.1843896982037685,
+"source": "ths_hist",
+"rank": 6
+},
+{
+"name": "减肥药",
+"board_id": "309081",
+"pct": -0.2456957500563517,
+"source": "ths_hist",
+"rank": 7
+},
+{
+"name": "减速器",
+"board_id": "309000",
+"pct": -0.3091151500769662,
+"source": "ths_hist",
+"rank": 8
+},
+{
+"name": "国产航母",
+"board_id": "300236",
+"pct": -0.32143154942559926,
+"source": "ths_hist",
+"rank": 9
+},
+{
+"name": "创新药",
+"board_id": "308014",
+"pct": -0.3680425247104546,
+"source": "ths_hist",
+"rank": 10
+},
+{
+"name": "细胞免疫治疗",
+"board_id": "301543",
+"pct": -0.39911704265004344,
+"source": "ths_hist",
+"rank": 11
+},
+{
+"name": "高股息精选",
+"board_id": "309124",
+"pct": -0.43048840143482536,
+"source": "ths_hist",
+"rank": 12
+},
+{
+"name": "生物疫苗",
+"board_id": "300106",
+"pct": -0.43641943824956897,
+"source": "ths_hist",
+"rank": 13
+},
+{
+"name": "超级品牌",
+"board_id": "306750",
+"pct": -0.4461394207503466,
+"source": "ths_hist",
+"rank": 14
+},
+{
+"name": "快手概念",
+"board_id": "308659",
+"pct": -0.5201214101515306,
+"source": "ths_hist",
+"rank": 15
+},
+{
+"name": "大飞机",
+"board_id": "300013",
+"pct": -0.5275571444091298,
+"source": "ths_hist",
+"rank": 16
+},
+{
+"name": "体育产业",
+"board_id": "301605",
+"pct": -0.5373190254407967,
+"source": "ths_hist",
+"rank": 17
+},
+{
+"name": "华为盘古",
+"board_id": "309170",
+"pct": -0.5525919375554023,
+"source": "ths_hist",
+"rank": 18
+},
+{
+"name": "医药电商",
+"board_id": "301565",
+"pct": -0.5835852912859152,
+"source": "ths_hist",
+"rank": 19
+},
+{
+"name": "仿制药一致性评价",
+"board_id": "308572",
+"pct": -0.5992074000451653,
+"source": "ths_hist",
+"rank": 20
+},
+{
+"name": "同花顺中特估100",
+"board_id": "309062",
+"pct": -0.5994039283511166,
+"source": "ths_hist",
+"rank": 21
+},
+{
+"name": "上海国企改革",
+"board_id": "301402",
+"pct": -0.602497506499533,
+"source": "ths_hist",
+"rank": 22
+},
+{
+"name": "农机",
+"board_id": "301306",
+"pct": -0.6097913749811945,
+"source": "ths_hist",
+"rank": 23
+},
+{
+"name": "军民融合",
+"board_id": "301786",
+"pct": -0.6274429676487503,
+"source": "ths_hist",
+"rank": 24
+},
+{
+"name": "白酒概念",
+"board_id": "301496",
+"pct": -0.6339388377309185,
+"source": "ths_hist",
+"rank": 25
+},
+{
+"name": "证金持股",
+"board_id": "301715",
+"pct": -0.6363483885214682,
+"source": "ths_hist",
+"rank": 26
+},
+{
+"name": "肝炎概念",
+"board_id": "308915",
+"pct": -0.6994844856546334,
+"source": "ths_hist",
+"rank": 27
+},
+{
+"name": "芬太尼",
+"board_id": "308438",
+"pct": -0.7008866495853305,
+"source": "ths_hist",
+"rank": 28
+},
+{
+"name": "两轮车",
+"board_id": "301248",
+"pct": -0.7014094193371179,
+"source": "ths_hist",
+"rank": 29
+},
+{
+"name": "深圳国企改革",
+"board_id": "301171",
+"pct": -0.7029617952759915,
+"source": "ths_hist",
+"rank": 30
+},
+{
+"name": "文化传媒概念",
+"board_id": "300806",
+"pct": -0.7057517285466774,
+"source": "ths_hist",
+"rank": 31
+},
+{
+"name": "重组蛋白",
+"board_id": "308822",
+"pct": -0.7231767620537899,
+"source": "ths_hist",
+"rank": 32
+},
+{
+"name": "拼多多概念",
+"board_id": "308709",
+"pct": -0.7251639865932802,
+"source": "ths_hist",
+"rank": 33
+},
+{
+"name": "家庭医生",
+"board_id": "308885",
+"pct": -0.7295230466747848,
+"source": "ths_hist",
+"rank": 34
+},
+{
+"name": "短剧游戏",
+"board_id": "309093",
+"pct": -0.747642779974167,
+"source": "ths_hist",
+"rank": 35
+},
+{
+"name": "辅助生殖",
+"board_id": "308708",
+"pct": -0.7515701244877548,
+"source": "ths_hist",
+"rank": 36
+},
+{
+"name": "飞行汽车(eVTOL)",
+"board_id": "309113",
+"pct": -0.7524520983901439,
+"source": "ths_hist",
+"rank": 37
+},
+{
+"name": "ERP概念",
+"board_id": "309058",
+"pct": -0.7616323354852184,
+"source": "ths_hist",
+"rank": 38
+},
+{
+"name": "中俄贸易概念",
+"board_id": "308854",
+"pct": -0.7658866993683011,
+"source": "ths_hist",
+"rank": 39
+},
+{
+"name": "网约车",
+"board_id": "302142",
+"pct": -0.7799809242783229,
+"source": "ths_hist",
+"rank": 40
+}
+],
+"industries": [
+{
+"name": "轨交设备",
+"board_id": "881269",
+"pct": 4.727763481564984,
+"source": "ths_hist",
+"rank": 1
+},
+{
+"name": "汽车服务及其他",
+"board_id": "881128",
+"pct": 2.349349706622239,
+"source": "ths_hist",
+"rank": 2
+},
+{
+"name": "汽车整车",
+"board_id": "881125",
+"pct": 1.077252219584257,
+"source": "ths_hist",
+"rank": 3
+},
+{
+"name": "工程机械",
+"board_id": "881268",
+"pct": 0.9807173337536002,
+"source": "ths_hist",
+"rank": 4
+},
+{
+"name": "银行",
+"board_id": "881155",
+"pct": 0.47247464018067564,
+"source": "ths_hist",
+"rank": 5
+},
+{
+"name": "医药商业",
+"board_id": "881143",
+"pct": 0.34929114444215426,
+"source": "ths_hist",
+"rank": 6
+},
+{
+"name": "贵金属",
+"board_id": "881169",
+"pct": 0.2912763052353551,
+"source": "ths_hist",
+"rank": 7
+},
+{
+"name": "医疗服务",
+"board_id": "881175",
+"pct": 0.2216901944154248,
+"source": "ths_hist",
+"rank": 8
+},
+{
+"name": "白色家电",
+"board_id": "881131",
+"pct": -0.02310128837229586,
+"source": "ths_hist",
+"rank": 9
+},
+{
+"name": "白酒",
+"board_id": "881273",
+"pct": -0.08754881450789842,
+"source": "ths_hist",
+"rank": 10
+},
+{
+"name": "保险",
+"board_id": "881156",
+"pct": -0.1323579781768447,
+"source": "ths_hist",
+"rank": 11
+},
+{
+"name": "黑色家电",
+"board_id": "881132",
+"pct": -0.19099714338852714,
+"source": "ths_hist",
+"rank": 12
+},
+{
+"name": "影视院线",
+"board_id": "881274",
+"pct": -0.22166062209154624,
+"source": "ths_hist",
+"rank": 13
+},
+{
+"name": "公路铁路运输",
+"board_id": "881149",
+"pct": -0.2679715883141309,
+"source": "ths_hist",
+"rank": 14
+},
+{
+"name": "旅游及酒店",
+"board_id": "881160",
+"pct": -0.4119523784263057,
+"source": "ths_hist",
+"rank": 15
+},
+{
+"name": "机场航运",
+"board_id": "881151",
+"pct": -0.6212823986435079,
+"source": "ths_hist",
+"rank": 16
+},
+{
+"name": "文化传媒",
+"board_id": "881164",
+"pct": -0.6382710615122966,
+"source": "ths_hist",
+"rank": 17
+},
+{
+"name": "其他社会服务",
+"board_id": "881179",
+"pct": -0.656141898427065,
+"source": "ths_hist",
+"rank": 18
+},
+{
+"name": "化学制药",
+"board_id": "881140",
+"pct": -0.6799357840937659,
+"source": "ths_hist",
+"rank": 19
+},
+{
+"name": "中药",
+"board_id": "881141",
+"pct": -0.6918985045288761,
+"source": "ths_hist",
+"rank": 20
+}
+]
+}

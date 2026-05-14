@@ -1,0 +1,151 @@
+{
+"version": 2,
+"trade_date": "2026-01-13",
+"built_at": "2026-05-14T10:31:51+00:00",
+"builder": "ths_concept_ths_industry",
+"concept_daily": "ths",
+"industry_daily": "ths",
+"concepts": [],
+"industries": [
+{
+"name": "医疗服务",
+"board_id": "881175",
+"pct": 4.43965364855623,
+"source": "ths_hist",
+"rank": 1
+},
+{
+"name": "贵金属",
+"board_id": "881169",
+"pct": 3.5417183169027977,
+"source": "ths_hist",
+"rank": 2
+},
+{
+"name": "油气开采及服务",
+"board_id": "881107",
+"pct": 3.1277053845330194,
+"source": "ths_hist",
+"rank": 3
+},
+{
+"name": "生物制品",
+"board_id": "881142",
+"pct": 2.2663859453536217,
+"source": "ths_hist",
+"rank": 4
+},
+{
+"name": "保险",
+"board_id": "881156",
+"pct": 2.1659835266240934,
+"source": "ths_hist",
+"rank": 5
+},
+{
+"name": "医药商业",
+"board_id": "881143",
+"pct": 1.8851861771228329,
+"source": "ths_hist",
+"rank": 6
+},
+{
+"name": "电网设备",
+"board_id": "881278",
+"pct": 1.412697915874861,
+"source": "ths_hist",
+"rank": 7
+},
+{
+"name": "游戏",
+"board_id": "881275",
+"pct": 1.2868056169826447,
+"source": "ths_hist",
+"rank": 8
+},
+{
+"name": "化学制药",
+"board_id": "881140",
+"pct": 1.2088681212611307,
+"source": "ths_hist",
+"rank": 9
+},
+{
+"name": "医疗器械",
+"board_id": "881144",
+"pct": 0.9776013415820461,
+"source": "ths_hist",
+"rank": 10
+},
+{
+"name": "中药",
+"board_id": "881141",
+"pct": 0.8622089116970377,
+"source": "ths_hist",
+"rank": 11
+},
+{
+"name": "银行",
+"board_id": "881155",
+"pct": 0.6707097131908091,
+"source": "ths_hist",
+"rank": 12
+},
+{
+"name": "教育",
+"board_id": "881178",
+"pct": 0.6589773867777593,
+"source": "ths_hist",
+"rank": 13
+},
+{
+"name": "文化传媒",
+"board_id": "881164",
+"pct": 0.43115123481594075,
+"source": "ths_hist",
+"rank": 14
+},
+{
+"name": "燃气",
+"board_id": "881146",
+"pct": 0.40396121246040195,
+"source": "ths_hist",
+"rank": 15
+},
+{
+"name": "美容护理",
+"board_id": "881182",
+"pct": 0.39778050444356783,
+"source": "ths_hist",
+"rank": 16
+},
+{
+"name": "综合",
+"board_id": "881165",
+"pct": 0.3801460221646735,
+"source": "ths_hist",
+"rank": 17
+},
+{
+"name": "能源金属",
+"board_id": "881267",
+"pct": 0.32428217362112655,
+"source": "ths_hist",
+"rank": 18
+},
+{
+"name": "石油加工贸易",
+"board_id": "881180",
+"pct": 0.2860252405498587,
+"source": "ths_hist",
+"rank": 19
+},
+{
+"name": "厨卫电器",
+"board_id": "881174",
+"pct": 0.14798119453942604,
+"source": "ths_hist",
+"rank": 20
+}
+]
+}

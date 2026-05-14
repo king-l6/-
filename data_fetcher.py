@@ -2,7 +2,7 @@
 A股数据获取器 - 股票列表与日 K 均使用 AkShare。
 """
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time as dt_time
 import time
 import os
 import json
@@ -144,6 +144,56 @@ def _finalize_hist_df_from_chinese_columns(df: pd.DataFrame) -> Optional[pd.Data
     return df.sort_values('日期').reset_index(drop=True)
 
 
+def merge_sina_spot_into_hist_df(
+    df: pd.DataFrame,
+    trading_date_str: str,
+    spot_row: dict,
+) -> Optional[pd.DataFrame]:
+    """
+    将新浪 stock_zh_a_spot 单行并入日 K：trading_date 当日若已有则替换，否则追加，再走 _finalize 与缓存列一致。
+    spot_row 键名与 AkShare 一致：最新价、今开、最高、最低、成交量、成交额、涨跌幅、昨收。
+    用于盘中快照近似「当日 K」后跑与日线相同的策略指标（不等同于收盘后正式日 K）。
+    """
+    if df is None or df.empty or not spot_row:
+        return None
+    t = pd.Timestamp(str(trading_date_str)[:10])
+    work = df.copy()
+    work['日期'] = pd.to_datetime(work['日期'])
+    t_norm = t.normalize()
+    mask = work['日期'].dt.normalize() != t_norm
+    base = work.loc[mask]
+    prev = base.tail(1)
+    prev_close = float(prev['收盘'].iloc[-1]) if not prev.empty else float(spot_row.get('昨收') or 0)
+    close_v = float(spot_row.get('最新价') or 0)
+    open_v = float(spot_row.get('今开') or 0)
+    high_v = float(spot_row.get('最高') or 0)
+    low_v = float(spot_row.get('最低') or 0)
+    vol = float(spot_row.get('成交量') or 0)
+    amt = float(spot_row.get('成交额') or 0)
+    raw_pct = spot_row.get('涨跌幅')
+    if raw_pct is None or (isinstance(raw_pct, float) and pd.isna(raw_pct)):
+        pc = float(spot_row.get('昨收') or prev_close)
+        pct = ((close_v - pc) / pc * 100.0) if pc > 0 else 0.0
+    else:
+        pct = float(raw_pct)
+    append_df = pd.DataFrame(
+        [
+            {
+                '日期': t_norm,
+                '开盘': open_v,
+                '收盘': close_v,
+                '最高': high_v,
+                '最低': low_v,
+                '成交量': vol,
+                '成交额': amt,
+                '涨跌幅': pct,
+            }
+        ]
+    )
+    combined = pd.concat([base, append_df], ignore_index=True)
+    return _finalize_hist_df_from_chinese_columns(combined)
+
+
 class DataFetcher:
     """A股数据获取器 - AkShare"""
 
@@ -167,6 +217,11 @@ class DataFetcher:
         self._trading_days_cache = {}  # {(start, end): [dates]}
         self._trading_days_full_cache = None  # 近N年完整交易日历
         self._trading_days_cache_time = None
+
+        # _get_last_trading_day_available：000001 探测较贵，缓存「未裁切」结果；裁切仍按当前时刻每次重算
+        self._lt_probe_memo: Optional[tuple[str, float]] = None
+        self._lt_probe_memo_ttl_sec = 45.0
+        self._lt_clip_log_key: Optional[tuple[str, str]] = None
 
         # 为 True 时 get_stock_data 仅用本地 json，不访问 AkShare；ensure_sufficient_data 直接跳过
         self.cache_only = False
@@ -320,41 +375,110 @@ class DataFetcher:
             pass
         return self.get_local_cache_latest_date()
 
+    @staticmethod
+    def _calendar_prev_weekday(d):
+        """上一工作日（跳过周六日）。"""
+        x = d - timedelta(days=1)
+        while x.weekday() >= 5:
+            x -= timedelta(days=1)
+        return x
+
+    def _clip_last_trade_before_market_close(self, last_trade: str) -> str:
+        """
+        A 股日 K 收盘前数据源可能已出现「当天」不完整 K 线；在本地时间未到收盘参考点之前，
+        不把「日历当天」当作可依赖的最后一根完整日 K。
+
+        - DATA_FETCH_EOD_HHMM：默认 15:10（本地时区，与 datetime.now() 一致）
+        - DATA_FETCH_DISABLE_INTRADAY_CAP=1：关闭本条，恢复仅依赖 000001 探测
+        """
+        v = os.environ.get('DATA_FETCH_DISABLE_INTRADAY_CAP', '').strip().lower()
+        if v in ('1', 'true', 'yes', 'on'):
+            return last_trade
+        try:
+            d_ref = datetime.strptime(str(last_trade).strip()[:10], '%Y-%m-%d').date()
+        except ValueError:
+            return last_trade
+        now = datetime.now()
+        today = now.date()
+        if d_ref != today:
+            return last_trade
+        if today.weekday() >= 5:
+            return last_trade
+        raw = os.environ.get('DATA_FETCH_EOD_HHMM', '15:10').strip() or '15:10'
+        parts = raw.replace('：', ':').split(':')
+        try:
+            eh = int(parts[0])
+            em = int(parts[1]) if len(parts) > 1 else 0
+        except (ValueError, IndexError):
+            eh, em = 15, 10
+        eh = max(0, min(eh, 23))
+        em = max(0, min(em, 59))
+        if now.time() >= dt_time(eh, em):
+            return last_trade
+        prev = self._calendar_prev_weekday(today)
+        return prev.strftime('%Y-%m-%d')
+
     def _get_last_trading_day_available(self):
         """获取 AkShare 已有日 K 的最新交易日（当日数据通常收盘后才更新；用 000001 探测）。"""
-        last_trade = self._get_last_trading_day()
-        last_trade_str = last_trade.replace('-', '')
+        now_m = time.monotonic()
+        memo = self._lt_probe_memo
+        out: Optional[str] = None
+        if memo is not None:
+            raw, t0 = memo
+            if now_m - t0 < self._lt_probe_memo_ttl_sec:
+                out = raw
 
-        def _fallback():
-            loc = self._local_fallback_last_trade_date_from_stock_cache()
-            if loc:
+        if out is None:
+            last_trade = self._get_last_trading_day()
+            last_trade_str = last_trade.replace('-', '')
+
+            def _fallback():
+                loc = self._local_fallback_last_trade_date_from_stock_cache()
+                if loc:
+                    print(
+                        f'[INFO] AkShare 探测 000001 失败或当日无 K，改用本地缓存推断「最近交易日参照」: {loc}',
+                        flush=True,
+                    )
+                    return loc
                 print(
-                    f'[INFO] AkShare 探测 000001 失败或当日无 K，改用本地缓存推断「最近交易日参照」: {loc}',
+                    f'[WARN] AkShare 与本地缓存均无法确定最近交易日，退回日历近似值: {last_trade}',
                     flush=True,
                 )
-                return loc
-            print(
-                f'[WARN] AkShare 与本地缓存均无法确定最近交易日，退回日历近似值: {last_trade}',
-                flush=True,
-            )
-            return last_trade
-
-        try:
-            df = self._fetch_from_akshare('000001', last_trade_str, last_trade_str)
-            if df is not None and not df.empty:
                 return last_trade
-            d = datetime.strptime(last_trade, '%Y-%m-%d').date()
-            for _ in range(10):
-                d = d - timedelta(days=1)
-                if d.weekday() < 5:
-                    check = d.strftime('%Y%m%d')
-                    df = self._fetch_from_akshare('000001', check, check)
-                    if df is not None and not df.empty:
-                        return d.strftime('%Y-%m-%d')
-            return _fallback()
-        except Exception as e:
-            print(f'[WARNING] 获取最近可用交易日异常: {e}', flush=True)
-            return _fallback()
+
+            try:
+                df = self._fetch_from_akshare('000001', last_trade_str, last_trade_str)
+                if df is not None and not df.empty:
+                    out = last_trade
+                else:
+                    d = datetime.strptime(last_trade, '%Y-%m-%d').date()
+                    for _ in range(10):
+                        d = d - timedelta(days=1)
+                        if d.weekday() < 5:
+                            check = d.strftime('%Y%m%d')
+                            df = self._fetch_from_akshare('000001', check, check)
+                            if df is not None and not df.empty:
+                                out = d.strftime('%Y-%m-%d')
+                                break
+                    if out is None:
+                        out = _fallback()
+            except Exception as e:
+                print(f'[WARNING] 获取最近可用交易日异常: {e}', flush=True)
+                out = _fallback()
+            self._lt_probe_memo = (out, time.monotonic())
+            self._lt_clip_log_key = None
+
+        clipped = self._clip_last_trade_before_market_close(out)
+        if clipped != out:
+            key = (out, clipped)
+            if self._lt_clip_log_key != key:
+                self._lt_clip_log_key = key
+                print(
+                    f'[INFO] 收盘前口径：最近可用交易日由 {out} 调整为 {clipped}（避免中午不完整日 K）；'
+                    f'可调 DATA_FETCH_EOD_HHMM 或设 DATA_FETCH_DISABLE_INTRADAY_CAP=1。',
+                    flush=True,
+                )
+        return clipped
 
     # ==================== 缓存文件索引机制（性能优化）====================
 
@@ -559,7 +683,9 @@ class DataFetcher:
 
     def need_fetch_recent_data(self):
         """本地缓存最新日期是否小于最近交易日，若是则需要拉取近一个月数据"""
-        last_trade = self._get_last_trading_day()
+        if getattr(self, 'cache_only', False):
+            return False
+        last_trade = self._get_last_trading_day_available()
         cache_latest = self.get_local_cache_latest_date()
         if cache_latest is None:
             return True
@@ -642,8 +768,9 @@ class DataFetcher:
     def _fetch_from_akshare(self, code, start_date, end_date):
         """从 AkShare 拉取日 K 并返回 DataFrame，不写缓存。
 
-        数据源顺序：东方财富 stock_zh_a_hist → 新浪 stock_zh_a_daily → 腾讯 stock_zh_a_hist_tx（若存在）。
+        默认数据源顺序：东方财富 stock_zh_a_hist → 新浪 stock_zh_a_daily → 腾讯 stock_zh_a_hist_tx（若存在）。
         单源内仍对瞬时网络错误重试；该源彻底失败再换下一源。
+        环境变量 DATA_FETCH_STOCK_HIST_SOURCE：auto（默认）、sina|新浪、eastmoney|东财、tencent|tx 时仅使用该源。
         """
         configure_akshare_http()
         import akshare as ak
@@ -766,23 +893,38 @@ class DataFetcher:
             )
             return _clip_date(df)
 
-        sources = (
-            ('eastmoney', _pull_eastmoney),
-            ('sina', _pull_sina),
-            ('tencent', _pull_tencent),
-        )
+        hint = os.environ.get('DATA_FETCH_STOCK_HIST_SOURCE', 'auto').strip().lower()
+        if hint in ('sina', '新浪'):
+            sources = (('sina', _pull_sina),)
+        elif hint in ('eastmoney', '东财'):
+            sources = (('eastmoney', _pull_eastmoney),)
+        elif hint in ('tencent', 'tx'):
+            sources = (('tencent', _pull_tencent),)
+        else:
+            sources = (
+                ('eastmoney', _pull_eastmoney),
+                ('sina', _pull_sina),
+                ('tencent', _pull_tencent),
+            )
         if _eastmoney_hist_cb_is_open():
             sources = tuple(s for s in sources if s[0] != 'eastmoney')
+        if not sources:
+            print(
+                '[ERROR] 日 K 数据源列表为空（例如东财熔断且当前仅配置东财）。'
+                '请设置 DATA_FETCH_STOCK_HIST_SOURCE=sina 或稍后重试。',
+                flush=True,
+            )
+            return None
 
         last_error: Optional[Exception] = None
-        for src_name, pull in sources:
+        for i, (src_name, pull) in enumerate(sources):
             for attempt in range(3):
                 try:
                     raw_df = pull()
                     if raw_df is not None and not raw_df.empty:
                         out = _finalize_hist_df_from_chinese_columns(raw_df)
                         if out is not None and not out.empty:
-                            if src_name != 'eastmoney':
+                            if i > 0:
                                 print(f'[INFO] {code} 日K 使用备用数据源: {src_name}')
                             return out
                     break
@@ -843,6 +985,9 @@ class DataFetcher:
                 if not rows:
                     return None
                 actual_max = max(r['日期'][:10] for r in rows)
+                # 缓存末尾晚于「最近完整收盘日」时多为盘中不完整日 K，需修剪或重拉
+                if actual_max > last_trade:
+                    return (code, start_str, '', fp)
                 if actual_max >= last_trade:
                     return None
                 return (code, start_str, '', fp)
@@ -901,7 +1046,8 @@ class DataFetcher:
             # 为没有缓存的股票创建缓存（拉取近一个月数据）
             today = datetime.now()
             start_date = (today - timedelta(days=50)).strftime('%Y%m%d')
-            end_date = today.strftime('%Y%m%d')
+            # 右端与「最近可用完整交易日」对齐，避免中午用日历今天拉到不完整日 K
+            end_date = last_trade_str
             
             def create_cache(code):
                 try:
@@ -953,13 +1099,34 @@ class DataFetcher:
             try:
                 with open(fp, 'r', encoding='utf-8') as f:
                     cache_data = json.load(f)
-                rows = cache_data.get('data') or []
+                raw_rows = cache_data.get('data') or []
+                if not raw_rows:
+                    return code, False
+                # 去掉晚于 last_trade 的行（中午拉到的「当天」不完整 K）
+                rows = [r for r in raw_rows if str(r.get('日期', ''))[:10] <= last_trade]
+                trimmed = len(rows) != len(raw_rows)
                 if not rows:
                     return code, False
                 max_dt = max(pd.to_datetime(r['日期']) for r in rows)
                 fetch_start = (max_dt + timedelta(days=1)).strftime('%Y%m%d')
                 if fetch_start > last_trade_str:
-                    return code, False
+                    if not trimmed:
+                        return code, False
+                    df_merged = pd.DataFrame(rows)
+                    df_merged['日期'] = pd.to_datetime(df_merged['日期'])
+                    df_merged = df_merged.sort_values('日期').reset_index(drop=True)
+                    new_end = max(r['日期'][:10] for r in rows).replace('-', '')
+                    new_path = self._get_cache_path(code, start_str, new_end)
+                    out = {
+                        'cache_time': datetime.now().isoformat(),
+                        'code': code, 'start_date': start_str, 'end_date': new_end,
+                        'data': df_merged.to_dict('records')
+                    }
+                    with open(new_path, 'w', encoding='utf-8') as f:
+                        json.dump(out, f, ensure_ascii=False, default=str)
+                    if new_path != fp:
+                        os.remove(fp)
+                    return code, True
 
                 df_new = self._fetch_from_api(code, fetch_start, last_trade_str)
                 if df_new is None or df_new.empty:
@@ -1018,7 +1185,9 @@ class DataFetcher:
         
         # 计算需要的日历日数：约 1 交易日 ≈ 1.4 日历日，多取一些确保覆盖
         calendar_days = int(time_range * 1.6) + 10
-        end_date = datetime.strptime(self._get_last_trading_day(), '%Y-%m-%d')
+        # 右端与 get_stock_data 一致：用「最近可用交易日」（含收盘前裁切）
+        end_ref = self._get_last_trading_day_available()
+        end_date = datetime.strptime(end_ref[:10], '%Y-%m-%d')
         required_start_date = (end_date - timedelta(days=calendar_days)).strftime('%Y%m%d')
         end_date_str = end_date.strftime('%Y%m%d')
         
@@ -1053,8 +1222,8 @@ class DataFetcher:
                 if end_str > by_code[code]['end']:
                     by_code[code]['end'] = end_str
 
-        # 与「自然日今天」无关：用工作日口径的最后交易日 YYYYMMDD，与 get_stock_data 右端对齐；不调用 AkShare，避免非交易日误判缺数
-        last_trade_ymd = self._get_last_trading_day().replace('-', '')[:8]
+        # 与 get_stock_data 右端一致：用「最近可用交易日」（含收盘前裁切），避免中午误判缺尾部日 K
+        last_trade_ymd = self._get_last_trading_day_available().replace('-', '')[:8]
 
         # 检查哪些股票需要拉取更多数据
         for code in all_codes:
@@ -1220,23 +1389,27 @@ class DataFetcher:
         Args:
             force_refresh: 为 True 时跳过缓存，强制从网络拉取新数据
         """
+        if getattr(self, 'cache_only', False):
+            ref_trade = self._get_last_trading_day().replace('-', '')[:8]
+        else:
+            ref_trade = self._get_last_trading_day_available().replace('-', '')[:8]
+
         if end_date is None:
-            end_date = self._get_last_trading_day().replace('-', '')
+            end_date = ref_trade
         if start_date is None:
             start_date = (datetime.now() - timedelta(days=90)).strftime('%Y%m%d')
 
-        start_date = str(start_date).replace('-', '')
-        end_date = str(end_date).replace('-', '')
-        # 日 K 只存在到最后一个「工作日口径」的交易日；若请求 end 晚于该日，会误判缓存未全覆盖从而反复打网。
-        last_cal = self._get_last_trading_day().replace('-', '')
+        start_date = str(start_date).replace('-', '')[:8]
+        end_date = str(end_date).replace('-', '')[:8]
+        # 日 K 右端与「最近可用交易日」对齐（含 DATA_FETCH_EOD_HHMM 收盘前裁切），避免盘中把不完整当日写入缓存。
         if (
-            len(last_cal) == 8
-            and last_cal.isdigit()
+            len(ref_trade) == 8
+            and ref_trade.isdigit()
             and len(end_date) == 8
             and end_date.isdigit()
-            and end_date > last_cal
+            and end_date > ref_trade
         ):
-            end_date = last_cal
+            end_date = ref_trade
 
         if getattr(self, 'cache_only', False):
             return self._get_stock_data_cache_only(code, start_date, end_date)
@@ -1297,7 +1470,7 @@ class DataFetcher:
                         cache_min_str = cache_min.strftime('%Y%m%d')
                         cache_max_str = cache_max.strftime('%Y%m%d')
                         need_back = start_date < cache_min_str
-                        last_trade_ymd = self._get_last_trading_day().replace('-', '')[:8]
+                        last_trade_ymd = self._get_last_trading_day_available().replace('-', '')[:8]
                         # 仅当请求区间超出缓存右端、且右端仍早于「应存在的最后交易日」时才向前补（YYYYMMDD 比较）
                         need_front = (end_date > cache_max_str) and (
                             len(last_trade_ymd) == 8 and cache_max_str < last_trade_ymd

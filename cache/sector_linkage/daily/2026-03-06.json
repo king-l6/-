@@ -1,0 +1,432 @@
+{
+"version": 2,
+"trade_date": "2026-03-06",
+"built_at": "2026-05-13T11:01:03+00:00",
+"builder": "ths_concept_ths_industry",
+"concept_daily": "ths",
+"industry_daily": "ths",
+"concepts": [
+{
+"name": "草甘膦",
+"board_id": "300157",
+"pct": 4.819031035861476,
+"source": "ths_hist",
+"rank": 1
+},
+{
+"name": "环氧丙烷",
+"board_id": "308202",
+"pct": 4.489908879352922,
+"source": "ths_hist",
+"rank": 2
+},
+{
+"name": "高压氧舱",
+"board_id": "309023",
+"pct": 4.3826657823820225,
+"source": "ths_hist",
+"rank": 3
+},
+{
+"name": "猪肉",
+"board_id": "300451",
+"pct": 3.8543192514306934,
+"source": "ths_hist",
+"rank": 4
+},
+{
+"name": "丙烯酸",
+"board_id": "305376",
+"pct": 3.8107951068474977,
+"source": "ths_hist",
+"rank": 5
+},
+{
+"name": "代糖概念",
+"board_id": "308696",
+"pct": 3.744223071802466,
+"source": "ths_hist",
+"rank": 6
+},
+{
+"name": "养鸡",
+"board_id": "301576",
+"pct": 3.71525282719678,
+"source": "ths_hist",
+"rank": 7
+},
+{
+"name": "青蒿素",
+"board_id": "301794",
+"pct": 3.643608363744044,
+"source": "ths_hist",
+"rank": 8
+},
+{
+"name": "细胞免疫治疗",
+"board_id": "301543",
+"pct": 3.6175420608342224,
+"source": "ths_hist",
+"rank": 9
+},
+{
+"name": "玉米",
+"board_id": "301572",
+"pct": 3.6082653802222975,
+"source": "ths_hist",
+"rank": 10
+},
+{
+"name": "生态农业",
+"board_id": "300923",
+"pct": 3.4841684094045533,
+"source": "ths_hist",
+"rank": 11
+},
+{
+"name": "粮食概念",
+"board_id": "308956",
+"pct": 3.451543459995321,
+"source": "ths_hist",
+"rank": 12
+},
+{
+"name": "动物疫苗",
+"board_id": "308537",
+"pct": 3.124520650759788,
+"source": "ths_hist",
+"rank": 13
+},
+{
+"name": "重组蛋白",
+"board_id": "308822",
+"pct": 3.106169251666313,
+"source": "ths_hist",
+"rank": 14
+},
+{
+"name": "水泥概念",
+"board_id": "307826",
+"pct": 3.0627539875062615,
+"source": "ths_hist",
+"rank": 15
+},
+{
+"name": "供销社",
+"board_id": "301669",
+"pct": 3.0081479160137814,
+"source": "ths_hist",
+"rank": 16
+},
+{
+"name": "消毒剂",
+"board_id": "308636",
+"pct": 3.0052384769006624,
+"source": "ths_hist",
+"rank": 17
+},
+{
+"name": "化肥",
+"board_id": "301104",
+"pct": 2.998593198493804,
+"source": "ths_hist",
+"rank": 18
+},
+{
+"name": "碳交易",
+"board_id": "300931",
+"pct": 2.993341552368034,
+"source": "ths_hist",
+"rank": 19
+},
+{
+"name": "电力物联网",
+"board_id": "308477",
+"pct": 2.965428698378103,
+"source": "ths_hist",
+"rank": 20
+},
+{
+"name": "转基因",
+"board_id": "300435",
+"pct": 2.928361078677777,
+"source": "ths_hist",
+"rank": 21
+},
+{
+"name": "磷化工",
+"board_id": "300098",
+"pct": 2.8844939961982563,
+"source": "ths_hist",
+"rank": 22
+},
+{
+"name": "阿尔茨海默概念",
+"board_id": "308614",
+"pct": 2.8439196469518535,
+"source": "ths_hist",
+"rank": 23
+},
+{
+"name": "创新药",
+"board_id": "308014",
+"pct": 2.824142814066133,
+"source": "ths_hist",
+"rank": 24
+},
+{
+"name": "农业种植",
+"board_id": "308016",
+"pct": 2.801340198357538,
+"source": "ths_hist",
+"rank": 25
+},
+{
+"name": "大豆",
+"board_id": "301123",
+"pct": 2.795088325404116,
+"source": "ths_hist",
+"rank": 26
+},
+{
+"name": "房屋检测",
+"board_id": "309155",
+"pct": 2.794756710933455,
+"source": "ths_hist",
+"rank": 27
+},
+{
+"name": "辅助生殖",
+"board_id": "308708",
+"pct": 2.7911040336084936,
+"source": "ths_hist",
+"rank": 28
+},
+{
+"name": "合成生物",
+"board_id": "309129",
+"pct": 2.777138287431402,
+"source": "ths_hist",
+"rank": 29
+},
+{
+"name": "天津自贸区",
+"board_id": "301229",
+"pct": 2.7456993268511587,
+"source": "ths_hist",
+"rank": 30
+},
+{
+"name": "乳业",
+"board_id": "300983",
+"pct": 2.7159886481642914,
+"source": "ths_hist",
+"rank": 31
+},
+{
+"name": "土壤修复",
+"board_id": "300925",
+"pct": 2.692549535345612,
+"source": "ths_hist",
+"rank": 32
+},
+{
+"name": "血氧仪",
+"board_id": "309042",
+"pct": 2.6717863836623446,
+"source": "ths_hist",
+"rank": 33
+},
+{
+"name": "减肥药",
+"board_id": "309081",
+"pct": 2.644987973589008,
+"source": "ths_hist",
+"rank": 34
+},
+{
+"name": "民营医院",
+"board_id": "301346",
+"pct": 2.6444049610884646,
+"source": "ths_hist",
+"rank": 35
+},
+{
+"name": "土地流转",
+"board_id": "300858",
+"pct": 2.6235485058038632,
+"source": "ths_hist",
+"rank": 36
+},
+{
+"name": "基因测序",
+"board_id": "301146",
+"pct": 2.622300014860879,
+"source": "ths_hist",
+"rank": 37
+},
+{
+"name": "维生素",
+"board_id": "309135",
+"pct": 2.6163472362524365,
+"source": "ths_hist",
+"rank": 38
+},
+{
+"name": "农村电商",
+"board_id": "301632",
+"pct": 2.5892645497675115,
+"source": "ths_hist",
+"rank": 39
+},
+{
+"name": "医疗废物处理",
+"board_id": "308638",
+"pct": 2.58870347871365,
+"source": "ths_hist",
+"rank": 40
+}
+],
+"industries": [
+{
+"name": "农化制品",
+"board_id": "881263",
+"pct": 4.444301599051337,
+"source": "ths_hist",
+"rank": 1
+},
+{
+"name": "化学原料",
+"board_id": "881108",
+"pct": 3.7817918457257793,
+"source": "ths_hist",
+"rank": 2
+},
+{
+"name": "养殖业",
+"board_id": "881102",
+"pct": 3.4037292984146594,
+"source": "ths_hist",
+"rank": 3
+},
+{
+"name": "贸易",
+"board_id": "881159",
+"pct": 3.186360796525123,
+"source": "ths_hist",
+"rank": 4
+},
+{
+"name": "综合",
+"board_id": "881165",
+"pct": 3.1346065811191703,
+"source": "ths_hist",
+"rank": 5
+},
+{
+"name": "种植业与林业",
+"board_id": "881101",
+"pct": 3.120456527702098,
+"source": "ths_hist",
+"rank": 6
+},
+{
+"name": "医疗服务",
+"board_id": "881175",
+"pct": 3.0677084571472113,
+"source": "ths_hist",
+"rank": 7
+},
+{
+"name": "生物制品",
+"board_id": "881142",
+"pct": 3.048760820250407,
+"source": "ths_hist",
+"rank": 8
+},
+{
+"name": "化学制药",
+"board_id": "881140",
+"pct": 3.0169828000682353,
+"source": "ths_hist",
+"rank": 9
+},
+{
+"name": "化学制品",
+"board_id": "881109",
+"pct": 2.973270898462199,
+"source": "ths_hist",
+"rank": 10
+},
+{
+"name": "其他电源设备",
+"board_id": "881282",
+"pct": 2.7294548944816643,
+"source": "ths_hist",
+"rank": 11
+},
+{
+"name": "农产品加工",
+"board_id": "881103",
+"pct": 2.7256124597585973,
+"source": "ths_hist",
+"rank": 12
+},
+{
+"name": "化学纤维",
+"board_id": "881264",
+"pct": 2.630335283070706,
+"source": "ths_hist",
+"rank": 13
+},
+{
+"name": "汽车服务及其他",
+"board_id": "881128",
+"pct": 2.399187682519255,
+"source": "ths_hist",
+"rank": 14
+},
+{
+"name": "饮料制造",
+"board_id": "881133",
+"pct": 2.393982517244142,
+"source": "ths_hist",
+"rank": 15
+},
+{
+"name": "互联网电商",
+"board_id": "881177",
+"pct": 2.3900797488539016,
+"source": "ths_hist",
+"rank": 16
+},
+{
+"name": "环境治理",
+"board_id": "881181",
+"pct": 2.3140291876214913,
+"source": "ths_hist",
+"rank": 17
+},
+{
+"name": "电网设备",
+"board_id": "881278",
+"pct": 2.2470369026222015,
+"source": "ths_hist",
+"rank": 18
+},
+{
+"name": "多元金融",
+"board_id": "881283",
+"pct": 2.1836904837108317,
+"source": "ths_hist",
+"rank": 19
+},
+{
+"name": "医疗器械",
+"board_id": "881144",
+"pct": 2.1794505498257344,
+"source": "ths_hist",
+"rank": 20
+}
+]
+}

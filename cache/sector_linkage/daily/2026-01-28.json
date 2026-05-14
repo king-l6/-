@@ -1,0 +1,151 @@
+{
+"version": 2,
+"trade_date": "2026-01-28",
+"built_at": "2026-05-13T15:01:56+00:00",
+"builder": "ths_concept_ths_industry",
+"concept_daily": "ths",
+"industry_daily": "ths",
+"concepts": [],
+"industries": [
+{
+"name": "贵金属",
+"board_id": "881169",
+"pct": 10.751653366378155,
+"source": "ths_hist",
+"rank": 1
+},
+{
+"name": "油气开采及服务",
+"board_id": "881107",
+"pct": 7.606363321234277,
+"source": "ths_hist",
+"rank": 2
+},
+{
+"name": "工业金属",
+"board_id": "881168",
+"pct": 6.267264334744915,
+"source": "ths_hist",
+"rank": 3
+},
+{
+"name": "小金属",
+"board_id": "881170",
+"pct": 5.411321633105093,
+"source": "ths_hist",
+"rank": 4
+},
+{
+"name": "煤炭开采加工",
+"board_id": "881105",
+"pct": 4.417290397447049,
+"source": "ths_hist",
+"rank": 5
+},
+{
+"name": "能源金属",
+"board_id": "881267",
+"pct": 3.20179003765102,
+"source": "ths_hist",
+"rank": 6
+},
+{
+"name": "种植业与林业",
+"board_id": "881101",
+"pct": 2.7413933270567625,
+"source": "ths_hist",
+"rank": 7
+},
+{
+"name": "钢铁",
+"board_id": "881112",
+"pct": 1.8944985353392507,
+"source": "ths_hist",
+"rank": 8
+},
+{
+"name": "化学原料",
+"board_id": "881108",
+"pct": 1.8028207670786722,
+"source": "ths_hist",
+"rank": 9
+},
+{
+"name": "农化制品",
+"board_id": "881263",
+"pct": 1.7410789578151897,
+"source": "ths_hist",
+"rank": 10
+},
+{
+"name": "金属新材料",
+"board_id": "881114",
+"pct": 1.5743781134764712,
+"source": "ths_hist",
+"rank": 11
+},
+{
+"name": "半导体",
+"board_id": "881121",
+"pct": 1.5519988335101598,
+"source": "ths_hist",
+"rank": 12
+},
+{
+"name": "贸易",
+"board_id": "881159",
+"pct": 1.3405616201604298,
+"source": "ths_hist",
+"rank": 13
+},
+{
+"name": "非金属材料",
+"board_id": "881167",
+"pct": 1.0560295753104576,
+"source": "ths_hist",
+"rank": 14
+},
+{
+"name": "服装家纺",
+"board_id": "881136",
+"pct": 0.9280053367601404,
+"source": "ths_hist",
+"rank": 15
+},
+{
+"name": "石油加工贸易",
+"board_id": "881180",
+"pct": 0.8962631369159313,
+"source": "ths_hist",
+"rank": 16
+},
+{
+"name": "港口航运",
+"board_id": "881148",
+"pct": 0.8255864957986914,
+"source": "ths_hist",
+"rank": 17
+},
+{
+"name": "燃气",
+"board_id": "881146",
+"pct": 0.7896934615273743,
+"source": "ths_hist",
+"rank": 18
+},
+{
+"name": "公路铁路运输",
+"board_id": "881149",
+"pct": 0.6575462693158673,
+"source": "ths_hist",
+"rank": 19
+},
+{
+"name": "白酒",
+"board_id": "881273",
+"pct": 0.5504787351783502,
+"source": "ths_hist",
+"rank": 20
+}
+]
+}

@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-定时任务：每天固定时间执行「先补全数据，再跑六个策略的增量回测」。
+定时任务：每天固定时间仅执行「本地 cache 上的增量回测」（不拉全市场 K 线）。
+K 线请先自行跑 scripts/update_cache_and_backtest.py --no-backtest 或等价入口补齐。
+
 支持两种运行方式：
 1. 作为守护进程运行（需要保持进程运行）
 2. 作为一次性任务运行（配合系统定时任务使用，例如 macOS launchd）
@@ -38,7 +40,7 @@ def _load_strategy_names():
         return [s['name'] for s in data.get('strategies', [])]
     except Exception:
         # 如果加载失败，返回默认列表
-        return ['龙头战法', '断板反包', '均线上穿', '情绪周期', '三连板', '筑底突破']
+        return ['主力建仓', '断板反包', '筑底突破', '连阳上影', '四连阳摸板']
 
 STRATEGY_NAMES = _load_strategy_names()
 
@@ -170,8 +172,8 @@ def _send_wechat_message(content):
     except Exception as e:
         print("企业微信发送失败（其他错误）:", e)
 
-def run_daily_task():
-    """执行每日任务：直接跑六个策略的增量回测 + 发企微（轻量版，不再每天全市场补缓存）"""
+def run_daily_task(backtest_workers: int = 100):
+    """执行每日任务：仅用本地 K 线缓存做六个策略增量回测 + 发企微（不调用补数脚本）。"""
     print(f'\n[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] 开始执行定时任务')
     print('=' * 70)
     
@@ -180,11 +182,20 @@ def run_daily_task():
         script_dir = os.path.dirname(os.path.abspath(__file__))
         python_bin = sys.executable
 
-        # 1. 六个策略的增量回测（按结果文件最后日期补 T 日），轻量：不再强制补全全市场缓存
-        print('步骤1: 六个策略的增量回测（scripts/backtest_append_from_last.py --no-check-cache --skip-ensure-data）')
+        print(
+            '步骤1: 六个策略增量回测（仅本地 cache：--cache-only --no-check-cache --skip-ensure-data）'
+        )
         backtest_script = os.path.join(script_dir, 'scripts', 'backtest_append_from_last.py')
         result2 = subprocess.run(
-            [python_bin, backtest_script, '--no-check-cache', '--skip-ensure-data'],
+            [
+                python_bin,
+                backtest_script,
+                '--cache-only',
+                '--no-check-cache',
+                '--skip-ensure-data',
+                '--workers',
+                str(backtest_workers),
+            ],
             cwd=script_dir,
             capture_output=False,
             text=True
@@ -202,7 +213,7 @@ def run_daily_task():
                 content = _format_wechat_markdown(strategy_name, trade_date, records)
                 _send_wechat_message(content)
         else:
-            print(f'\n[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] 增量回测脚本执行失败，返回码: {result2.returncode}')
+            print(f'\n[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] 增量回测执行失败，返回码: {result2.returncode}')
             
     except Exception as e:
         print(f'\n[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] 定时任务执行出错: {e}')
@@ -215,23 +226,24 @@ def run_daily_task():
 if __name__ == '__main__':
     import argparse
     
-    parser = argparse.ArgumentParser(description='定时任务：每天15:30执行更新数据和回测')
+    parser = argparse.ArgumentParser(description='定时任务：每天固定时间仅用本地缓存增量回测（不拉 K 线）')
     parser.add_argument('--once', action='store_true', help='立即执行一次任务（用于测试）')
     parser.add_argument('--time', default='15:30', help='执行时间，格式 HH:MM（默认: 15:30）')
+    parser.add_argument('--workers', type=int, default=100, help='增量回测并发线程数（默认 100）')
     args = parser.parse_args()
     
     if args.once:
         # 立即执行一次（用于测试）
         print(f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] 立即执行任务（测试模式）')
-        run_daily_task()
+        run_daily_task(backtest_workers=args.workers)
     else:
         # 定时执行
         print(f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] 定时任务服务启动')
-        print(f'任务计划: 每天 {args.time} 执行更新数据和回测')
+        print(f'任务计划: 每天 {args.time} 执行本地缓存增量回测（不拉 K 线）')
         print('按 Ctrl+C 停止服务\n')
         
         # 设置定时任务
-        schedule.every().day.at(args.time).do(run_daily_task)
+        schedule.every().day.at(args.time).do(run_daily_task, backtest_workers=args.workers)
         
         # 运行调度器
         try:

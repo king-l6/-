@@ -1,0 +1,306 @@
+{
+"version": 2,
+"trade_date": "2026-05-14",
+"built_at": "2026-05-14T11:26:30+00:00",
+"builder": "ths_concept_ths_industry",
+"concept_daily": "ths",
+"industry_daily": "ths",
+"concepts": [
+{
+"name": "摘帽",
+"board_id": "301455",
+"pct": 1.5726546384999374,
+"source": "ths_hist",
+"rank": 1
+},
+{
+"name": "中国AI 50",
+"board_id": "309187",
+"pct": 1.272282011200998,
+"source": "ths_hist",
+"rank": 2
+},
+{
+"name": "量子科技",
+"board_id": "300830",
+"pct": 1.2709538748568505,
+"source": "ths_hist",
+"rank": 3
+},
+{
+"name": "算力租赁",
+"board_id": "309068",
+"pct": 1.188202198910271,
+"source": "ths_hist",
+"rank": 4
+},
+{
+"name": "数据中心",
+"board_id": "308642",
+"pct": 1.064260756545088,
+"source": "ths_hist",
+"rank": 5
+},
+{
+"name": "Sora概念(文生视频)",
+"board_id": "309118",
+"pct": 1.0546190741685502,
+"source": "ths_hist",
+"rank": 6
+},
+{
+"name": "AI眼镜",
+"board_id": "309152",
+"pct": 0.9810625486732283,
+"source": "ths_hist",
+"rank": 7
+},
+{
+"name": "露营经济",
+"board_id": "308926",
+"pct": 0.9100138201268981,
+"source": "ths_hist",
+"rank": 8
+},
+{
+"name": "ETC",
+"board_id": "308555",
+"pct": 0.865989589283811,
+"source": "ths_hist",
+"rank": 9
+},
+{
+"name": "光纤概念",
+"board_id": "309151",
+"pct": 0.8273144704877833,
+"source": "ths_hist",
+"rank": 10
+},
+{
+"name": "碳中和",
+"board_id": "308728",
+"pct": 0.8251949562329441,
+"source": "ths_hist",
+"rank": 11
+},
+{
+"name": "智慧灯杆",
+"board_id": "308841",
+"pct": 0.8070440195740991,
+"source": "ths_hist",
+"rank": 12
+},
+{
+"name": "柔性直流输电",
+"board_id": "308810",
+"pct": 0.7992636236789918,
+"source": "ths_hist",
+"rank": 13
+},
+{
+"name": "卫星导航",
+"board_id": "300722",
+"pct": 0.7654810698382697,
+"source": "ths_hist",
+"rank": 14
+},
+{
+"name": "军民融合",
+"board_id": "301786",
+"pct": 0.7472915805752267,
+"source": "ths_hist",
+"rank": 15
+},
+{
+"name": "TOPCON电池",
+"board_id": "308992",
+"pct": 0.6840735819113597,
+"source": "ths_hist",
+"rank": 16
+},
+{
+"name": "数据要素",
+"board_id": "309060",
+"pct": 0.6723410136656671,
+"source": "ths_hist",
+"rank": 17
+},
+{
+"name": "两轮车",
+"board_id": "301248",
+"pct": 0.6670410954403128,
+"source": "ths_hist",
+"rank": 18
+},
+{
+"name": "PEEK材料",
+"board_id": "309105",
+"pct": 0.6357898422566954,
+"source": "ths_hist",
+"rank": 19
+},
+{
+"name": "特钢概念",
+"board_id": "300845",
+"pct": 0.6314462291805434,
+"source": "ths_hist",
+"rank": 20
+},
+{
+"name": "体育产业",
+"board_id": "301605",
+"pct": 0.6083446093286815,
+"source": "ths_hist",
+"rank": 21
+},
+{
+"name": "DeepSeek概念",
+"board_id": "309184",
+"pct": 0.6066736789316796,
+"source": "ths_hist",
+"rank": 22
+},
+{
+"name": "绿色电力",
+"board_id": "308760",
+"pct": 0.5384340506339402,
+"source": "ths_hist",
+"rank": 23
+},
+{
+"name": "足球概念",
+"board_id": "301100",
+"pct": 0.48061742573481947,
+"source": "ths_hist",
+"rank": 24
+},
+{
+"name": "钛白粉概念",
+"board_id": "300351",
+"pct": 0.47878830551542073,
+"source": "ths_hist",
+"rank": 25
+},
+{
+"name": "在线教育",
+"board_id": "301227",
+"pct": 0.4321093161733902,
+"source": "ths_hist",
+"rank": 26
+},
+{
+"name": "汽车电子",
+"board_id": "301471",
+"pct": 0.4318874045033505,
+"source": "ths_hist",
+"rank": 27
+},
+{
+"name": "苹果概念",
+"board_id": "300309",
+"pct": 0.42880942280640877,
+"source": "ths_hist",
+"rank": 28
+},
+{
+"name": "培育钻石",
+"board_id": "308774",
+"pct": 0.40602825981099766,
+"source": "ths_hist",
+"rank": 29
+},
+{
+"name": "无人机",
+"board_id": "300889",
+"pct": 0.29190609499927245,
+"source": "ths_hist",
+"rank": 30
+},
+{
+"name": "合成生物",
+"board_id": "309129",
+"pct": 0.2661000976891037,
+"source": "ths_hist",
+"rank": 31
+},
+{
+"name": "回购增持再贷款概念",
+"board_id": "309163",
+"pct": 0.25474530626159453,
+"source": "ths_hist",
+"rank": 32
+},
+{
+"name": "旅游概念",
+"board_id": "301223",
+"pct": 0.24393570384804164,
+"source": "ths_hist",
+"rank": 33
+},
+{
+"name": "冷链物流",
+"board_id": "301179",
+"pct": 0.23910771448341084,
+"source": "ths_hist",
+"rank": 34
+},
+{
+"name": "同花顺出海50",
+"board_id": "309127",
+"pct": 0.21097759169885766,
+"source": "ths_hist",
+"rank": 35
+},
+{
+"name": "同花顺中特估100",
+"board_id": "309062",
+"pct": 0.20911434676356144,
+"source": "ths_hist",
+"rank": 36
+},
+{
+"name": "横琴新区",
+"board_id": "300087",
+"pct": 0.1866416899075629,
+"source": "ths_hist",
+"rank": 37
+},
+{
+"name": "2026一季报预增",
+"board_id": "309265",
+"pct": 0.1730123646883408,
+"source": "ths_hist",
+"rank": 38
+},
+{
+"name": "民营医院",
+"board_id": "301346",
+"pct": 0.042140959954894974,
+"source": "ths_hist",
+"rank": 39
+},
+{
+"name": "智能医疗",
+"board_id": "300682",
+"pct": 0.032155816981238594,
+"source": "ths_hist",
+"rank": 40
+}
+],
+"industries": [
+{
+"name": "食品加工制造",
+"board_id": "881134",
+"pct": 0.9986266321194037,
+"source": "ths_hist",
+"rank": 1
+},
+{
+"name": "建筑材料",
+"board_id": "881115",
+"pct": -0.1554772898454626,
+"source": "ths_hist",
+"rank": 2
+}
+]
+}

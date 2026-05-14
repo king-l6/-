@@ -1,0 +1,432 @@
+{
+"version": 2,
+"trade_date": "2026-03-16",
+"built_at": "2026-05-13T11:37:30+00:00",
+"builder": "ths_concept_ths_industry",
+"concept_daily": "ths",
+"industry_daily": "ths",
+"concepts": [
+{
+"name": "转基因",
+"board_id": "300435",
+"pct": 2.537390189434241,
+"source": "ths_hist",
+"rank": 1
+},
+{
+"name": "存储芯片",
+"board_id": "307940",
+"pct": 2.494191377509747,
+"source": "ths_hist",
+"rank": 2
+},
+{
+"name": "国家大基金持股",
+"board_id": "307816",
+"pct": 2.2762015514180556,
+"source": "ths_hist",
+"rank": 3
+},
+{
+"name": "赛马概念",
+"board_id": "301602",
+"pct": 2.160174869344589,
+"source": "ths_hist",
+"rank": 4
+},
+{
+"name": "MCU芯片",
+"board_id": "308300",
+"pct": 2.07168031681384,
+"source": "ths_hist",
+"rank": 5
+},
+{
+"name": "AI PC",
+"board_id": "309121",
+"pct": 1.871282548655917,
+"source": "ths_hist",
+"rank": 6
+},
+{
+"name": "玉米",
+"board_id": "301572",
+"pct": 1.7519313072090315,
+"source": "ths_hist",
+"rank": 7
+},
+{
+"name": "粮食概念",
+"board_id": "308956",
+"pct": 1.744690366132473,
+"source": "ths_hist",
+"rank": 8
+},
+{
+"name": "PET铜箔",
+"board_id": "309030",
+"pct": 1.7069354338658194,
+"source": "ths_hist",
+"rank": 9
+},
+{
+"name": "科创次新股",
+"board_id": "308699",
+"pct": 1.662990951253529,
+"source": "ths_hist",
+"rank": 10
+},
+{
+"name": "知识产权保护",
+"board_id": "308172",
+"pct": 1.6451401554542278,
+"source": "ths_hist",
+"rank": 11
+},
+{
+"name": "汽车芯片",
+"board_id": "308725",
+"pct": 1.6409037796496273,
+"source": "ths_hist",
+"rank": 12
+},
+{
+"name": "快手概念",
+"board_id": "308659",
+"pct": 1.6269637914221535,
+"source": "ths_hist",
+"rank": 13
+},
+{
+"name": "PCB概念",
+"board_id": "308832",
+"pct": 1.6114333481342058,
+"source": "ths_hist",
+"rank": 14
+},
+{
+"name": "白酒概念",
+"board_id": "301496",
+"pct": 1.5599913200673,
+"source": "ths_hist",
+"rank": 15
+},
+{
+"name": "语音技术",
+"board_id": "300917",
+"pct": 1.5346596139861557,
+"source": "ths_hist",
+"rank": 16
+},
+{
+"name": "AI手机",
+"board_id": "309120",
+"pct": 1.497917024943063,
+"source": "ths_hist",
+"rank": 17
+},
+{
+"name": "数字货币",
+"board_id": "301997",
+"pct": 1.473409286896854,
+"source": "ths_hist",
+"rank": 18
+},
+{
+"name": "中芯国际概念",
+"board_id": "308690",
+"pct": 1.380177124743276,
+"source": "ths_hist",
+"rank": 19
+},
+{
+"name": "短剧游戏",
+"board_id": "309093",
+"pct": 1.3211893091389149,
+"source": "ths_hist",
+"rank": 20
+},
+{
+"name": "NFT概念",
+"board_id": "308748",
+"pct": 1.3162478266375066,
+"source": "ths_hist",
+"rank": 21
+},
+{
+"name": "华为海思概念股",
+"board_id": "308527",
+"pct": 1.3029709742457207,
+"source": "ths_hist",
+"rank": 22
+},
+{
+"name": "数据确权",
+"board_id": "309037",
+"pct": 1.269068267202944,
+"source": "ths_hist",
+"rank": 23
+},
+{
+"name": "富士康概念",
+"board_id": "307954",
+"pct": 1.2482518851847146,
+"source": "ths_hist",
+"rank": 24
+},
+{
+"name": "租售同权",
+"board_id": "302034",
+"pct": 1.2293509215643539,
+"source": "ths_hist",
+"rank": 25
+},
+{
+"name": "电子身份证",
+"board_id": "308869",
+"pct": 1.2215790613957944,
+"source": "ths_hist",
+"rank": 26
+},
+{
+"name": "小红书概念",
+"board_id": "309182",
+"pct": 1.2073265620448081,
+"source": "ths_hist",
+"rank": 27
+},
+{
+"name": "移动支付",
+"board_id": "300188",
+"pct": 1.1435653250596367,
+"source": "ths_hist",
+"rank": 28
+},
+{
+"name": "Sora概念(文生视频)",
+"board_id": "309118",
+"pct": 1.1267651949087742,
+"source": "ths_hist",
+"rank": 29
+},
+{
+"name": "毫米波雷达",
+"board_id": "309051",
+"pct": 1.08128982429041,
+"source": "ths_hist",
+"rank": 30
+},
+{
+"name": "虚拟数字人",
+"board_id": "308794",
+"pct": 1.0699898734917612,
+"source": "ths_hist",
+"rank": 31
+},
+{
+"name": "基因测序",
+"board_id": "301146",
+"pct": 1.060641775612381,
+"source": "ths_hist",
+"rank": 32
+},
+{
+"name": "土地流转",
+"board_id": "300858",
+"pct": 1.0595555218390285,
+"source": "ths_hist",
+"rank": 33
+},
+{
+"name": "网红经济",
+"board_id": "308630",
+"pct": 1.0534521426753152,
+"source": "ths_hist",
+"rank": 34
+},
+{
+"name": "预制菜",
+"board_id": "308814",
+"pct": 1.039028009360643,
+"source": "ths_hist",
+"rank": 35
+},
+{
+"name": "托育服务",
+"board_id": "308862",
+"pct": 1.0212071977959036,
+"source": "ths_hist",
+"rank": 36
+},
+{
+"name": "AI眼镜",
+"board_id": "309152",
+"pct": 1.0152985748361543,
+"source": "ths_hist",
+"rank": 37
+},
+{
+"name": "智能音箱",
+"board_id": "302131",
+"pct": 1.0130204436377355,
+"source": "ths_hist",
+"rank": 38
+},
+{
+"name": "乳业",
+"board_id": "300983",
+"pct": 0.9919287630572704,
+"source": "ths_hist",
+"rank": 39
+},
+{
+"name": "天津自贸区",
+"board_id": "301229",
+"pct": 0.9894851327159504,
+"source": "ths_hist",
+"rank": 40
+}
+],
+"industries": [
+{
+"name": "元件",
+"board_id": "881270",
+"pct": 3.007564200463664,
+"source": "ths_hist",
+"rank": 1
+},
+{
+"name": "其他电子",
+"board_id": "881123",
+"pct": 2.4795590490608754,
+"source": "ths_hist",
+"rank": 2
+},
+{
+"name": "半导体",
+"board_id": "881121",
+"pct": 2.3674539030744013,
+"source": "ths_hist",
+"rank": 3
+},
+{
+"name": "互联网电商",
+"board_id": "881177",
+"pct": 2.354140227249113,
+"source": "ths_hist",
+"rank": 4
+},
+{
+"name": "港口航运",
+"board_id": "881148",
+"pct": 2.320971703571839,
+"source": "ths_hist",
+"rank": 5
+},
+{
+"name": "种植业与林业",
+"board_id": "881101",
+"pct": 2.204110102371626,
+"source": "ths_hist",
+"rank": 6
+},
+{
+"name": "白酒",
+"board_id": "881273",
+"pct": 1.7943108456158097,
+"source": "ths_hist",
+"rank": 7
+},
+{
+"name": "通信服务",
+"board_id": "881162",
+"pct": 1.4290663628614197,
+"source": "ths_hist",
+"rank": 8
+},
+{
+"name": "文化传媒",
+"board_id": "881164",
+"pct": 1.414037432129378,
+"source": "ths_hist",
+"rank": 9
+},
+{
+"name": "食品加工制造",
+"board_id": "881134",
+"pct": 1.3171047363901955,
+"source": "ths_hist",
+"rank": 10
+},
+{
+"name": "养殖业",
+"board_id": "881102",
+"pct": 1.2501573029271906,
+"source": "ths_hist",
+"rank": 11
+},
+{
+"name": "影视院线",
+"board_id": "881274",
+"pct": 1.221307295261842,
+"source": "ths_hist",
+"rank": 12
+},
+{
+"name": "化学纤维",
+"board_id": "881264",
+"pct": 1.1003878436782966,
+"source": "ths_hist",
+"rank": 13
+},
+{
+"name": "旅游及酒店",
+"board_id": "881160",
+"pct": 0.9840695004914357,
+"source": "ths_hist",
+"rank": 14
+},
+{
+"name": "教育",
+"board_id": "881178",
+"pct": 0.8984703869896027,
+"source": "ths_hist",
+"rank": 15
+},
+{
+"name": "消费电子",
+"board_id": "881124",
+"pct": 0.8647159763532253,
+"source": "ths_hist",
+"rank": 16
+},
+{
+"name": "多元金融",
+"board_id": "881283",
+"pct": 0.8138421718216327,
+"source": "ths_hist",
+"rank": 17
+},
+{
+"name": "计算机设备",
+"board_id": "881130",
+"pct": 0.809820228389091,
+"source": "ths_hist",
+"rank": 18
+},
+{
+"name": "零售",
+"board_id": "881158",
+"pct": 0.7804417782554918,
+"source": "ths_hist",
+"rank": 19
+},
+{
+"name": "电子化学品",
+"board_id": "881172",
+"pct": 0.7692244261203518,
+"source": "ths_hist",
+"rank": 20
+}
+]
+}

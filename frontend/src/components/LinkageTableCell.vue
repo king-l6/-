@@ -1,5 +1,10 @@
 <template>
   <span :class="textClass">
+    <span
+      v-if="tDayBadge"
+      class="mr-1 shrink-0 rounded bg-sky-100 text-sky-950 px-1 py-0.5 text-[10px] font-semibold ring-1 ring-sky-300/70 dark:bg-sky-900/40 dark:text-sky-100 dark:ring-sky-600/50"
+      :title="'概念/行业涨幅与名次均按该交易日东财板块指数日 K 对齐'"
+    >{{ tDayBadge }}</span>
     <template v-if="conceptBlock">
       <span>概念:</span>
       <template v-for="(ch, i) in conceptBlock.chunks" :key="i">
@@ -43,6 +48,16 @@ const props = withDefaults(
     textClass: 'text-xs text-gray-800 inline-block align-top max-w-full truncate'
   }
 )
+
+const tDayBadge = computed(() => {
+  const r = props.record
+  if (r.linkage_date_aligned !== true) return ''
+  const txt = (r.linkage_text || '').trim()
+  if (txt.startsWith('[T日')) return ''
+  const d = (r.linkage_board_trade_date || '').trim().slice(0, 10)
+  if (!d || d.length < 10) return ''
+  return `T日${d}`
+})
 
 const conceptBlock = computed(() => {
   const lc = props.record.linkage_concepts

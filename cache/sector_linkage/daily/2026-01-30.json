@@ -1,0 +1,151 @@
+{
+"version": 2,
+"trade_date": "2026-01-30",
+"built_at": "2026-05-13T15:03:00+00:00",
+"builder": "ths_concept_ths_industry",
+"concept_daily": "ths",
+"industry_daily": "ths",
+"concepts": [],
+"industries": [
+{
+"name": "种植业与林业",
+"board_id": "881101",
+"pct": 3.8062388097051647,
+"source": "ths_hist",
+"rank": 1
+},
+{
+"name": "造纸",
+"board_id": "881137",
+"pct": 2.6549613320255405,
+"source": "ths_hist",
+"rank": 2
+},
+{
+"name": "影视院线",
+"board_id": "881274",
+"pct": 1.8422280841834393,
+"source": "ths_hist",
+"rank": 3
+},
+{
+"name": "通信设备",
+"board_id": "881129",
+"pct": 1.714940302463841,
+"source": "ths_hist",
+"rank": 4
+},
+{
+"name": "环保设备",
+"board_id": "881284",
+"pct": 1.5280515728410826,
+"source": "ths_hist",
+"rank": 5
+},
+{
+"name": "橡胶制品",
+"board_id": "881266",
+"pct": 1.5000074429843302,
+"source": "ths_hist",
+"rank": 6
+},
+{
+"name": "自动化设备",
+"board_id": "881171",
+"pct": 1.3537855882892469,
+"source": "ths_hist",
+"rank": 7
+},
+{
+"name": "养殖业",
+"board_id": "881102",
+"pct": 1.2660309007789694,
+"source": "ths_hist",
+"rank": 8
+},
+{
+"name": "旅游及酒店",
+"board_id": "881160",
+"pct": 1.0511238163271486,
+"source": "ths_hist",
+"rank": 9
+},
+{
+"name": "电子化学品",
+"board_id": "881172",
+"pct": 0.9991506601450872,
+"source": "ths_hist",
+"rank": 10
+},
+{
+"name": "纺织制造",
+"board_id": "881135",
+"pct": 0.9591472180352056,
+"source": "ths_hist",
+"rank": 11
+},
+{
+"name": "半导体",
+"board_id": "881121",
+"pct": 0.903903060878708,
+"source": "ths_hist",
+"rank": 12
+},
+{
+"name": "农产品加工",
+"board_id": "881103",
+"pct": 0.8193984296669399,
+"source": "ths_hist",
+"rank": 13
+},
+{
+"name": "煤炭开采加工",
+"board_id": "881105",
+"pct": 0.7971648179684321,
+"source": "ths_hist",
+"rank": 14
+},
+{
+"name": "其他电子",
+"board_id": "881123",
+"pct": 0.7489671742974657,
+"source": "ths_hist",
+"rank": 15
+},
+{
+"name": "家居用品",
+"board_id": "881139",
+"pct": 0.6646973341637219,
+"source": "ths_hist",
+"rank": 16
+},
+{
+"name": "化学制品",
+"board_id": "881109",
+"pct": 0.6057134252316798,
+"source": "ths_hist",
+"rank": 17
+},
+{
+"name": "塑料制品",
+"board_id": "881265",
+"pct": 0.5932722463831475,
+"source": "ths_hist",
+"rank": 18
+},
+{
+"name": "包装印刷",
+"board_id": "881138",
+"pct": 0.5649125741549632,
+"source": "ths_hist",
+"rank": 19
+},
+{
+"name": "消费电子",
+"board_id": "881124",
+"pct": 0.5443804719169165,
+"source": "ths_hist",
+"rank": 20
+}
+]
+}

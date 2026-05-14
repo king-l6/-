@@ -1,0 +1,151 @@
+{
+"version": 2,
+"trade_date": "2026-02-25",
+"built_at": "2026-05-13T15:09:33+00:00",
+"builder": "ths_concept_ths_industry",
+"concept_daily": "ths",
+"industry_daily": "ths",
+"concepts": [],
+"industries": [
+{
+"name": "小金属",
+"board_id": "881170",
+"pct": 6.155359044812925,
+"source": "ths_hist",
+"rank": 1
+},
+{
+"name": "能源金属",
+"board_id": "881267",
+"pct": 5.369511883890765,
+"source": "ths_hist",
+"rank": 2
+},
+{
+"name": "钢铁",
+"board_id": "881112",
+"pct": 4.1775446205547295,
+"source": "ths_hist",
+"rank": 3
+},
+{
+"name": "电子化学品",
+"board_id": "881172",
+"pct": 3.4230987058696094,
+"source": "ths_hist",
+"rank": 4
+},
+{
+"name": "工业金属",
+"board_id": "881168",
+"pct": 3.3067357657763807,
+"source": "ths_hist",
+"rank": 5
+},
+{
+"name": "元件",
+"board_id": "881270",
+"pct": 3.164422544243495,
+"source": "ths_hist",
+"rank": 6
+},
+{
+"name": "金属新材料",
+"board_id": "881114",
+"pct": 3.0468935575974188,
+"source": "ths_hist",
+"rank": 7
+},
+{
+"name": "农化制品",
+"board_id": "881263",
+"pct": 2.8607439796119127,
+"source": "ths_hist",
+"rank": 8
+},
+{
+"name": "电池",
+"board_id": "881281",
+"pct": 2.699252753189074,
+"source": "ths_hist",
+"rank": 9
+},
+{
+"name": "房地产",
+"board_id": "881153",
+"pct": 2.468741150228393,
+"source": "ths_hist",
+"rank": 10
+},
+{
+"name": "建筑材料",
+"board_id": "881115",
+"pct": 2.354846236168062,
+"source": "ths_hist",
+"rank": 11
+},
+{
+"name": "非金属材料",
+"board_id": "881167",
+"pct": 2.299657934674948,
+"source": "ths_hist",
+"rank": 12
+},
+{
+"name": "港口航运",
+"board_id": "881148",
+"pct": 2.0164173281634445,
+"source": "ths_hist",
+"rank": 13
+},
+{
+"name": "种植业与林业",
+"board_id": "881101",
+"pct": 1.9405557173875376,
+"source": "ths_hist",
+"rank": 14
+},
+{
+"name": "化学纤维",
+"board_id": "881264",
+"pct": 1.920826434107048,
+"source": "ths_hist",
+"rank": 15
+},
+{
+"name": "军工电子",
+"board_id": "881276",
+"pct": 1.9127220678443857,
+"source": "ths_hist",
+"rank": 16
+},
+{
+"name": "化学原料",
+"board_id": "881108",
+"pct": 1.9040069611498733,
+"source": "ths_hist",
+"rank": 17
+},
+{
+"name": "化学制品",
+"board_id": "881109",
+"pct": 1.900140056073707,
+"source": "ths_hist",
+"rank": 18
+},
+{
+"name": "造纸",
+"board_id": "881137",
+"pct": 1.8599416770620492,
+"source": "ths_hist",
+"rank": 19
+},
+{
+"name": "塑料制品",
+"board_id": "881265",
+"pct": 1.729806200908346,
+"source": "ths_hist",
+"rank": 20
+}
+]
+}

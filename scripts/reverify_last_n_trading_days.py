@@ -8,10 +8,10 @@
   python scripts/reverify_last_n_trading_days.py --strategy 主力建仓 --n 3 --end 2026-05-08 --workers 50
 
 口径（重要）：
-  - **jsonl 按 match_date 计数**：来自全量 backtest()。引擎对每只股票从 K 线末端往前扫，**只保留窗口内「最后一次」命中**写入文件，
-    因此 `match_date` 表示「该股的这条结果对应的是哪一天作为 T」，**不是**「历史上每个曾满足的交易日各一行」。
-  - **单日扫描条数**：`backtest_single_day(T)` 表示「在 T 当日满足条件的股票数」，**包含**「之后在 T+1… 仍满足、全量里已被更晚日期「抢走」末条记录」的股票。
-  - 故：**除「锚定窗口内、多数股票末次信号已落在最后一天」外，单日扫描数 ≥ jsonl 该日条数** 是正常现象；**最后一天**两者往往接近或一致。
+  - **jsonl 按 match_date 计数**：全量 backtest() 在 timeRange 窗口内对每个 T 各写一行命中（同股可多日多行），
+    `match_date` 即该条对应的信号日 T。
+  - **单日扫描条数**：`backtest_single_day(T)` 表示「在 T 当日满足条件的股票数」，应与全量 jsonl 中 `match_date=T` 行数一致（数据与窗口对齐时）。
+  - 若不一致，多为缓存右端/交易日锚点与生成 jsonl 时不一致，或策略/配置已变更。
 
 可选校验（较慢）：`--subset-check` 会验证 jsonl 中 match_date=T 的股票代码是否全部出现在当日 `backtest_single_day(T)` 的结果中。
 """
@@ -129,8 +129,8 @@ def main():
 
     print('=' * 72)
     print(f'策略: {name}  |  锚定 end={end}  |  最近 {args.n} 个交易日: {days}')
-    print(f'jsonl「该日条数」: match_date=T 的行数（= 末次信号落在 T 的股票数，全量每票至多一行）')
-    print(f'单日扫描条数: backtest_single_day(T)（= T 当日满足条件的股票数，口径更宽）')
+    print(f'jsonl「该日条数」: match_date=T 的行数（全量窗口内各命中日各一行）')
+    print(f'单日扫描条数: backtest_single_day(T)（T 当日满足条件的股票数）')
     print('=' * 72)
 
     rows = []
@@ -152,27 +152,26 @@ def main():
             subset_ok = '  jsonl⊆扫描' + (' ✓' if not missing else f' ✗缺{len(missing)}只')
             if missing and len(missing) <= 5:
                 subset_ok += f' 例:{",".join(list(missing)[:5])}'
-        # 「对齐」仅当两数相等（多见于窗口最后一天）；否则标「口径」
+        # 「对齐」仅当两数相等；否则标「口径」或异常
         if n_live < 0:
             mark = '?'
         elif n_live == n_file:
             mark = '✓ 相等'
-        elif n_live >= n_file:
-            mark = '— 口径不同(正常)'
-        else:
+        elif n_live > n_file:
+            mark = '— jsonl偏少(查锚点/缓存)'
+        elif n_live < n_file:
             mark = '✗ 异常(jsonl>扫描)'
         rows.append((d, n_file, n_live, mark, subset_ok))
         print(f'    T={d}  jsonl={n_file}  单日扫描={n_live}  {mark}{subset_ok}', flush=True)
 
     print('\n' + '-' * 72)
-    print(f'{"交易日":<12} {"jsonl末次=T":>12} {"单日扫描":>10}  说明')
+    print(f'{"交易日":<12} {"jsonl=T":>12} {"单日扫描":>10}  说明')
     print('-' * 72)
     for d, nf, nl, mark, sub in rows:
         print(f'{d:<12} {nf:>12} {nl:>10}  {mark}{sub}')
     print('-' * 72)
     print(
-        '说明: 全量 jsonl 每只股票只保留「从最新 K 往回数的最后一次命中」；'
-        '故较早交易日 jsonl 条数会远小于「当日若单独扫描」的条数。'
+        '说明: 全量 jsonl 为窗口内各命中日各一行；与 backtest_single_day(T) 在数据与锚点一致时应接近或相等。'
     )
     print()
 

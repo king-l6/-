@@ -1,0 +1,432 @@
+{
+"version": 2,
+"trade_date": "2026-03-24",
+"built_at": "2026-05-13T12:09:23+00:00",
+"builder": "ths_concept_ths_industry",
+"concept_daily": "ths",
+"industry_daily": "ths",
+"concepts": [
+{
+"name": "生物质能发电",
+"board_id": "308989",
+"pct": 5.020431636205003,
+"source": "ths_hist",
+"rank": 1
+},
+{
+"name": "医疗废物处理",
+"board_id": "308638",
+"pct": 4.895318317768416,
+"source": "ths_hist",
+"rank": 2
+},
+{
+"name": "露营经济",
+"board_id": "308926",
+"pct": 4.592394545382272,
+"source": "ths_hist",
+"rank": 3
+},
+{
+"name": "足球概念",
+"board_id": "301100",
+"pct": 4.589485284207573,
+"source": "ths_hist",
+"rank": 4
+},
+{
+"name": "固废处理",
+"board_id": "300221",
+"pct": 4.550308089113253,
+"source": "ths_hist",
+"rank": 5
+},
+{
+"name": "新型城镇化",
+"board_id": "300841",
+"pct": 4.546208766536819,
+"source": "ths_hist",
+"rank": 6
+},
+{
+"name": "PM2.5",
+"board_id": "300134",
+"pct": 4.527320891499431,
+"source": "ths_hist",
+"rank": 7
+},
+{
+"name": "装配式建筑",
+"board_id": "305794",
+"pct": 4.471075834294536,
+"source": "ths_hist",
+"rank": 8
+},
+{
+"name": "中韩自贸区",
+"board_id": "301541",
+"pct": 4.4293133176594335,
+"source": "ths_hist",
+"rank": 9
+},
+{
+"name": "垃圾分类",
+"board_id": "308566",
+"pct": 4.411254408264864,
+"source": "ths_hist",
+"rank": 10
+},
+{
+"name": "净水概念",
+"board_id": "301032",
+"pct": 4.356273952877854,
+"source": "ths_hist",
+"rank": 11
+},
+{
+"name": "金属锌",
+"board_id": "301582",
+"pct": 4.329403789833464,
+"source": "ths_hist",
+"rank": 12
+},
+{
+"name": "碳交易",
+"board_id": "300931",
+"pct": 4.327432413138976,
+"source": "ths_hist",
+"rank": 13
+},
+{
+"name": "细胞免疫治疗",
+"board_id": "301543",
+"pct": 4.317525365314068,
+"source": "ths_hist",
+"rank": 14
+},
+{
+"name": "天津自贸区",
+"board_id": "301229",
+"pct": 4.303870670730481,
+"source": "ths_hist",
+"rank": 15
+},
+{
+"name": "建筑节能",
+"board_id": "300261",
+"pct": 4.2643918713767714,
+"source": "ths_hist",
+"rank": 16
+},
+{
+"name": "金属铅",
+"board_id": "308864",
+"pct": 4.2506650333823615,
+"source": "ths_hist",
+"rank": 17
+},
+{
+"name": "污水处理",
+"board_id": "300374",
+"pct": 4.23652915298236,
+"source": "ths_hist",
+"rank": 18
+},
+{
+"name": "F5G概念",
+"board_id": "308977",
+"pct": 4.2141001733443595,
+"source": "ths_hist",
+"rank": 19
+},
+{
+"name": "摘帽",
+"board_id": "301455",
+"pct": 4.198627506637043,
+"source": "ths_hist",
+"rank": 20
+},
+{
+"name": "核污染防治",
+"board_id": "301424",
+"pct": 4.188590667153558,
+"source": "ths_hist",
+"rank": 21
+},
+{
+"name": "科创次新股",
+"board_id": "308699",
+"pct": 4.157217252530332,
+"source": "ths_hist",
+"rank": 22
+},
+{
+"name": "土壤修复",
+"board_id": "300925",
+"pct": 4.13135563962177,
+"source": "ths_hist",
+"rank": 23
+},
+{
+"name": "汽车拆解概念",
+"board_id": "308694",
+"pct": 4.123633825789064,
+"source": "ths_hist",
+"rank": 24
+},
+{
+"name": "体育产业",
+"board_id": "301605",
+"pct": 4.113759007163176,
+"source": "ths_hist",
+"rank": 25
+},
+{
+"name": "黄金概念",
+"board_id": "300248",
+"pct": 4.107462321214506,
+"source": "ths_hist",
+"rank": 26
+},
+{
+"name": "中俄贸易概念",
+"board_id": "308854",
+"pct": 4.102980974409887,
+"source": "ths_hist",
+"rank": 27
+},
+{
+"name": "地下管网",
+"board_id": "301623",
+"pct": 4.102908523330906,
+"source": "ths_hist",
+"rank": 28
+},
+{
+"name": "盐湖提锂",
+"board_id": "307904",
+"pct": 4.099351997509859,
+"source": "ths_hist",
+"rank": 29
+},
+{
+"name": "光纤概念",
+"board_id": "309151",
+"pct": 4.090702100072696,
+"source": "ths_hist",
+"rank": 30
+},
+{
+"name": "PPP概念",
+"board_id": "301624",
+"pct": 4.053270774451234,
+"source": "ths_hist",
+"rank": 31
+},
+{
+"name": "智慧灯杆",
+"board_id": "308841",
+"pct": 4.048247705986285,
+"source": "ths_hist",
+"rank": 32
+},
+{
+"name": "绿色电力",
+"board_id": "308760",
+"pct": 4.04139815750677,
+"source": "ths_hist",
+"rank": 33
+},
+{
+"name": "柔性直流输电",
+"board_id": "308810",
+"pct": 4.0206267911856886,
+"source": "ths_hist",
+"rank": 34
+},
+{
+"name": "辅助生殖",
+"board_id": "308708",
+"pct": 3.9964869746340392,
+"source": "ths_hist",
+"rank": 35
+},
+{
+"name": "金属铜",
+"board_id": "301577",
+"pct": 3.97838675978488,
+"source": "ths_hist",
+"rank": 36
+},
+{
+"name": "托育服务",
+"board_id": "308862",
+"pct": 3.9611071419819455,
+"source": "ths_hist",
+"rank": 37
+},
+{
+"name": "信托概念",
+"board_id": "301377",
+"pct": 3.950646855504192,
+"source": "ths_hist",
+"rank": 38
+},
+{
+"name": "特高压",
+"board_id": "300353",
+"pct": 3.9506108908221815,
+"source": "ths_hist",
+"rank": 39
+},
+{
+"name": "超超临界发电",
+"board_id": "308969",
+"pct": 3.9475437597215945,
+"source": "ths_hist",
+"rank": 40
+}
+],
+"industries": [
+{
+"name": "环保设备",
+"board_id": "881284",
+"pct": 5.436541233833503,
+"source": "ths_hist",
+"rank": 1
+},
+{
+"name": "电力",
+"board_id": "881145",
+"pct": 5.365673270734894,
+"source": "ths_hist",
+"rank": 2
+},
+{
+"name": "贸易",
+"board_id": "881159",
+"pct": 4.92373164510036,
+"source": "ths_hist",
+"rank": 3
+},
+{
+"name": "环境治理",
+"board_id": "881181",
+"pct": 4.76001242956321,
+"source": "ths_hist",
+"rank": 4
+},
+{
+"name": "医疗服务",
+"board_id": "881175",
+"pct": 4.746858035791246,
+"source": "ths_hist",
+"rank": 5
+},
+{
+"name": "电网设备",
+"board_id": "881278",
+"pct": 4.461111340017165,
+"source": "ths_hist",
+"rank": 6
+},
+{
+"name": "服装家纺",
+"board_id": "881136",
+"pct": 4.4484707898099884,
+"source": "ths_hist",
+"rank": 7
+},
+{
+"name": "工业金属",
+"board_id": "881168",
+"pct": 4.4447495577846,
+"source": "ths_hist",
+"rank": 8
+},
+{
+"name": "建筑装饰",
+"board_id": "881116",
+"pct": 4.361459864568529,
+"source": "ths_hist",
+"rank": 9
+},
+{
+"name": "纺织制造",
+"board_id": "881135",
+"pct": 4.306374597590312,
+"source": "ths_hist",
+"rank": 10
+},
+{
+"name": "家居用品",
+"board_id": "881139",
+"pct": 4.1817734648850635,
+"source": "ths_hist",
+"rank": 11
+},
+{
+"name": "轨交设备",
+"board_id": "881269",
+"pct": 4.164766463882752,
+"source": "ths_hist",
+"rank": 12
+},
+{
+"name": "港口航运",
+"board_id": "881148",
+"pct": 4.117872524573962,
+"source": "ths_hist",
+"rank": 13
+},
+{
+"name": "其他电源设备",
+"board_id": "881282",
+"pct": 4.027164654167126,
+"source": "ths_hist",
+"rank": 14
+},
+{
+"name": "化学制药",
+"board_id": "881140",
+"pct": 4.006576510203974,
+"source": "ths_hist",
+"rank": 15
+},
+{
+"name": "医疗器械",
+"board_id": "881144",
+"pct": 3.995716789710757,
+"source": "ths_hist",
+"rank": 16
+},
+{
+"name": "互联网电商",
+"board_id": "881177",
+"pct": 3.965490135077032,
+"source": "ths_hist",
+"rank": 17
+},
+{
+"name": "建筑材料",
+"board_id": "881115",
+"pct": 3.9636472123147026,
+"source": "ths_hist",
+"rank": 18
+},
+{
+"name": "能源金属",
+"board_id": "881267",
+"pct": 3.919396623882987,
+"source": "ths_hist",
+"rank": 19
+},
+{
+"name": "化学纤维",
+"board_id": "881264",
+"pct": 3.8990549314977807,
+"source": "ths_hist",
+"rank": 20
+}
+]
+}

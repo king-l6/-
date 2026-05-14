@@ -1,0 +1,151 @@
+{
+"version": 2,
+"trade_date": "2026-01-26",
+"built_at": "2026-05-13T15:18:38+00:00",
+"builder": "ths_concept_ths_industry",
+"concept_daily": "ths",
+"industry_daily": "ths",
+"concepts": [],
+"industries": [
+{
+"name": "贵金属",
+"board_id": "881169",
+"pct": 10.893981474426395,
+"source": "ths_hist",
+"rank": 1
+},
+{
+"name": "油气开采及服务",
+"board_id": "881107",
+"pct": 4.708509588018717,
+"source": "ths_hist",
+"rank": 2
+},
+{
+"name": "小金属",
+"board_id": "881170",
+"pct": 4.51285137448294,
+"source": "ths_hist",
+"rank": 3
+},
+{
+"name": "工业金属",
+"board_id": "881168",
+"pct": 3.8133831863288226,
+"source": "ths_hist",
+"rank": 4
+},
+{
+"name": "生物制品",
+"board_id": "881142",
+"pct": 3.598078591499143,
+"source": "ths_hist",
+"rank": 5
+},
+{
+"name": "保险",
+"board_id": "881156",
+"pct": 2.5144517903673336,
+"source": "ths_hist",
+"rank": 6
+},
+{
+"name": "养殖业",
+"board_id": "881102",
+"pct": 2.4255537121373294,
+"source": "ths_hist",
+"rank": 7
+},
+{
+"name": "中药",
+"board_id": "881141",
+"pct": 1.356318338014928,
+"source": "ths_hist",
+"rank": 8
+},
+{
+"name": "煤炭开采加工",
+"board_id": "881105",
+"pct": 0.9478757681599781,
+"source": "ths_hist",
+"rank": 9
+},
+{
+"name": "农化制品",
+"board_id": "881263",
+"pct": 0.8600693955064909,
+"source": "ths_hist",
+"rank": 10
+},
+{
+"name": "医疗器械",
+"board_id": "881144",
+"pct": 0.7625904354779278,
+"source": "ths_hist",
+"rank": 11
+},
+{
+"name": "港口航运",
+"board_id": "881148",
+"pct": 0.67857554755959,
+"source": "ths_hist",
+"rank": 12
+},
+{
+"name": "化学制药",
+"board_id": "881140",
+"pct": 0.6604942248900514,
+"source": "ths_hist",
+"rank": 13
+},
+{
+"name": "通信服务",
+"board_id": "881162",
+"pct": 0.615304742080558,
+"source": "ths_hist",
+"rank": 14
+},
+{
+"name": "能源金属",
+"board_id": "881267",
+"pct": 0.5186925947053389,
+"source": "ths_hist",
+"rank": 15
+},
+{
+"name": "石油加工贸易",
+"board_id": "881180",
+"pct": 0.4756816891872351,
+"source": "ths_hist",
+"rank": 16
+},
+{
+"name": "证券",
+"board_id": "881157",
+"pct": 0.4235216066402314,
+"source": "ths_hist",
+"rank": 17
+},
+{
+"name": "燃气",
+"board_id": "881146",
+"pct": 0.34783114054763864,
+"source": "ths_hist",
+"rank": 18
+},
+{
+"name": "医药商业",
+"board_id": "881143",
+"pct": 0.32847596198080087,
+"source": "ths_hist",
+"rank": 19
+},
+{
+"name": "银行",
+"board_id": "881155",
+"pct": 0.2235157159487633,
+"source": "ths_hist",
+"rank": 20
+}
+]
+}

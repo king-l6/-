@@ -1,0 +1,432 @@
+{
+"version": 2,
+"trade_date": "2026-04-10",
+"built_at": "2026-05-13T13:05:14+00:00",
+"builder": "ths_concept_ths_industry",
+"concept_daily": "ths",
+"industry_daily": "ths",
+"concepts": [
+{
+"name": "动力电池回收",
+"board_id": "307822",
+"pct": 2.8075577919226102,
+"source": "ths_hist",
+"rank": 1
+},
+{
+"name": "中船系",
+"board_id": "301713",
+"pct": 2.567696588044921,
+"source": "ths_hist",
+"rank": 2
+},
+{
+"name": "钠离子电池",
+"board_id": "301096",
+"pct": 2.5027416229820076,
+"source": "ths_hist",
+"rank": 3
+},
+{
+"name": "两轮车",
+"board_id": "301248",
+"pct": 2.326305705817444,
+"source": "ths_hist",
+"rank": 4
+},
+{
+"name": "固态电池",
+"board_id": "308294",
+"pct": 2.161148094429355,
+"source": "ths_hist",
+"rank": 5
+},
+{
+"name": "数字货币",
+"board_id": "301997",
+"pct": 2.0987535454874973,
+"source": "ths_hist",
+"rank": 6
+},
+{
+"name": "盐湖提锂",
+"board_id": "307904",
+"pct": 2.073280431080682,
+"source": "ths_hist",
+"rank": 7
+},
+{
+"name": "期货概念",
+"board_id": "300220",
+"pct": 1.9374762301515025,
+"source": "ths_hist",
+"rank": 8
+},
+{
+"name": "移动支付",
+"board_id": "300188",
+"pct": 1.8682976892492542,
+"source": "ths_hist",
+"rank": 9
+},
+{
+"name": "同花顺果指数",
+"board_id": "309136",
+"pct": 1.8039470161821392,
+"source": "ths_hist",
+"rank": 10
+},
+{
+"name": "宁德时代概念",
+"board_id": "306912",
+"pct": 1.7997643474020109,
+"source": "ths_hist",
+"rank": 11
+},
+{
+"name": "氟化工概念",
+"board_id": "300085",
+"pct": 1.7912839325018304,
+"source": "ths_hist",
+"rank": 12
+},
+{
+"name": "空气能热泵",
+"board_id": "309007",
+"pct": 1.694831414215514,
+"source": "ths_hist",
+"rank": 13
+},
+{
+"name": "汽车热管理",
+"board_id": "308805",
+"pct": 1.680850751193197,
+"source": "ths_hist",
+"rank": 14
+},
+{
+"name": "托育服务",
+"board_id": "308862",
+"pct": 1.662049613715011,
+"source": "ths_hist",
+"rank": 15
+},
+{
+"name": "锂电池概念",
+"board_id": "300733",
+"pct": 1.6498680381501263,
+"source": "ths_hist",
+"rank": 16
+},
+{
+"name": "互联网金融",
+"board_id": "301209",
+"pct": 1.6286384954352195,
+"source": "ths_hist",
+"rank": 17
+},
+{
+"name": "AI PC",
+"board_id": "309121",
+"pct": 1.585077494189524,
+"source": "ths_hist",
+"rank": 18
+},
+{
+"name": "语音技术",
+"board_id": "300917",
+"pct": 1.572153105376084,
+"source": "ths_hist",
+"rank": 19
+},
+{
+"name": "蚂蚁集团概念",
+"board_id": "302150",
+"pct": 1.5588593169838294,
+"source": "ths_hist",
+"rank": 20
+},
+{
+"name": "超级电容",
+"board_id": "300926",
+"pct": 1.5516732857309368,
+"source": "ths_hist",
+"rank": 21
+},
+{
+"name": "石墨烯",
+"board_id": "300337",
+"pct": 1.5413361994061736,
+"source": "ths_hist",
+"rank": 22
+},
+{
+"name": "星闪概念",
+"board_id": "309086",
+"pct": 1.5257682733729627,
+"source": "ths_hist",
+"rank": 23
+},
+{
+"name": "互联网保险",
+"board_id": "301628",
+"pct": 1.5067244798983692,
+"source": "ths_hist",
+"rank": 24
+},
+{
+"name": "国家大基金持股",
+"board_id": "307816",
+"pct": 1.484431705060274,
+"source": "ths_hist",
+"rank": 25
+},
+{
+"name": "电子身份证",
+"board_id": "308869",
+"pct": 1.4676469168501294,
+"source": "ths_hist",
+"rank": 26
+},
+{
+"name": "ERP概念",
+"board_id": "309058",
+"pct": 1.4559483535763862,
+"source": "ths_hist",
+"rank": 27
+},
+{
+"name": "横琴新区",
+"board_id": "300087",
+"pct": 1.4535710650070532,
+"source": "ths_hist",
+"rank": 28
+},
+{
+"name": "换电概念",
+"board_id": "308775",
+"pct": 1.4458876956764621,
+"source": "ths_hist",
+"rank": 29
+},
+{
+"name": "存储芯片",
+"board_id": "307940",
+"pct": 1.4245738746970327,
+"source": "ths_hist",
+"rank": 30
+},
+{
+"name": "燃料电池",
+"board_id": "300316",
+"pct": 1.4184122418840595,
+"source": "ths_hist",
+"rank": 31
+},
+{
+"name": "同花顺出海50",
+"board_id": "309127",
+"pct": 1.418192961923892,
+"source": "ths_hist",
+"rank": 32
+},
+{
+"name": "新型烟草(电子烟)",
+"board_id": "301362",
+"pct": 1.4135027387215615,
+"source": "ths_hist",
+"rank": 33
+},
+{
+"name": "华为汽车",
+"board_id": "308507",
+"pct": 1.4089395140194583,
+"source": "ths_hist",
+"rank": 34
+},
+{
+"name": "减速器",
+"board_id": "309000",
+"pct": 1.387828695934612,
+"source": "ths_hist",
+"rank": 35
+},
+{
+"name": "华为手机",
+"board_id": "309167",
+"pct": 1.3876565134105734,
+"source": "ths_hist",
+"rank": 36
+},
+{
+"name": "人形机器人",
+"board_id": "309119",
+"pct": 1.3859582091720002,
+"source": "ths_hist",
+"rank": 37
+},
+{
+"name": "无线耳机",
+"board_id": "308612",
+"pct": 1.382461154044079,
+"source": "ths_hist",
+"rank": 38
+},
+{
+"name": "长安汽车概念",
+"board_id": "309094",
+"pct": 1.3824389276450688,
+"source": "ths_hist",
+"rank": 39
+},
+{
+"name": "减肥药",
+"board_id": "309081",
+"pct": 1.3723108989319055,
+"source": "ths_hist",
+"rank": 40
+}
+],
+"industries": [
+{
+"name": "电池",
+"board_id": "881281",
+"pct": 3.8630545936045424,
+"source": "ths_hist",
+"rank": 1
+},
+{
+"name": "能源金属",
+"board_id": "881267",
+"pct": 3.1721768012191287,
+"source": "ths_hist",
+"rank": 2
+},
+{
+"name": "证券",
+"board_id": "881157",
+"pct": 2.562495085907046,
+"source": "ths_hist",
+"rank": 3
+},
+{
+"name": "其他电源设备",
+"board_id": "881282",
+"pct": 2.214183607481268,
+"source": "ths_hist",
+"rank": 4
+},
+{
+"name": "纺织制造",
+"board_id": "881135",
+"pct": 2.211765808293631,
+"source": "ths_hist",
+"rank": 5
+},
+{
+"name": "其他电子",
+"board_id": "881123",
+"pct": 2.1752468231602373,
+"source": "ths_hist",
+"rank": 6
+},
+{
+"name": "多元金融",
+"board_id": "881283",
+"pct": 2.027375255178865,
+"source": "ths_hist",
+"rank": 7
+},
+{
+"name": "光伏设备",
+"board_id": "881279",
+"pct": 1.7008462954725356,
+"source": "ths_hist",
+"rank": 8
+},
+{
+"name": "教育",
+"board_id": "881178",
+"pct": 1.6309799731231367,
+"source": "ths_hist",
+"rank": 9
+},
+{
+"name": "游戏",
+"board_id": "881275",
+"pct": 1.577607826844396,
+"source": "ths_hist",
+"rank": 10
+},
+{
+"name": "物流",
+"board_id": "881152",
+"pct": 1.5757798918292432,
+"source": "ths_hist",
+"rank": 11
+},
+{
+"name": "非金属材料",
+"board_id": "881167",
+"pct": 1.5179524629670427,
+"source": "ths_hist",
+"rank": 12
+},
+{
+"name": "造纸",
+"board_id": "881137",
+"pct": 1.4890565833651115,
+"source": "ths_hist",
+"rank": 13
+},
+{
+"name": "橡胶制品",
+"board_id": "881266",
+"pct": 1.4831324958633152,
+"source": "ths_hist",
+"rank": 14
+},
+{
+"name": "汽车零部件",
+"board_id": "881126",
+"pct": 1.415879507463358,
+"source": "ths_hist",
+"rank": 15
+},
+{
+"name": "零售",
+"board_id": "881158",
+"pct": 1.4052394025405812,
+"source": "ths_hist",
+"rank": 16
+},
+{
+"name": "电机",
+"board_id": "881277",
+"pct": 1.4044060149024373,
+"source": "ths_hist",
+"rank": 17
+},
+{
+"name": "消费电子",
+"board_id": "881124",
+"pct": 1.3912891999370958,
+"source": "ths_hist",
+"rank": 18
+},
+{
+"name": "汽车整车",
+"board_id": "881125",
+"pct": 1.38552241201364,
+"source": "ths_hist",
+"rank": 19
+},
+{
+"name": "生物制品",
+"board_id": "881142",
+"pct": 1.3389927337453589,
+"source": "ths_hist",
+"rank": 20
+}
+]
+}

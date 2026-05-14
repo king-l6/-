@@ -19,6 +19,7 @@ export type ConditionType =
   | 'avg_amount_gte'
   | 'main_force_build_position'
   | 'consecutive_up_days_gte'
+  | 'consecutive_up_window_no_limit_up'
   | 'upper_shadow_pct_gt'
 
 export interface StrategyCondition {
@@ -40,6 +41,7 @@ export interface StrategyCondition {
   windowDays?: number // 窗口天数（用于 main_force_build_position）
   consecutiveDays?: number // 连阳天数阈值（用于 consecutive_up_days_gte）
   requireMa5GtMa10?: boolean // 连阳窗口内是否要求每一天都满足5日线>10日线
+  limitPct?: number // 涨停涨幅阈值（用于 consecutive_up_window_no_limit_up，默认 9.8）
 }
 
 export interface ExcludeRules {
@@ -87,14 +89,16 @@ export interface StockResult {
   main_force_bullish_days?: number
   /** 主力建仓命中收涨日中「5/10日均线斜率均向上」的个数 */
   main_force_slope_up_days?: number
-  /** T 日向前连续阳线天数（含 T 日） */
+  /** 连续涨跌幅>0 的连阳天数（与策略中 consecutive_* 条件的 date1 锚点一致；如 date1=0 为截至 T） */
   consecutive_up_days?: number
+  /** 连阳段最后一个交易日（YYYY-MM-DD），与 `consecutive_up_days` 统计窗口右端一致；缺省时前端按 match_date */
+  consecutive_up_streak_end_date?: string
   /** T 日上影线幅度：最高涨幅-收盘涨幅（%） */
   upper_shadow_pct?: number
   /** 连阳区间内是否出现过最高价触及涨停价（触板/涨停） */
   consecutive_up_has_limit_touch?: boolean
   /**
-   * 板块/概念联动文案（由 `scripts/enrich_sector_linkage.py` 写入；含概念/行业板块当日涨跌幅；与 match_date 无历史对齐）
+   * 板块/概念联动文案（由 `scripts/enrich_sector_linkage.py` 写入；默认按 match_date 用东财板块日 K 对齐涨跌幅与名次，见 `linkage_date_aligned`）
    */
   linkage_text?: string
   linkage_concepts?: { name: string; pct: number; rank?: number }[]
@@ -108,6 +112,10 @@ export interface StockResult {
   /** 联动行业在当前排序板块列表中的涨幅名次（1-based） */
   linkage_industry_rank?: number | null
   linkage_fetched_at?: string
+  /** 为 true 表示概念/行业名次与涨跌幅已按该行 match_date 交易日对齐（东财日 K + daily 缓存） */
+  linkage_date_aligned?: boolean
+  /** 板块排行所依据的交易日（YYYY-MM-DD），与 match_date 一致时表示已对齐 */
+  linkage_board_trade_date?: string | null
   /** 多策略同日重叠 jsonl（scripts/aggregate_same_day_multi_strategy.py） */
   strategy_count?: number
   overlap_strategies?: string[]

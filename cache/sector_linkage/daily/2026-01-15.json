@@ -1,0 +1,151 @@
+{
+"version": 2,
+"trade_date": "2026-01-15",
+"built_at": "2026-05-14T10:33:29+00:00",
+"builder": "ths_concept_ths_industry",
+"concept_daily": "ths",
+"industry_daily": "ths",
+"concepts": [],
+"industries": [
+{
+"name": "贵金属",
+"board_id": "881169",
+"pct": 3.3474221801542026,
+"source": "ths_hist",
+"rank": 1
+},
+{
+"name": "电子化学品",
+"board_id": "881172",
+"pct": 3.3222699657569743,
+"source": "ths_hist",
+"rank": 2
+},
+{
+"name": "农化制品",
+"board_id": "881263",
+"pct": 2.441957776101966,
+"source": "ths_hist",
+"rank": 3
+},
+{
+"name": "能源金属",
+"board_id": "881267",
+"pct": 2.385402863244268,
+"source": "ths_hist",
+"rank": 4
+},
+{
+"name": "电池",
+"board_id": "881281",
+"pct": 2.3623681404216113,
+"source": "ths_hist",
+"rank": 5
+},
+{
+"name": "小金属",
+"board_id": "881170",
+"pct": 1.8297391132591212,
+"source": "ths_hist",
+"rank": 6
+},
+{
+"name": "半导体",
+"board_id": "881121",
+"pct": 1.801914551677375,
+"source": "ths_hist",
+"rank": 7
+},
+{
+"name": "旅游及酒店",
+"board_id": "881160",
+"pct": 1.7969552338460648,
+"source": "ths_hist",
+"rank": 8
+},
+{
+"name": "工业金属",
+"board_id": "881168",
+"pct": 1.5921797190763476,
+"source": "ths_hist",
+"rank": 9
+},
+{
+"name": "贸易",
+"board_id": "881159",
+"pct": 1.248125426467439,
+"source": "ths_hist",
+"rank": 10
+},
+{
+"name": "其他电子",
+"board_id": "881123",
+"pct": 1.086134771965952,
+"source": "ths_hist",
+"rank": 11
+},
+{
+"name": "非金属材料",
+"board_id": "881167",
+"pct": 1.0549766958207973,
+"source": "ths_hist",
+"rank": 12
+},
+{
+"name": "化学制品",
+"board_id": "881109",
+"pct": 0.8970994192676773,
+"source": "ths_hist",
+"rank": 13
+},
+{
+"name": "元件",
+"board_id": "881270",
+"pct": 0.8597663459703586,
+"source": "ths_hist",
+"rank": 14
+},
+{
+"name": "化学原料",
+"board_id": "881108",
+"pct": 0.590897983201133,
+"source": "ths_hist",
+"rank": 15
+},
+{
+"name": "塑料制品",
+"board_id": "881265",
+"pct": 0.5885305647627126,
+"source": "ths_hist",
+"rank": 16
+},
+{
+"name": "橡胶制品",
+"board_id": "881266",
+"pct": 0.4364910766146757,
+"source": "ths_hist",
+"rank": 17
+},
+{
+"name": "电力",
+"board_id": "881145",
+"pct": 0.3437690250770675,
+"source": "ths_hist",
+"rank": 18
+},
+{
+"name": "电网设备",
+"board_id": "881278",
+"pct": 0.2782515613362513,
+"source": "ths_hist",
+"rank": 19
+},
+{
+"name": "消费电子",
+"board_id": "881124",
+"pct": 0.2702866848684371,
+"source": "ths_hist",
+"rank": 20
+}
+]
+}

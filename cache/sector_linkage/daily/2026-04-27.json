@@ -1,0 +1,432 @@
+{
+"version": 2,
+"trade_date": "2026-04-27",
+"built_at": "2026-05-13T14:05:03+00:00",
+"builder": "ths_concept_ths_industry",
+"concept_daily": "ths",
+"industry_daily": "ths",
+"concepts": [
+{
+"name": "PET铜箔",
+"board_id": "309030",
+"pct": 4.072196671661699,
+"source": "ths_hist",
+"rank": 1
+},
+{
+"name": "国家大基金持股",
+"board_id": "307816",
+"pct": 3.6021072757408623,
+"source": "ths_hist",
+"rank": 2
+},
+{
+"name": "电子纸",
+"board_id": "301135",
+"pct": 3.445287562090571,
+"source": "ths_hist",
+"rank": 3
+},
+{
+"name": "存储芯片",
+"board_id": "307940",
+"pct": 3.033599035658008,
+"source": "ths_hist",
+"rank": 4
+},
+{
+"name": "先进封装",
+"board_id": "309004",
+"pct": 3.017163232675535,
+"source": "ths_hist",
+"rank": 5
+},
+{
+"name": "智能音箱",
+"board_id": "302131",
+"pct": 2.834367814061034,
+"source": "ths_hist",
+"rank": 6
+},
+{
+"name": "同花顺果指数",
+"board_id": "309136",
+"pct": 2.787631577737204,
+"source": "ths_hist",
+"rank": 7
+},
+{
+"name": "OLED",
+"board_id": "301154",
+"pct": 2.764771964482593,
+"source": "ths_hist",
+"rank": 8
+},
+{
+"name": "MiniLED",
+"board_id": "308628",
+"pct": 2.7566124103743928,
+"source": "ths_hist",
+"rank": 9
+},
+{
+"name": "柔性屏(折叠屏)",
+"board_id": "308467",
+"pct": 2.745855578746692,
+"source": "ths_hist",
+"rank": 10
+},
+{
+"name": "PCB概念",
+"board_id": "308832",
+"pct": 2.62779622370215,
+"source": "ths_hist",
+"rank": 11
+},
+{
+"name": "华为手机",
+"board_id": "309167",
+"pct": 2.5997084841818063,
+"source": "ths_hist",
+"rank": 12
+},
+{
+"name": "汽车芯片",
+"board_id": "308725",
+"pct": 2.5915316104983654,
+"source": "ths_hist",
+"rank": 13
+},
+{
+"name": "中芯国际概念",
+"board_id": "308690",
+"pct": 2.5302888856784778,
+"source": "ths_hist",
+"rank": 14
+},
+{
+"name": "AI手机",
+"board_id": "309120",
+"pct": 2.3164790527587797,
+"source": "ths_hist",
+"rank": 15
+},
+{
+"name": "广东自贸区",
+"board_id": "301630",
+"pct": 2.2533504115201053,
+"source": "ths_hist",
+"rank": 16
+},
+{
+"name": "富士康概念",
+"board_id": "307954",
+"pct": 2.2223457573957717,
+"source": "ths_hist",
+"rank": 17
+},
+{
+"name": "无线耳机",
+"board_id": "308612",
+"pct": 2.2206050516854425,
+"source": "ths_hist",
+"rank": 18
+},
+{
+"name": "智能穿戴",
+"board_id": "301175",
+"pct": 2.202410796476273,
+"source": "ths_hist",
+"rank": 19
+},
+{
+"name": "AI眼镜",
+"board_id": "309152",
+"pct": 2.1702092641922466,
+"source": "ths_hist",
+"rank": 20
+},
+{
+"name": "苹果概念",
+"board_id": "300309",
+"pct": 2.099941338980127,
+"source": "ths_hist",
+"rank": 21
+},
+{
+"name": "免税店",
+"board_id": "308657",
+"pct": 2.087499676642013,
+"source": "ths_hist",
+"rank": 22
+},
+{
+"name": "科创次新股",
+"board_id": "308699",
+"pct": 1.8741845389315115,
+"source": "ths_hist",
+"rank": 23
+},
+{
+"name": "共封装光学(CPO)",
+"board_id": "309049",
+"pct": 1.8665885305743535,
+"source": "ths_hist",
+"rank": 24
+},
+{
+"name": "消费电子概念",
+"board_id": "308384",
+"pct": 1.8498387758097978,
+"source": "ths_hist",
+"rank": 25
+},
+{
+"name": "第三代半导体",
+"board_id": "308700",
+"pct": 1.814681145945407,
+"source": "ths_hist",
+"rank": 26
+},
+{
+"name": "智慧灯杆",
+"board_id": "308841",
+"pct": 1.791825452920337,
+"source": "ths_hist",
+"rank": 27
+},
+{
+"name": "光刻机",
+"board_id": "309085",
+"pct": 1.7833679759219123,
+"source": "ths_hist",
+"rank": 28
+},
+{
+"name": "MCU芯片",
+"board_id": "308300",
+"pct": 1.7648363947861956,
+"source": "ths_hist",
+"rank": 29
+},
+{
+"name": "汽车拆解概念",
+"board_id": "308694",
+"pct": 1.7520152381999,
+"source": "ths_hist",
+"rank": 30
+},
+{
+"name": "芯片概念",
+"board_id": "301085",
+"pct": 1.746729461015173,
+"source": "ths_hist",
+"rank": 31
+},
+{
+"name": "无线充电",
+"board_id": "300723",
+"pct": 1.7426388611360588,
+"source": "ths_hist",
+"rank": 32
+},
+{
+"name": "汽车电子",
+"board_id": "301471",
+"pct": 1.7344363549928632,
+"source": "ths_hist",
+"rank": 33
+},
+{
+"name": "AI PC",
+"board_id": "309121",
+"pct": 1.7274426585845992,
+"source": "ths_hist",
+"rank": 34
+},
+{
+"name": "金属镍",
+"board_id": "301511",
+"pct": 1.7200025084753268,
+"source": "ths_hist",
+"rank": 35
+},
+{
+"name": "语音技术",
+"board_id": "300917",
+"pct": 1.6964715843564182,
+"source": "ths_hist",
+"rank": 36
+},
+{
+"name": "机器视觉",
+"board_id": "301258",
+"pct": 1.6802699307932878,
+"source": "ths_hist",
+"rank": 37
+},
+{
+"name": "虚拟现实",
+"board_id": "301699",
+"pct": 1.6784509493893651,
+"source": "ths_hist",
+"rank": 38
+},
+{
+"name": "新型工业化",
+"board_id": "309089",
+"pct": 1.639336816838921,
+"source": "ths_hist",
+"rank": 39
+},
+{
+"name": "足球概念",
+"board_id": "301100",
+"pct": 1.6253747451732803,
+"source": "ths_hist",
+"rank": 40
+}
+],
+"industries": [
+{
+"name": "半导体",
+"board_id": "881121",
+"pct": 3.543665842390342,
+"source": "ths_hist",
+"rank": 1
+},
+{
+"name": "电子化学品",
+"board_id": "881172",
+"pct": 2.880958555991664,
+"source": "ths_hist",
+"rank": 2
+},
+{
+"name": "元件",
+"board_id": "881270",
+"pct": 2.5188212580846914,
+"source": "ths_hist",
+"rank": 3
+},
+{
+"name": "其他电子",
+"board_id": "881123",
+"pct": 2.272911015771162,
+"source": "ths_hist",
+"rank": 4
+},
+{
+"name": "自动化设备",
+"board_id": "881171",
+"pct": 2.2430814794438536,
+"source": "ths_hist",
+"rank": 5
+},
+{
+"name": "光学光电子",
+"board_id": "881122",
+"pct": 2.045059140302641,
+"source": "ths_hist",
+"rank": 6
+},
+{
+"name": "消费电子",
+"board_id": "881124",
+"pct": 1.9792616836420196,
+"source": "ths_hist",
+"rank": 7
+},
+{
+"name": "零售",
+"board_id": "881158",
+"pct": 1.7965196354841062,
+"source": "ths_hist",
+"rank": 8
+},
+{
+"name": "游戏",
+"board_id": "881275",
+"pct": 1.670004370655298,
+"source": "ths_hist",
+"rank": 9
+},
+{
+"name": "美容护理",
+"board_id": "881182",
+"pct": 1.582010324646066,
+"source": "ths_hist",
+"rank": 10
+},
+{
+"name": "服装家纺",
+"board_id": "881136",
+"pct": 1.5001289765915526,
+"source": "ths_hist",
+"rank": 11
+},
+{
+"name": "其他电源设备",
+"board_id": "881282",
+"pct": 1.452012581742279,
+"source": "ths_hist",
+"rank": 12
+},
+{
+"name": "塑料制品",
+"board_id": "881265",
+"pct": 1.415894864394751,
+"source": "ths_hist",
+"rank": 13
+},
+{
+"name": "黑色家电",
+"board_id": "881132",
+"pct": 1.3437440849646487,
+"source": "ths_hist",
+"rank": 14
+},
+{
+"name": "工程机械",
+"board_id": "881268",
+"pct": 1.340904614514704,
+"source": "ths_hist",
+"rank": 15
+},
+{
+"name": "非金属材料",
+"board_id": "881167",
+"pct": 1.306784591750798,
+"source": "ths_hist",
+"rank": 16
+},
+{
+"name": "电池",
+"board_id": "881281",
+"pct": 1.2222774820538573,
+"source": "ths_hist",
+"rank": 17
+},
+{
+"name": "家居用品",
+"board_id": "881139",
+"pct": 1.1852596683346706,
+"source": "ths_hist",
+"rank": 18
+},
+{
+"name": "煤炭开采加工",
+"board_id": "881105",
+"pct": 1.164162319743256,
+"source": "ths_hist",
+"rank": 19
+},
+{
+"name": "建筑材料",
+"board_id": "881115",
+"pct": 1.1451637740662157,
+"source": "ths_hist",
+"rank": 20
+}
+]
+}

@@ -1,0 +1,151 @@
+{
+"version": 2,
+"trade_date": "2026-02-13",
+"built_at": "2026-05-13T15:08:27+00:00",
+"builder": "ths_concept_ths_industry",
+"concept_daily": "ths",
+"industry_daily": "ths",
+"concepts": [],
+"industries": [
+{
+"name": "军工装备",
+"board_id": "881166",
+"pct": 1.792858820868326,
+"source": "ths_hist",
+"rank": 1
+},
+{
+"name": "造纸",
+"board_id": "881137",
+"pct": 0.8194563135619726,
+"source": "ths_hist",
+"rank": 2
+},
+{
+"name": "计算机设备",
+"board_id": "881130",
+"pct": 0.7619304866290255,
+"source": "ths_hist",
+"rank": 3
+},
+{
+"name": "影视院线",
+"board_id": "881274",
+"pct": 0.5103437871662786,
+"source": "ths_hist",
+"rank": 4
+},
+{
+"name": "电机",
+"board_id": "881277",
+"pct": 0.3473870770079879,
+"source": "ths_hist",
+"rank": 5
+},
+{
+"name": "汽车零部件",
+"board_id": "881126",
+"pct": 0.177814085223571,
+"source": "ths_hist",
+"rank": 6
+},
+{
+"name": "旅游及酒店",
+"board_id": "881160",
+"pct": 0.12666911302070538,
+"source": "ths_hist",
+"rank": 7
+},
+{
+"name": "半导体",
+"board_id": "881121",
+"pct": 0.11640771493655055,
+"source": "ths_hist",
+"rank": 8
+},
+{
+"name": "自动化设备",
+"board_id": "881171",
+"pct": 0.11330926013857212,
+"source": "ths_hist",
+"rank": 9
+},
+{
+"name": "消费电子",
+"board_id": "881124",
+"pct": 0.02697070706392246,
+"source": "ths_hist",
+"rank": 10
+},
+{
+"name": "养殖业",
+"board_id": "881102",
+"pct": 0.021658258568679756,
+"source": "ths_hist",
+"rank": 11
+},
+{
+"name": "综合",
+"board_id": "881165",
+"pct": -0.06897474131708492,
+"source": "ths_hist",
+"rank": 12
+},
+{
+"name": "汽车整车",
+"board_id": "881125",
+"pct": -0.13279752213982698,
+"source": "ths_hist",
+"rank": 13
+},
+{
+"name": "塑料制品",
+"board_id": "881265",
+"pct": -0.13549733071647196,
+"source": "ths_hist",
+"rank": 14
+},
+{
+"name": "军工电子",
+"board_id": "881276",
+"pct": -0.14288058691001027,
+"source": "ths_hist",
+"rank": 15
+},
+{
+"name": "汽车服务及其他",
+"board_id": "881128",
+"pct": -0.14292497436367846,
+"source": "ths_hist",
+"rank": 16
+},
+{
+"name": "建筑装饰",
+"board_id": "881116",
+"pct": -0.19262650510811774,
+"source": "ths_hist",
+"rank": 17
+},
+{
+"name": "种植业与林业",
+"board_id": "881101",
+"pct": -0.2064385854610884,
+"source": "ths_hist",
+"rank": 18
+},
+{
+"name": "小家电",
+"board_id": "881173",
+"pct": -0.21819052236836667,
+"source": "ths_hist",
+"rank": 19
+},
+{
+"name": "环保设备",
+"board_id": "881284",
+"pct": -0.2314285935229643,
+"source": "ths_hist",
+"rank": 20
+}
+]
+}

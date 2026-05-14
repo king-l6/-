@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from data_fetcher import DataFetcher
+from data_fetcher import DataFetcher, merge_sina_spot_into_hist_df
 import pandas as pd
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from threading import Lock
@@ -7,13 +7,6 @@ import importlib.util
 import json
 import os
 from collections import defaultdict
-
-
-def _emit_all_match_dates_enabled():
-    """为 True 时：全量回测在 timeRange 窗口内枚举每个 T，输出所有命中日（多行/股）。
-    环境变量 BACKTEST_EMIT_ALL_MATCH_DATES=1 / true / on 开启；便于日频图与「当日真实命中数」一致。"""
-    v = os.environ.get('BACKTEST_EMIT_ALL_MATCH_DATES', '').strip().lower()
-    return v in ('1', 'true', 'yes', 'on')
 
 
 class StrategyEngine:
@@ -128,6 +121,29 @@ class StrategyEngine:
             strategy, strategy_name=strategy_name, only_t_date=trading_date, write_results=False
         )
 
+    def backtest_single_day_with_spot(
+        self,
+        strategy,
+        strategy_name=None,
+        trading_date=None,
+        spot_by_code=None,
+        *,
+        ensure_sufficient_data: bool = True,
+    ):
+        """指定 T 日扫描一次；spot_by_code 为 {六位代码: 新浪 spot 行 dict}，有则把该行并入日 K 再算（盘中用）。"""
+        if trading_date is None:
+            trading_date = datetime.now().strftime('%Y-%m-%d')
+        if hasattr(trading_date, 'strftime'):
+            trading_date = trading_date.strftime('%Y-%m-%d')
+        return self._backtest_impl(
+            strategy,
+            strategy_name=strategy_name,
+            only_t_date=trading_date,
+            write_results=False,
+            spot_by_code=spot_by_code or {},
+            ensure_sufficient_data=ensure_sufficient_data,
+        )
+
     def run_incremental_for_stock(self, stock, trading_days, strategies_list):
         """对单只股票只加载一次 K 线，在多个交易日×多个策略上检查，返回 {strategy_name: [result_rows]}。
         用于增量回测脚本，避免「每 T 日×每策略」都全量扫一遍股票。
@@ -172,8 +188,16 @@ class StrategyEngine:
                             out[strategy_name].append({'code': code, 'name': name, **detail})
         return out
 
-    def _backtest_impl(self, strategy, strategy_name=None, only_t_date=None, write_results=True):
-        """内部：执行回测，可选仅扫描 only_t_date 且不写文件。"""
+    def _backtest_impl(
+        self,
+        strategy,
+        strategy_name=None,
+        only_t_date=None,
+        write_results=True,
+        spot_by_code=None,
+        ensure_sufficient_data: bool = True,
+    ):
+        """内部：执行回测，可选仅扫描 only_t_date 且不写文件。spot_by_code 非空时按代码并入新浪快照行再检。"""
         # 解析策略条件
         conditions = strategy.get('conditions', [])
         exclude_rules = strategy.get('exclude', {})
@@ -196,8 +220,11 @@ class StrategyEngine:
         self._match_print_count = 0
 
         # 在回测开始前，确保有足够的数据
-        print(f'开始数据预检查，确保有足够的数据用于回测 {time_range} 个交易日...')
-        self.data_fetcher.ensure_sufficient_data(time_range, max_workers=100)
+        if ensure_sufficient_data:
+            print(f'开始数据预检查，确保有足够的数据用于回测 {time_range} 个交易日...')
+            self.data_fetcher.ensure_sufficient_data(time_range, max_workers=100)
+        else:
+            print(f'跳过 ensure_sufficient_data（由调用方保证缓存已就绪）')
         
         # 获取所有股票
         stocks = self.data_fetcher.get_stock_list()
@@ -243,18 +270,23 @@ class StrategyEngine:
         total_stocks = len(stocks)
         processed_count = [0]  # 使用列表以便在闭包中修改
         
-        if _emit_all_match_dates_enabled():
-            print(
-                '[INFO] BACKTEST_EMIT_ALL_MATCH_DATES 已开启：窗口内每个命中日各写一行（日频统计为真实命中数）。',
-                flush=True,
-            )
         print(f"开始回测，共 {total_stocks} 只股票，回测最近 {time_range} 个交易日，使用 {self.max_workers} 个并发线程")
         
         # 使用线程池并发处理
+        spot_kw = spot_by_code if spot_by_code else None
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
             # 提交所有任务（time_range=交易日数）
             future_to_stock = {
-                executor.submit(self._process_stock, stock, conditions, start_date, end_date, time_range, only_t_date): stock
+                executor.submit(
+                    self._process_stock,
+                    stock,
+                    conditions,
+                    start_date,
+                    end_date,
+                    time_range,
+                    only_t_date,
+                    spot_kw,
+                ): stock
                 for stock in stocks
             }
             
@@ -355,13 +387,38 @@ class StrategyEngine:
         spec.loader.exec_module(mod)
         mod.enrich_results_jsonl_after_backtest(results_filepath)
     
-    def _process_stock(self, stock, conditions, start_date, end_date, time_range=30, only_t_date=None):
-        """处理单只股票（用于并发）。only_t_date 有值时仅检查该 T 日。"""
+    def _process_stock(
+        self,
+        stock,
+        conditions,
+        start_date,
+        end_date,
+        time_range=30,
+        only_t_date=None,
+        spot_by_code=None,
+    ):
+        """处理单只股票（用于并发）。only_t_date 有值时仅检查该 T 日；spot_by_code 有该 code 时先并入快照行再检。"""
         code = stock['code']
         name = stock['name']
         
         try:
-            check_result = self._check_strategy(code, conditions, start_date, end_date, time_range, only_t_date=only_t_date)
+            merged_df = None
+            if spot_by_code and only_t_date and code in spot_by_code:
+                df0 = self.data_fetcher.get_stock_data(
+                    code,
+                    start_date.strftime('%Y%m%d'),
+                    end_date.strftime('%Y%m%d'),
+                )
+                if df0 is not None and not df0.empty:
+                    merged_df = merge_sina_spot_into_hist_df(df0, only_t_date[:10], spot_by_code[code])
+            if merged_df is not None:
+                check_result = self._check_strategy(
+                    code, conditions, start_date, end_date, time_range, only_t_date=only_t_date, df=merged_df
+                )
+            else:
+                check_result = self._check_strategy(
+                    code, conditions, start_date, end_date, time_range, only_t_date=only_t_date
+                )
             if check_result:
                 # 筑底突破返回多个 match_date，其余策略返回单个
                 items = check_result if isinstance(check_result, list) else [check_result]
@@ -444,7 +501,7 @@ class StrategyEngine:
                 'indicator_ctx': indicator_ctx,
             }
 
-            # 无 only_t_date：只在「最近 time_range 根 K 线」内枚举 T（全量回测找最近命中）。
+            # 无 only_t_date：在「最近 time_range 根 K 线」内按时间正序枚举每个 T，全量回测输出窗口内每个命中日（同股可多日多行）。
             # 有 only_t_date：增量脚本已指定 T 日列表，不得再截成尾部 time_range 根，否则 timeRange 大（如主力建仓 120）
             # 时早于「df 尾窗」的 T 永远不会被扫到。
             if only_t_date:
@@ -463,26 +520,17 @@ class StrategyEngine:
                 return False
 
             min_i = max(min_required_idx, len(df) - time_range)
-            if _emit_all_match_dates_enabled():
-                acc = []
-                for i in range(min_i, len(df)):
-                    base_date = df.iloc[i]['日期']
-                    if self._check_conditions_from_date_fast(
-                        conditions, base_date, df, date_map, dates_sorted,
-                        dates_str=dates_str, date_pos=date_pos, indicator_ctx=indicator_ctx,
-                    ):
-                        acc.append({'df': df, 'base_date': base_date, **ctx_tail})
-                if not acc:
-                    return False
-                return acc[0] if len(acc) == 1 else acc
-            for i in range(len(df) - 1, min_i - 1, -1):
+            acc = []
+            for i in range(min_i, len(df)):
                 base_date = df.iloc[i]['日期']
                 if self._check_conditions_from_date_fast(
                     conditions, base_date, df, date_map, dates_sorted,
                     dates_str=dates_str, date_pos=date_pos, indicator_ctx=indicator_ctx,
                 ):
-                    return {'df': df, 'base_date': base_date, **ctx_tail}
-            return False
+                    acc.append({'df': df, 'base_date': base_date, **ctx_tail})
+            if not acc:
+                return False
+            return acc[0] if len(acc) == 1 else acc
         except Exception as e:
             # 静默处理错误
             return False
@@ -556,26 +604,17 @@ class StrategyEngine:
                 return False
 
             min_i = max(min_required_idx, len(df) - time_range)
-            if _emit_all_match_dates_enabled():
-                acc = []
-                for i in range(min_i, len(df)):
-                    base_date = df.iloc[i]['日期']
-                    if self._check_conditions_from_date_fast(
-                        conditions, base_date, df, date_map, dates_sorted,
-                        dates_str=dates_str, date_pos=date_pos, indicator_ctx=indicator_ctx,
-                    ):
-                        acc.append({'df': df, 'base_date': base_date, **ctx_tail})
-                if not acc:
-                    return False
-                return acc[0] if len(acc) == 1 else acc
-            for i in range(len(df) - 1, min_i - 1, -1):
+            acc = []
+            for i in range(min_i, len(df)):
                 base_date = df.iloc[i]['日期']
                 if self._check_conditions_from_date_fast(
                     conditions, base_date, df, date_map, dates_sorted,
                     dates_str=dates_str, date_pos=date_pos, indicator_ctx=indicator_ctx,
                 ):
-                    return {'df': df, 'base_date': base_date, **ctx_tail}
-            return False
+                    acc.append({'df': df, 'base_date': base_date, **ctx_tail})
+            if not acc:
+                return False
+            return acc[0] if len(acc) == 1 else acc
         except Exception as e:
             return False
 
@@ -1258,6 +1297,32 @@ class StrategyEngine:
                         if pd.isna(ma5[i]) or pd.isna(ma10[i]) or not (ma5[i] > ma10[i]):
                             return False
                 return True
+            elif cond_type == 'consecutive_up_window_no_limit_up':
+                # 以 date1 为结束日，向前连续「涨跌幅>0」的整段区间内，每日涨跌幅均 < limitPct（默认 9.8%，与涨停判定一致）
+                date1 = self._get_date_offset(base_date, condition.get('date1', -1), df, dates_str=dates_str, date_pos=date_pos)
+                if date1 is None:
+                    return False
+                try:
+                    end_idx = date_pos[date1.strftime('%Y-%m-%d')]
+                except KeyError:
+                    return False
+                try:
+                    thresh = float(condition.get('limitPct', 9.8))
+                except Exception:
+                    thresh = 9.8
+                row_end = date_map.get(dates_str[end_idx]) or {}
+                if float(row_end.get('涨跌幅') or 0) <= 0:
+                    return False
+                i = end_idx
+                while i >= 0:
+                    row = date_map.get(dates_str[i]) or {}
+                    pct = float(row.get('涨跌幅') or 0)
+                    if pct <= 0:
+                        break
+                    if pct >= thresh:
+                        return False
+                    i -= 1
+                return True
             elif cond_type == 'upper_shadow_pct_gt':
                 date1 = self._get_date_offset(base_date, condition.get('date1', 0), df, dates_str=dates_str, date_pos=date_pos)
                 if date1 is None:
@@ -1591,30 +1656,47 @@ class StrategyEngine:
             except Exception:
                 pass
 
-            # 连阳上影相关字段：连续阳线天数、连阳区间最大上影线幅度
+            # 连阳相关字段：连续涨天数（与条件中 consecutive_* 的 date1 锚点对齐）、上影与触板仍按 T 日连阳段
             try:
                 if date_pos is not None and base_date_str in date_pos:
                     base_idx = date_pos[base_date_str]
                 else:
                     base_idx = dates.index(base_date)
-                consecutive_up_days = self._compute_consecutive_up_days(
-                    base_idx,
-                    check_result.get('dates_str') or [d.strftime('%Y-%m-%d') for d in dates],
-                    date_map,
+                dates_str_line = check_result.get('dates_str') or [d.strftime('%Y-%m-%d') for d in dates]
+                streak_at_t = self._compute_consecutive_up_days(
+                    base_idx, dates_str_line, date_map,
                 )
-                detail['consecutive_up_days'] = consecutive_up_days
+                # 展示用：取所有 consecutive_up_days_gte / consecutive_up_window_no_limit_up 中最小的 date1（如 -1=截至 T-1）
+                min_d1 = 0
+                for c in conditions or []:
+                    if c.get('type') in ('consecutive_up_days_gte', 'consecutive_up_window_no_limit_up'):
+                        try:
+                            d1 = int(c.get('date1', 0))
+                            if d1 < min_d1:
+                                min_d1 = d1
+                        except (TypeError, ValueError):
+                            pass
+                anchor_idx = base_idx + min_d1
+                if anchor_idx < 0:
+                    anchor_idx = 0
+                if anchor_idx >= len(dates_str_line):
+                    anchor_idx = len(dates_str_line) - 1
+                detail['consecutive_up_days'] = self._compute_consecutive_up_days(
+                    anchor_idx, dates_str_line, date_map,
+                )
+                detail['consecutive_up_streak_end_date'] = dates_str_line[anchor_idx]
                 max_upper_shadow_pct = self._compute_max_upper_shadow_pct(
                     base_idx,
-                    check_result.get('dates_str') or [d.strftime('%Y-%m-%d') for d in dates],
+                    dates_str_line,
                     date_map,
-                    window_days=consecutive_up_days,
+                    window_days=streak_at_t,
                 )
                 detail['upper_shadow_pct'] = round(max_upper_shadow_pct, 2) if max_upper_shadow_pct is not None else None
                 detail['consecutive_up_has_limit_touch'] = self._compute_has_limit_touch_in_window(
                     base_idx,
-                    check_result.get('dates_str') or [d.strftime('%Y-%m-%d') for d in dates],
+                    dates_str_line,
                     date_map,
-                    window_days=consecutive_up_days,
+                    window_days=streak_at_t,
                 )
             except Exception:
                 pass

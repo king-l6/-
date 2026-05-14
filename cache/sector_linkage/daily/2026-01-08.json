@@ -1,0 +1,151 @@
+{
+"version": 2,
+"trade_date": "2026-01-08",
+"built_at": "2026-05-14T10:29:34+00:00",
+"builder": "ths_concept_ths_industry",
+"concept_daily": "ths",
+"industry_daily": "ths",
+"concepts": [],
+"industries": [
+{
+"name": "军工装备",
+"board_id": "881166",
+"pct": 4.830726138728392,
+"source": "ths_hist",
+"rank": 1
+},
+{
+"name": "军工电子",
+"board_id": "881276",
+"pct": 4.363899185512365,
+"source": "ths_hist",
+"rank": 2
+},
+{
+"name": "光伏设备",
+"board_id": "881279",
+"pct": 3.041459381852807,
+"source": "ths_hist",
+"rank": 3
+},
+{
+"name": "风电设备",
+"board_id": "881280",
+"pct": 2.728088079952018,
+"source": "ths_hist",
+"rank": 4
+},
+{
+"name": "IT服务",
+"board_id": "881271",
+"pct": 2.3538127745885484,
+"source": "ths_hist",
+"rank": 5
+},
+{
+"name": "教育",
+"board_id": "881178",
+"pct": 2.224713441223969,
+"source": "ths_hist",
+"rank": 6
+},
+{
+"name": "互联网电商",
+"board_id": "881177",
+"pct": 2.1408534151671876,
+"source": "ths_hist",
+"rank": 7
+},
+{
+"name": "建筑材料",
+"board_id": "881115",
+"pct": 2.1256672437654833,
+"source": "ths_hist",
+"rank": 8
+},
+{
+"name": "影视院线",
+"board_id": "881274",
+"pct": 1.964668693637428,
+"source": "ths_hist",
+"rank": 9
+},
+{
+"name": "医疗服务",
+"board_id": "881175",
+"pct": 1.9242486129361414,
+"source": "ths_hist",
+"rank": 10
+},
+{
+"name": "建筑装饰",
+"board_id": "881116",
+"pct": 1.9185019681033033,
+"source": "ths_hist",
+"rank": 11
+},
+{
+"name": "其他电源设备",
+"board_id": "881282",
+"pct": 1.875611176234404,
+"source": "ths_hist",
+"rank": 12
+},
+{
+"name": "文化传媒",
+"board_id": "881164",
+"pct": 1.8340290801193149,
+"source": "ths_hist",
+"rank": 13
+},
+{
+"name": "通信服务",
+"board_id": "881162",
+"pct": 1.7627855245000212,
+"source": "ths_hist",
+"rank": 14
+},
+{
+"name": "房地产",
+"board_id": "881153",
+"pct": 1.7333496319728026,
+"source": "ths_hist",
+"rank": 15
+},
+{
+"name": "医疗器械",
+"board_id": "881144",
+"pct": 1.7301301295774785,
+"source": "ths_hist",
+"rank": 16
+},
+{
+"name": "厨卫电器",
+"board_id": "881174",
+"pct": 1.7237364821681478,
+"source": "ths_hist",
+"rank": 17
+},
+{
+"name": "软件开发",
+"board_id": "881272",
+"pct": 1.704553602232295,
+"source": "ths_hist",
+"rank": 18
+},
+{
+"name": "通用设备",
+"board_id": "881117",
+"pct": 1.594207833946859,
+"source": "ths_hist",
+"rank": 19
+},
+{
+"name": "专用设备",
+"board_id": "881118",
+"pct": 1.5048764773144319,
+"source": "ths_hist",
+"rank": 20
+}
+]
+}

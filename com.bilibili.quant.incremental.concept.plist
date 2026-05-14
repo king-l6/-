@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.bilibili.quant.incremental.concept</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/bilibili/Desktop/test/量化/venv/bin/python3</string>
+        <string>/Users/bilibili/Desktop/test/量化/scripts/update_sector_linkage_daily.py</string>
+    </array>
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>18</integer>
+        <key>Minute</key>
+        <integer>20</integer>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>/Users/bilibili/Desktop/test/量化/logs/scheduled_incremental_concept.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/bilibili/Desktop/test/量化/logs/scheduled_incremental_concept_error.log</string>
+    <key>WorkingDirectory</key>
+    <string>/Users/bilibili/Desktop/test/量化</string>
+    <key>RunAtLoad</key>
+    <false/>
+</dict>
+</plist>

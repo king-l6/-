@@ -39,6 +39,8 @@ export function useCommonStrategies() {
         return '涨一波→回调低点1→涨一小波→二次筑底→放量上涨=买点'
       case 'touch_limit_not_close':
         return `${dateStr}最高价触及涨停但收盘未涨停`
+      case 'high_is_limit_up':
+        return `${dateStr}最高价触及涨停价（相对昨收涨幅≥9.8%）`
       case 'recent_n_day_pct_change_lt':
         return `近${condition.days ?? 5}日累计涨跌幅<=${condition.value ?? -12}%`
       case 'close_below_ma_deviation':
@@ -55,6 +57,8 @@ export function useCommonStrategies() {
         return `主力建仓：T-10至T日（含）至少5日结构日（收盘>昨收、收盘>开盘、收盘站上5日线且5>10>20），且至少一半满足5/10日线斜率>0，并要求T-1日涨幅<9.8%；T日涨停仅作打标筛选`
       case 'consecutive_up_days_gte':
         return `${dateStr}向前连阳天数>=${condition.consecutiveDays ?? condition.days ?? 3}${condition.requireMa5GtMa10 ? '且连阳日均满足5日线>10日线' : ''}`
+      case 'consecutive_up_window_no_limit_up':
+        return `${dateStr}向前连续涨跌幅>0的区间内，每日涨跌幅均<${condition.limitPct ?? 9.8}%（无涨停）`
       case 'upper_shadow_pct_gt':
         return `${dateStr}向前${condition.days ?? condition.consecutiveDays ?? 3}日内至少1天上影线幅度>${condition.value ?? 2}%`
       default:

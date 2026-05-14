@@ -1,0 +1,432 @@
+{
+"version": 2,
+"trade_date": "2026-04-01",
+"built_at": "2026-05-13T12:35:06+00:00",
+"builder": "ths_concept_ths_industry",
+"concept_daily": "ths",
+"industry_daily": "ths",
+"concepts": [
+{
+"name": "细胞免疫治疗",
+"board_id": "301543",
+"pct": 5.1522203931808175,
+"source": "ths_hist",
+"rank": 1
+},
+{
+"name": "重组蛋白",
+"board_id": "308822",
+"pct": 5.005278950877967,
+"source": "ths_hist",
+"rank": 2
+},
+{
+"name": "创新药",
+"board_id": "308014",
+"pct": 4.72312837903186,
+"source": "ths_hist",
+"rank": 3
+},
+{
+"name": "减肥药",
+"board_id": "309081",
+"pct": 4.581328821607578,
+"source": "ths_hist",
+"rank": 4
+},
+{
+"name": "仿制药一致性评价",
+"board_id": "308572",
+"pct": 4.091953333671627,
+"source": "ths_hist",
+"rank": 5
+},
+{
+"name": "猴痘概念",
+"board_id": "308941",
+"pct": 3.8548250273215734,
+"source": "ths_hist",
+"rank": 6
+},
+{
+"name": "阿尔茨海默概念",
+"board_id": "308614",
+"pct": 3.77453560025125,
+"source": "ths_hist",
+"rank": 7
+},
+{
+"name": "云游戏",
+"board_id": "308624",
+"pct": 3.6854907940168546,
+"source": "ths_hist",
+"rank": 8
+},
+{
+"name": "肝炎概念",
+"board_id": "308915",
+"pct": 3.677351538776863,
+"source": "ths_hist",
+"rank": 9
+},
+{
+"name": "科创次新股",
+"board_id": "308699",
+"pct": 3.657852529740202,
+"source": "ths_hist",
+"rank": 10
+},
+{
+"name": "共封装光学(CPO)",
+"board_id": "309049",
+"pct": 3.650043148465665,
+"source": "ths_hist",
+"rank": 11
+},
+{
+"name": "生物疫苗",
+"board_id": "300106",
+"pct": 3.573455415372262,
+"source": "ths_hist",
+"rank": 12
+},
+{
+"name": "基因测序",
+"board_id": "301146",
+"pct": 3.560509003066259,
+"source": "ths_hist",
+"rank": 13
+},
+{
+"name": "辅助生殖",
+"board_id": "308708",
+"pct": 3.52343759747471,
+"source": "ths_hist",
+"rank": 14
+},
+{
+"name": "流感",
+"board_id": "300038",
+"pct": 3.5179716112603954,
+"source": "ths_hist",
+"rank": 15
+},
+{
+"name": "眼科医疗",
+"board_id": "301252",
+"pct": 3.4762819044551474,
+"source": "ths_hist",
+"rank": 16
+},
+{
+"name": "光刻机",
+"board_id": "309085",
+"pct": 3.4700734800584776,
+"source": "ths_hist",
+"rank": 17
+},
+{
+"name": "幽门螺杆菌概念",
+"board_id": "308818",
+"pct": 3.302044104697144,
+"source": "ths_hist",
+"rank": 18
+},
+{
+"name": "AI PC",
+"board_id": "309121",
+"pct": 3.1891806508150156,
+"source": "ths_hist",
+"rank": 19
+},
+{
+"name": "PCB概念",
+"board_id": "308832",
+"pct": 3.1629526780569517,
+"source": "ths_hist",
+"rank": 20
+},
+{
+"name": "英伟达概念",
+"board_id": "309065",
+"pct": 3.143474367065391,
+"source": "ths_hist",
+"rank": 21
+},
+{
+"name": "新型烟草(电子烟)",
+"board_id": "301362",
+"pct": 3.0515683725585108,
+"source": "ths_hist",
+"rank": 22
+},
+{
+"name": "医药电商",
+"board_id": "301565",
+"pct": 3.039261493154366,
+"source": "ths_hist",
+"rank": 23
+},
+{
+"name": "医美概念",
+"board_id": "308712",
+"pct": 3.0058921936831906,
+"source": "ths_hist",
+"rank": 24
+},
+{
+"name": "血氧仪",
+"board_id": "309042",
+"pct": 2.98695041081114,
+"source": "ths_hist",
+"rank": 25
+},
+{
+"name": "富士康概念",
+"board_id": "307954",
+"pct": 2.960320669503891,
+"source": "ths_hist",
+"rank": 26
+},
+{
+"name": "华为海思概念股",
+"board_id": "308527",
+"pct": 2.9165883371363055,
+"source": "ths_hist",
+"rank": 27
+},
+{
+"name": "合成生物",
+"board_id": "309129",
+"pct": 2.90579977880967,
+"source": "ths_hist",
+"rank": 28
+},
+{
+"name": "先进封装",
+"board_id": "309004",
+"pct": 2.901567684231421,
+"source": "ths_hist",
+"rank": 29
+},
+{
+"name": "MiniLED",
+"board_id": "308628",
+"pct": 2.895886357931299,
+"source": "ths_hist",
+"rank": 30
+},
+{
+"name": "维生素",
+"board_id": "309135",
+"pct": 2.887789069765967,
+"source": "ths_hist",
+"rank": 31
+},
+{
+"name": "智能医疗",
+"board_id": "300682",
+"pct": 2.8156509360275583,
+"source": "ths_hist",
+"rank": 32
+},
+{
+"name": "苹果概念",
+"board_id": "300309",
+"pct": 2.8060587426359085,
+"source": "ths_hist",
+"rank": 33
+},
+{
+"name": "电子竞技",
+"board_id": "302027",
+"pct": 2.8037785128361525,
+"source": "ths_hist",
+"rank": 34
+},
+{
+"name": "医疗器械概念",
+"board_id": "301505",
+"pct": 2.7105424360118757,
+"source": "ths_hist",
+"rank": 35
+},
+{
+"name": "BC电池",
+"board_id": "309084",
+"pct": 2.7102884555992635,
+"source": "ths_hist",
+"rank": 36
+},
+{
+"name": "脑机接口",
+"board_id": "308535",
+"pct": 2.698836765907253,
+"source": "ths_hist",
+"rank": 37
+},
+{
+"name": "AI眼镜",
+"board_id": "309152",
+"pct": 2.6801137644905326,
+"source": "ths_hist",
+"rank": 38
+},
+{
+"name": "第三代半导体",
+"board_id": "308700",
+"pct": 2.6537792330291854,
+"source": "ths_hist",
+"rank": 39
+},
+{
+"name": "F5G概念",
+"board_id": "308977",
+"pct": 2.652291531554396,
+"source": "ths_hist",
+"rank": 40
+}
+],
+"industries": [
+{
+"name": "医疗服务",
+"board_id": "881175",
+"pct": 5.249830052868876,
+"source": "ths_hist",
+"rank": 1
+},
+{
+"name": "生物制品",
+"board_id": "881142",
+"pct": 4.7562822612075895,
+"source": "ths_hist",
+"rank": 2
+},
+{
+"name": "化学制药",
+"board_id": "881140",
+"pct": 4.621589355203182,
+"source": "ths_hist",
+"rank": 3
+},
+{
+"name": "游戏",
+"board_id": "881275",
+"pct": 3.915338438392846,
+"source": "ths_hist",
+"rank": 4
+},
+{
+"name": "元件",
+"board_id": "881270",
+"pct": 3.7737350166054506,
+"source": "ths_hist",
+"rank": 5
+},
+{
+"name": "医疗器械",
+"board_id": "881144",
+"pct": 3.31656153802371,
+"source": "ths_hist",
+"rank": 6
+},
+{
+"name": "自动化设备",
+"board_id": "881171",
+"pct": 3.022562288588704,
+"source": "ths_hist",
+"rank": 7
+},
+{
+"name": "美容护理",
+"board_id": "881182",
+"pct": 3.014794705115653,
+"source": "ths_hist",
+"rank": 8
+},
+{
+"name": "机场航运",
+"board_id": "881151",
+"pct": 2.9295806294194815,
+"source": "ths_hist",
+"rank": 9
+},
+{
+"name": "半导体",
+"board_id": "881121",
+"pct": 2.889354540467548,
+"source": "ths_hist",
+"rank": 10
+},
+{
+"name": "其他电源设备",
+"board_id": "881282",
+"pct": 2.429816768246562,
+"source": "ths_hist",
+"rank": 11
+},
+{
+"name": "保险",
+"board_id": "881156",
+"pct": 2.406767287523981,
+"source": "ths_hist",
+"rank": 12
+},
+{
+"name": "电子化学品",
+"board_id": "881172",
+"pct": 2.399892222934863,
+"source": "ths_hist",
+"rank": 13
+},
+{
+"name": "中药",
+"board_id": "881141",
+"pct": 2.361286314113209,
+"source": "ths_hist",
+"rank": 14
+},
+{
+"name": "通信服务",
+"board_id": "881162",
+"pct": 2.3592170568195847,
+"source": "ths_hist",
+"rank": 15
+},
+{
+"name": "非金属材料",
+"board_id": "881167",
+"pct": 2.3363669652551655,
+"source": "ths_hist",
+"rank": 16
+},
+{
+"name": "黑色家电",
+"board_id": "881132",
+"pct": 2.3195254397637477,
+"source": "ths_hist",
+"rank": 17
+},
+{
+"name": "旅游及酒店",
+"board_id": "881160",
+"pct": 2.3038442046244834,
+"source": "ths_hist",
+"rank": 18
+},
+{
+"name": "通信设备",
+"board_id": "881129",
+"pct": 2.2406717618754124,
+"source": "ths_hist",
+"rank": 19
+},
+{
+"name": "消费电子",
+"board_id": "881124",
+"pct": 2.223416728794092,
+"source": "ths_hist",
+"rank": 20
+}
+]
+}

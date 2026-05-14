@@ -10,7 +10,7 @@
   # 全量回测（默认）：补齐缓存 + 全部预设策略全量回测，结果写 策略名_结果.jsonl
   python scripts/update_cache_and_backtest.py
 
-  # 增量回测：补齐缓存 + 先看预设策略结果最后日期，只回测「最后日期+1」到今天的 T 日并追加
+  # 增量回测：步骤 1 补齐 K 线后，步骤 2 只读本地 cache 追加回测（不再调 AkShare 补日 K）
   python scripts/update_cache_and_backtest.py --incremental
 
   # 仅补齐缓存、不执行回测
@@ -45,12 +45,19 @@ if PROJECT_ROOT not in sys.path:
 os.environ.setdefault('NO_PROXY', '*')
 os.environ.setdefault('no_proxy', '*')
 
+# 步骤 1 已做差值补缓存后，增量回测不应再拉日 K（与定时任务 scheduled_task 一致）
+_INCREMENTAL_APPEND_LOCAL_KLINE = (
+    '--cache-only',
+    '--no-check-cache',
+    '--skip-ensure-data',
+)
+
 
 def main():
     parser = argparse.ArgumentParser(description='补齐缓存差值数据并执行常用策略回测')
     parser.add_argument('--no-backtest', action='store_true', help='只补齐缓存，不执行回测')
     parser.add_argument('--incremental', action='store_true',
-                        help='回测用增量：先看六策略结果最后日期，只回测该日期之后到今天的 T 日并追加（不跑全量）')
+                        help='回测用增量：先看各策略结果最后日期，只回测该日期之后到今天的 T 日并追加（不跑全量）')
     parser.add_argument('--workers', type=int, default=100, help='拉取数据时的并发数（默认 100）')
     parser.add_argument('--task-index', type=int, default=None,
                         help='多任务分片的当前任务下标（从 0 开始）；与 --task-count 搭配使用')
@@ -104,7 +111,7 @@ def main():
             return
         print('=' * 60)
         if args.incremental:
-            print(f'步骤 2：按结果最后日期增量回测（{args.auto_shard_count} 分片并行，六策略只补 T 日并追加）')
+            print(f'步骤 2：按结果最后日期增量回测（{args.auto_shard_count} 分片；日 K 仅读本地 cache）')
         else:
             print('步骤 2：执行常用策略回测（全量）')
         print('=' * 60)
@@ -113,6 +120,7 @@ def main():
                 sys.executable, os.path.join(PROJECT_ROOT, 'scripts', 'backtest_append_from_last.py'),
                 '--workers', str(args.workers), '--config', args.config,
                 '--auto-shard-count', str(args.auto_shard_count),
+                *_INCREMENTAL_APPEND_LOCAL_KLINE,
             ]
         else:
             cmd = [sys.executable, 'batch_backtest.py', '--config', args.config]
@@ -167,13 +175,18 @@ def main():
 
     print('=' * 60)
     if args.incremental:
-        print('步骤 2：按结果最后日期增量回测（六策略，只补 T 日并追加）')
+        print('步骤 2：按结果最后日期增量回测（common_strategies.json 内全部策略；日 K 仅读本地 cache，不补数）')
     else:
         print('步骤 2：执行常用策略回测（全量）')
     print('=' * 60)
     if args.incremental:
-        cmd = [sys.executable, os.path.join(PROJECT_ROOT, 'scripts', 'backtest_append_from_last.py'),
-               '--workers', str(args.workers), '--config', args.config]
+        cmd = [
+            sys.executable,
+            os.path.join(PROJECT_ROOT, 'scripts', 'backtest_append_from_last.py'),
+            '--workers', str(args.workers),
+            '--config', args.config,
+            *_INCREMENTAL_APPEND_LOCAL_KLINE,
+        ]
     else:
         cmd = [sys.executable, 'batch_backtest.py', '--config', args.config]
     print(f'执行: {" ".join(cmd)}\n')

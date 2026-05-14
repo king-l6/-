@@ -1,0 +1,432 @@
+{
+"version": 2,
+"trade_date": "2026-03-13",
+"built_at": "2026-05-13T11:37:44+00:00",
+"builder": "ths_concept_ths_industry",
+"concept_daily": "ths",
+"industry_daily": "ths",
+"concepts": [
+{
+"name": "石墨电极",
+"board_id": "307512",
+"pct": 2.3206130015557713,
+"source": "ths_hist",
+"rank": 1
+},
+{
+"name": "高压氧舱",
+"board_id": "309023",
+"pct": 2.3137546408974474,
+"source": "ths_hist",
+"rank": 2
+},
+{
+"name": "化肥",
+"board_id": "301104",
+"pct": 1.5891733460067226,
+"source": "ths_hist",
+"rank": 3
+},
+{
+"name": "磷化工",
+"board_id": "300098",
+"pct": 0.6686194326474659,
+"source": "ths_hist",
+"rank": 4
+},
+{
+"name": "煤化工概念",
+"board_id": "300084",
+"pct": 0.5914251663944325,
+"source": "ths_hist",
+"rank": 5
+},
+{
+"name": "赛马概念",
+"board_id": "301602",
+"pct": 0.511019423523229,
+"source": "ths_hist",
+"rank": 6
+},
+{
+"name": "举牌",
+"board_id": "300269",
+"pct": 0.5014169255325829,
+"source": "ths_hist",
+"rank": 7
+},
+{
+"name": "医美概念",
+"board_id": "308712",
+"pct": 0.49265824312039186,
+"source": "ths_hist",
+"rank": 8
+},
+{
+"name": "空气能热泵",
+"board_id": "309007",
+"pct": 0.46136924827624437,
+"source": "ths_hist",
+"rank": 9
+},
+{
+"name": "生态农业",
+"board_id": "300923",
+"pct": 0.45324900259369194,
+"source": "ths_hist",
+"rank": 10
+},
+{
+"name": "供销社",
+"board_id": "301669",
+"pct": 0.41800882924460936,
+"source": "ths_hist",
+"rank": 11
+},
+{
+"name": "土地流转",
+"board_id": "300858",
+"pct": 0.3772240284463768,
+"source": "ths_hist",
+"rank": 12
+},
+{
+"name": "净水概念",
+"board_id": "301032",
+"pct": 0.35103656461790145,
+"source": "ths_hist",
+"rank": 13
+},
+{
+"name": "农村电商",
+"board_id": "301632",
+"pct": 0.3459558981354638,
+"source": "ths_hist",
+"rank": 14
+},
+{
+"name": "特色小镇",
+"board_id": "302674",
+"pct": 0.3395082306620667,
+"source": "ths_hist",
+"rank": 15
+},
+{
+"name": "维生素",
+"board_id": "309135",
+"pct": 0.32303277047320833,
+"source": "ths_hist",
+"rank": 16
+},
+{
+"name": "盐湖提锂",
+"board_id": "307904",
+"pct": 0.2625446592962932,
+"source": "ths_hist",
+"rank": 17
+},
+{
+"name": "啤酒概念",
+"board_id": "301497",
+"pct": 0.2554629796905905,
+"source": "ths_hist",
+"rank": 18
+},
+{
+"name": "工业大麻",
+"board_id": "301477",
+"pct": 0.25479542520936427,
+"source": "ths_hist",
+"rank": 19
+},
+{
+"name": "辅助生殖",
+"board_id": "308708",
+"pct": 0.19457005695526775,
+"source": "ths_hist",
+"rank": 20
+},
+{
+"name": "动物疫苗",
+"board_id": "308537",
+"pct": 0.1910337671505946,
+"source": "ths_hist",
+"rank": 21
+},
+{
+"name": "核污染防治",
+"board_id": "301424",
+"pct": 0.18956654879516144,
+"source": "ths_hist",
+"rank": 22
+},
+{
+"name": "减肥药",
+"board_id": "309081",
+"pct": 0.17204827849657267,
+"source": "ths_hist",
+"rank": 23
+},
+{
+"name": "高股息精选",
+"board_id": "309124",
+"pct": 0.16972416793061829,
+"source": "ths_hist",
+"rank": 24
+},
+{
+"name": "超级品牌",
+"board_id": "306750",
+"pct": 0.1613019016679207,
+"source": "ths_hist",
+"rank": 25
+},
+{
+"name": "幽门螺杆菌概念",
+"board_id": "308818",
+"pct": 0.14303366637786752,
+"source": "ths_hist",
+"rank": 26
+},
+{
+"name": "合成生物",
+"board_id": "309129",
+"pct": 0.13604593917868613,
+"source": "ths_hist",
+"rank": 27
+},
+{
+"name": "乳业",
+"board_id": "300983",
+"pct": 0.12413357961924554,
+"source": "ths_hist",
+"rank": 28
+},
+{
+"name": "宠物经济",
+"board_id": "308588",
+"pct": 0.10858439370959871,
+"source": "ths_hist",
+"rank": 29
+},
+{
+"name": "毛发医疗",
+"board_id": "308893",
+"pct": 0.09439497056822344,
+"source": "ths_hist",
+"rank": 30
+},
+{
+"name": "水泥概念",
+"board_id": "307826",
+"pct": 0.08914799790717964,
+"source": "ths_hist",
+"rank": 31
+},
+{
+"name": "阿尔茨海默概念",
+"board_id": "308614",
+"pct": 0.05318630479513864,
+"source": "ths_hist",
+"rank": 32
+},
+{
+"name": "消毒剂",
+"board_id": "308636",
+"pct": 0.03367679066215157,
+"source": "ths_hist",
+"rank": 33
+},
+{
+"name": "烟草",
+"board_id": "308560",
+"pct": 0.022077216949512035,
+"source": "ths_hist",
+"rank": 34
+},
+{
+"name": "医药电商",
+"board_id": "301565",
+"pct": 0.018480686310473615,
+"source": "ths_hist",
+"rank": 35
+},
+{
+"name": "装配式建筑",
+"board_id": "305794",
+"pct": 0.006804801104731695,
+"source": "ths_hist",
+"rank": 36
+},
+{
+"name": "民营医院",
+"board_id": "301346",
+"pct": 0.002038449962649125,
+"source": "ths_hist",
+"rank": 37
+},
+{
+"name": "仿制药一致性评价",
+"board_id": "308572",
+"pct": -0.02191560769915224,
+"source": "ths_hist",
+"rank": 38
+},
+{
+"name": "转基因",
+"board_id": "300435",
+"pct": -0.030565016155781333,
+"source": "ths_hist",
+"rank": 39
+},
+{
+"name": "冰雪产业",
+"board_id": "307550",
+"pct": -0.03557931846417395,
+"source": "ths_hist",
+"rank": 40
+}
+],
+"industries": [
+{
+"name": "风电设备",
+"board_id": "881280",
+"pct": 2.622770653078521,
+"source": "ths_hist",
+"rank": 1
+},
+{
+"name": "厨卫电器",
+"board_id": "881174",
+"pct": 2.425609868528955,
+"source": "ths_hist",
+"rank": 2
+},
+{
+"name": "农化制品",
+"board_id": "881263",
+"pct": 1.9032001885058492,
+"source": "ths_hist",
+"rank": 3
+},
+{
+"name": "小家电",
+"board_id": "881173",
+"pct": 0.8527235897100249,
+"source": "ths_hist",
+"rank": 4
+},
+{
+"name": "黑色家电",
+"board_id": "881132",
+"pct": 0.6975694665380283,
+"source": "ths_hist",
+"rank": 5
+},
+{
+"name": "电池",
+"board_id": "881281",
+"pct": 0.6306398437073701,
+"source": "ths_hist",
+"rank": 6
+},
+{
+"name": "白酒",
+"board_id": "881273",
+"pct": 0.4586650594757824,
+"source": "ths_hist",
+"rank": 7
+},
+{
+"name": "银行",
+"board_id": "881155",
+"pct": 0.387442025859297,
+"source": "ths_hist",
+"rank": 8
+},
+{
+"name": "建筑装饰",
+"board_id": "881116",
+"pct": 0.25784195621283423,
+"source": "ths_hist",
+"rank": 9
+},
+{
+"name": "医疗器械",
+"board_id": "881144",
+"pct": 0.24527331386647866,
+"source": "ths_hist",
+"rank": 10
+},
+{
+"name": "旅游及酒店",
+"board_id": "881160",
+"pct": 0.22468850799060025,
+"source": "ths_hist",
+"rank": 11
+},
+{
+"name": "煤炭开采加工",
+"board_id": "881105",
+"pct": 0.17638416631919895,
+"source": "ths_hist",
+"rank": 12
+},
+{
+"name": "医药商业",
+"board_id": "881143",
+"pct": 0.1712508260164558,
+"source": "ths_hist",
+"rank": 13
+},
+{
+"name": "化学原料",
+"board_id": "881108",
+"pct": 0.15254007311993334,
+"source": "ths_hist",
+"rank": 14
+},
+{
+"name": "环保设备",
+"board_id": "881284",
+"pct": 0.1423449985420433,
+"source": "ths_hist",
+"rank": 15
+},
+{
+"name": "农产品加工",
+"board_id": "881103",
+"pct": 0.13962691723585774,
+"source": "ths_hist",
+"rank": 16
+},
+{
+"name": "饮料制造",
+"board_id": "881133",
+"pct": 0.1175391605332532,
+"source": "ths_hist",
+"rank": 17
+},
+{
+"name": "美容护理",
+"board_id": "881182",
+"pct": 0.10112398547348356,
+"source": "ths_hist",
+"rank": 18
+},
+{
+"name": "房地产",
+"board_id": "881153",
+"pct": 0.05281331881623608,
+"source": "ths_hist",
+"rank": 19
+},
+{
+"name": "钢铁",
+"board_id": "881112",
+"pct": -0.06352343308864139,
+"source": "ths_hist",
+"rank": 20
+}
+]
+}

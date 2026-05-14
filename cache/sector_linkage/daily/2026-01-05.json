@@ -1,0 +1,151 @@
+{
+"version": 2,
+"trade_date": "2026-01-05",
+"built_at": "2026-05-14T10:27:14+00:00",
+"builder": "ths_concept_ths_industry",
+"concept_daily": "ths",
+"industry_daily": "ths",
+"concepts": [],
+"industries": [
+{
+"name": "保险",
+"board_id": "881156",
+"pct": 6.7246265311665,
+"source": "ths_hist",
+"rank": 1
+},
+{
+"name": "医疗器械",
+"board_id": "881144",
+"pct": 5.836009621302929,
+"source": "ths_hist",
+"rank": 2
+},
+{
+"name": "医疗服务",
+"board_id": "881175",
+"pct": 5.5908620824956845,
+"source": "ths_hist",
+"rank": 3
+},
+{
+"name": "半导体",
+"board_id": "881121",
+"pct": 4.309710237255082,
+"source": "ths_hist",
+"rank": 4
+},
+{
+"name": "游戏",
+"board_id": "881275",
+"pct": 4.102961817506046,
+"source": "ths_hist",
+"rank": 5
+},
+{
+"name": "贵金属",
+"board_id": "881169",
+"pct": 3.8662819996852393,
+"source": "ths_hist",
+"rank": 6
+},
+{
+"name": "生物制品",
+"board_id": "881142",
+"pct": 3.306848516799099,
+"source": "ths_hist",
+"rank": 7
+},
+{
+"name": "电子化学品",
+"board_id": "881172",
+"pct": 3.2919525987070264,
+"source": "ths_hist",
+"rank": 8
+},
+{
+"name": "化学制药",
+"board_id": "881140",
+"pct": 3.0883703743458613,
+"source": "ths_hist",
+"rank": 9
+},
+{
+"name": "其他电子",
+"board_id": "881123",
+"pct": 3.0101951598198395,
+"source": "ths_hist",
+"rank": 10
+},
+{
+"name": "小家电",
+"board_id": "881173",
+"pct": 2.8897342673165793,
+"source": "ths_hist",
+"rank": 11
+},
+{
+"name": "电池",
+"board_id": "881281",
+"pct": 2.8322183571337867,
+"source": "ths_hist",
+"rank": 12
+},
+{
+"name": "通信服务",
+"board_id": "881162",
+"pct": 2.7852890668295105,
+"source": "ths_hist",
+"rank": 13
+},
+{
+"name": "IT服务",
+"board_id": "881271",
+"pct": 2.7642398400235413,
+"source": "ths_hist",
+"rank": 14
+},
+{
+"name": "元件",
+"board_id": "881270",
+"pct": 2.680226718787204,
+"source": "ths_hist",
+"rank": 15
+},
+{
+"name": "软件开发",
+"board_id": "881272",
+"pct": 2.675378925953842,
+"source": "ths_hist",
+"rank": 16
+},
+{
+"name": "文化传媒",
+"board_id": "881164",
+"pct": 2.6624309139486435,
+"source": "ths_hist",
+"rank": 17
+},
+{
+"name": "黑色家电",
+"board_id": "881132",
+"pct": 2.6457587955381667,
+"source": "ths_hist",
+"rank": 18
+},
+{
+"name": "医药商业",
+"board_id": "881143",
+"pct": 2.619497051426678,
+"source": "ths_hist",
+"rank": 19
+},
+{
+"name": "其他社会服务",
+"board_id": "881179",
+"pct": 2.4581012511673883,
+"source": "ths_hist",
+"rank": 20
+}
+]
+}

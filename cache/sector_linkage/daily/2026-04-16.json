@@ -1,0 +1,432 @@
+{
+"version": 2,
+"trade_date": "2026-04-16",
+"built_at": "2026-05-13T13:24:44+00:00",
+"builder": "ths_concept_ths_industry",
+"concept_daily": "ths",
+"industry_daily": "ths",
+"concepts": [
+{
+"name": "算力租赁",
+"board_id": "309068",
+"pct": 4.195665352037614,
+"source": "ths_hist",
+"rank": 1
+},
+{
+"name": "云游戏",
+"board_id": "308624",
+"pct": 3.4387324306543343,
+"source": "ths_hist",
+"rank": 2
+},
+{
+"name": "云办公",
+"board_id": "308634",
+"pct": 3.226202366860864,
+"source": "ths_hist",
+"rank": 3
+},
+{
+"name": "钛白粉概念",
+"board_id": "300351",
+"pct": 3.178139683679282,
+"source": "ths_hist",
+"rank": 4
+},
+{
+"name": "云计算",
+"board_id": "300419",
+"pct": 3.148612672488693,
+"source": "ths_hist",
+"rank": 5
+},
+{
+"name": "华为盘古",
+"board_id": "309170",
+"pct": 3.1307635127164835,
+"source": "ths_hist",
+"rank": 6
+},
+{
+"name": "快手概念",
+"board_id": "308659",
+"pct": 3.0936000327334234,
+"source": "ths_hist",
+"rank": 7
+},
+{
+"name": "智谱AI",
+"board_id": "309164",
+"pct": 3.0395038074981118,
+"source": "ths_hist",
+"rank": 8
+},
+{
+"name": "智慧灯杆",
+"board_id": "308841",
+"pct": 2.947413244591357,
+"source": "ths_hist",
+"rank": 9
+},
+{
+"name": "Sora概念(文生视频)",
+"board_id": "309118",
+"pct": 2.9337236161876,
+"source": "ths_hist",
+"rank": 10
+},
+{
+"name": "金属铅",
+"board_id": "308864",
+"pct": 2.914563903546452,
+"source": "ths_hist",
+"rank": 11
+},
+{
+"name": "东数西算(算力)",
+"board_id": "308828",
+"pct": 2.885289501610533,
+"source": "ths_hist",
+"rank": 12
+},
+{
+"name": "金属锌",
+"board_id": "301582",
+"pct": 2.882355976513429,
+"source": "ths_hist",
+"rank": 13
+},
+{
+"name": "华为欧拉",
+"board_id": "308887",
+"pct": 2.881305320329708,
+"source": "ths_hist",
+"rank": 14
+},
+{
+"name": "财税数字化",
+"board_id": "309134",
+"pct": 2.8417341774066074,
+"source": "ths_hist",
+"rank": 15
+},
+{
+"name": "数字水印",
+"board_id": "309050",
+"pct": 2.8150745196473093,
+"source": "ths_hist",
+"rank": 16
+},
+{
+"name": "盐湖提锂",
+"board_id": "307904",
+"pct": 2.75403239409695,
+"source": "ths_hist",
+"rank": 17
+},
+{
+"name": "染料",
+"board_id": "301292",
+"pct": 2.7243375229803357,
+"source": "ths_hist",
+"rank": 18
+},
+{
+"name": "华为昇腾",
+"board_id": "309090",
+"pct": 2.7176171611797306,
+"source": "ths_hist",
+"rank": 19
+},
+{
+"name": "抖音概念(字节概念)",
+"board_id": "308366",
+"pct": 2.667286059946261,
+"source": "ths_hist",
+"rank": 20
+},
+{
+"name": "英伟达概念",
+"board_id": "309065",
+"pct": 2.6341435467006624,
+"source": "ths_hist",
+"rank": 21
+},
+{
+"name": "智慧政务",
+"board_id": "308606",
+"pct": 2.618662482730838,
+"source": "ths_hist",
+"rank": 22
+},
+{
+"name": "国资云",
+"board_id": "308874",
+"pct": 2.6171826816331567,
+"source": "ths_hist",
+"rank": 23
+},
+{
+"name": "金属铜",
+"board_id": "301577",
+"pct": 2.6125310483231745,
+"source": "ths_hist",
+"rank": 24
+},
+{
+"name": "短剧游戏",
+"board_id": "309093",
+"pct": 2.601014969896509,
+"source": "ths_hist",
+"rank": 25
+},
+{
+"name": "多模态AI",
+"board_id": "309104",
+"pct": 2.586440524447897,
+"source": "ths_hist",
+"rank": 26
+},
+{
+"name": "小金属概念",
+"board_id": "300809",
+"pct": 2.5656059684782573,
+"source": "ths_hist",
+"rank": 27
+},
+{
+"name": "数据确权",
+"board_id": "309037",
+"pct": 2.563038976292775,
+"source": "ths_hist",
+"rank": 28
+},
+{
+"name": "金属回收",
+"board_id": "301107",
+"pct": 2.557563792198425,
+"source": "ths_hist",
+"rank": 29
+},
+{
+"name": "人脸识别",
+"board_id": "301166",
+"pct": 2.4959236715913047,
+"source": "ths_hist",
+"rank": 30
+},
+{
+"name": "汽车拆解概念",
+"board_id": "308694",
+"pct": 2.4716212868155285,
+"source": "ths_hist",
+"rank": 31
+},
+{
+"name": "语音技术",
+"board_id": "300917",
+"pct": 2.4667333443973094,
+"source": "ths_hist",
+"rank": 32
+},
+{
+"name": "信创",
+"board_id": "309020",
+"pct": 2.4635431306123223,
+"source": "ths_hist",
+"rank": 33
+},
+{
+"name": "腾讯概念",
+"board_id": "302010",
+"pct": 2.454657301885943,
+"source": "ths_hist",
+"rank": 34
+},
+{
+"name": "WiFi 6",
+"board_id": "308791",
+"pct": 2.432129870846289,
+"source": "ths_hist",
+"rank": 35
+},
+{
+"name": "空间计算",
+"board_id": "309066",
+"pct": 2.4281689009657548,
+"source": "ths_hist",
+"rank": 36
+},
+{
+"name": "金属钴",
+"board_id": "302174",
+"pct": 2.405361056292721,
+"source": "ths_hist",
+"rank": 37
+},
+{
+"name": "电子竞技",
+"board_id": "302027",
+"pct": 2.4004835178202066,
+"source": "ths_hist",
+"rank": 38
+},
+{
+"name": "阿里巴巴概念",
+"board_id": "301558",
+"pct": 2.387823377684728,
+"source": "ths_hist",
+"rank": 39
+},
+{
+"name": "液冷服务器",
+"board_id": "309061",
+"pct": 2.372657379044596,
+"source": "ths_hist",
+"rank": 40
+}
+],
+"industries": [
+{
+"name": "通信服务",
+"board_id": "881162",
+"pct": 3.812885228913432,
+"source": "ths_hist",
+"rank": 1
+},
+{
+"name": "能源金属",
+"board_id": "881267",
+"pct": 3.7285994668413647,
+"source": "ths_hist",
+"rank": 2
+},
+{
+"name": "IT服务",
+"board_id": "881271",
+"pct": 3.222198080227634,
+"source": "ths_hist",
+"rank": 3
+},
+{
+"name": "影视院线",
+"board_id": "881274",
+"pct": 3.210015354863116,
+"source": "ths_hist",
+"rank": 4
+},
+{
+"name": "厨卫电器",
+"board_id": "881174",
+"pct": 3.146644936847709,
+"source": "ths_hist",
+"rank": 5
+},
+{
+"name": "小金属",
+"board_id": "881170",
+"pct": 2.9888668054601553,
+"source": "ths_hist",
+"rank": 6
+},
+{
+"name": "其他电源设备",
+"board_id": "881282",
+"pct": 2.9004978435539064,
+"source": "ths_hist",
+"rank": 7
+},
+{
+"name": "其他电子",
+"board_id": "881123",
+"pct": 2.8400459186056715,
+"source": "ths_hist",
+"rank": 8
+},
+{
+"name": "通信设备",
+"board_id": "881129",
+"pct": 2.8344749925826473,
+"source": "ths_hist",
+"rank": 9
+},
+{
+"name": "电池",
+"board_id": "881281",
+"pct": 2.642699275690341,
+"source": "ths_hist",
+"rank": 10
+},
+{
+"name": "工业金属",
+"board_id": "881168",
+"pct": 2.631988175549904,
+"source": "ths_hist",
+"rank": 11
+},
+{
+"name": "化学纤维",
+"board_id": "881264",
+"pct": 2.624751853897722,
+"source": "ths_hist",
+"rank": 12
+},
+{
+"name": "游戏",
+"board_id": "881275",
+"pct": 2.6078460174983054,
+"source": "ths_hist",
+"rank": 13
+},
+{
+"name": "钢铁",
+"board_id": "881112",
+"pct": 2.4883964219266197,
+"source": "ths_hist",
+"rank": 14
+},
+{
+"name": "旅游及酒店",
+"board_id": "881160",
+"pct": 2.4108363064642813,
+"source": "ths_hist",
+"rank": 15
+},
+{
+"name": "互联网电商",
+"board_id": "881177",
+"pct": 2.402381292636191,
+"source": "ths_hist",
+"rank": 16
+},
+{
+"name": "汽车服务及其他",
+"board_id": "881128",
+"pct": 2.232751609070305,
+"source": "ths_hist",
+"rank": 17
+},
+{
+"name": "软件开发",
+"board_id": "881272",
+"pct": 2.226118654039144,
+"source": "ths_hist",
+"rank": 18
+},
+{
+"name": "电子化学品",
+"board_id": "881172",
+"pct": 2.1739978704631957,
+"source": "ths_hist",
+"rank": 19
+},
+{
+"name": "环保设备",
+"board_id": "881284",
+"pct": 2.0664613525670283,
+"source": "ths_hist",
+"rank": 20
+}
+]
+}

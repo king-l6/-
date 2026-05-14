@@ -1,0 +1,151 @@
+{
+"version": 2,
+"trade_date": "2026-01-09",
+"built_at": "2026-05-14T10:30:21+00:00",
+"builder": "ths_concept_ths_industry",
+"concept_daily": "ths",
+"industry_daily": "ths",
+"concepts": [],
+"industries": [
+{
+"name": "文化传媒",
+"board_id": "881164",
+"pct": 5.022121429945425,
+"source": "ths_hist",
+"rank": 1
+},
+{
+"name": "小金属",
+"board_id": "881170",
+"pct": 4.677618752057455,
+"source": "ths_hist",
+"rank": 2
+},
+{
+"name": "通信服务",
+"board_id": "881162",
+"pct": 3.92320767936698,
+"source": "ths_hist",
+"rank": 3
+},
+{
+"name": "游戏",
+"board_id": "881275",
+"pct": 3.8663291639918995,
+"source": "ths_hist",
+"rank": 4
+},
+{
+"name": "互联网电商",
+"board_id": "881177",
+"pct": 3.4872484518090108,
+"source": "ths_hist",
+"rank": 5
+},
+{
+"name": "贵金属",
+"board_id": "881169",
+"pct": 3.4444538390341117,
+"source": "ths_hist",
+"rank": 6
+},
+{
+"name": "医疗服务",
+"board_id": "881175",
+"pct": 3.4413143449719907,
+"source": "ths_hist",
+"rank": 7
+},
+{
+"name": "软件开发",
+"board_id": "881272",
+"pct": 3.407871803176299,
+"source": "ths_hist",
+"rank": 8
+},
+{
+"name": "IT服务",
+"board_id": "881271",
+"pct": 3.268424948249171,
+"source": "ths_hist",
+"rank": 9
+},
+{
+"name": "油气开采及服务",
+"board_id": "881107",
+"pct": 3.237529917319404,
+"source": "ths_hist",
+"rank": 10
+},
+{
+"name": "军工电子",
+"board_id": "881276",
+"pct": 3.059844953775759,
+"source": "ths_hist",
+"rank": 11
+},
+{
+"name": "影视院线",
+"board_id": "881274",
+"pct": 2.961417879648698,
+"source": "ths_hist",
+"rank": 12
+},
+{
+"name": "多元金融",
+"board_id": "881283",
+"pct": 2.782944927120967,
+"source": "ths_hist",
+"rank": 13
+},
+{
+"name": "军工装备",
+"board_id": "881166",
+"pct": 2.7070685812748074,
+"source": "ths_hist",
+"rank": 14
+},
+{
+"name": "零售",
+"board_id": "881158",
+"pct": 2.4398014328109285,
+"source": "ths_hist",
+"rank": 15
+},
+{
+"name": "教育",
+"board_id": "881178",
+"pct": 2.3705444317655866,
+"source": "ths_hist",
+"rank": 16
+},
+{
+"name": "通信设备",
+"board_id": "881129",
+"pct": 2.2705550210557757,
+"source": "ths_hist",
+"rank": 17
+},
+{
+"name": "其他电源设备",
+"board_id": "881282",
+"pct": 2.203566902752341,
+"source": "ths_hist",
+"rank": 18
+},
+{
+"name": "工业金属",
+"board_id": "881168",
+"pct": 2.1407512027480813,
+"source": "ths_hist",
+"rank": 19
+},
+{
+"name": "生物制品",
+"board_id": "881142",
+"pct": 2.110345392071533,
+"source": "ths_hist",
+"rank": 20
+}
+]
+}

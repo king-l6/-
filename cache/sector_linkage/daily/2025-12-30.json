@@ -1,0 +1,151 @@
+{
+"version": 2,
+"trade_date": "2025-12-30",
+"built_at": "2026-05-14T10:25:30+00:00",
+"builder": "ths_concept_ths_industry",
+"concept_daily": "ths",
+"industry_daily": "ths",
+"concepts": [],
+"industries": [
+{
+"name": "电机",
+"board_id": "881277",
+"pct": 2.8077967150023975,
+"source": "ths_hist",
+"rank": 1
+},
+{
+"name": "影视院线",
+"board_id": "881274",
+"pct": 2.565510235232704,
+"source": "ths_hist",
+"rank": 2
+},
+{
+"name": "石油加工贸易",
+"board_id": "881180",
+"pct": 1.8996318634907805,
+"source": "ths_hist",
+"rank": 3
+},
+{
+"name": "自动化设备",
+"board_id": "881171",
+"pct": 1.6532667781179455,
+"source": "ths_hist",
+"rank": 4
+},
+{
+"name": "汽车零部件",
+"board_id": "881126",
+"pct": 1.3782608241825756,
+"source": "ths_hist",
+"rank": 5
+},
+{
+"name": "消费电子",
+"board_id": "881124",
+"pct": 0.9688536382856272,
+"source": "ths_hist",
+"rank": 6
+},
+{
+"name": "工程机械",
+"board_id": "881268",
+"pct": 0.9480219651369692,
+"source": "ths_hist",
+"rank": 7
+},
+{
+"name": "通用设备",
+"board_id": "881117",
+"pct": 0.8762541828098991,
+"source": "ths_hist",
+"rank": 8
+},
+{
+"name": "游戏",
+"board_id": "881275",
+"pct": 0.6279331155496504,
+"source": "ths_hist",
+"rank": 9
+},
+{
+"name": "黑色家电",
+"board_id": "881132",
+"pct": 0.44598160812030496,
+"source": "ths_hist",
+"rank": 10
+},
+{
+"name": "文化传媒",
+"board_id": "881164",
+"pct": 0.35704985240823106,
+"source": "ths_hist",
+"rank": 11
+},
+{
+"name": "半导体",
+"board_id": "881121",
+"pct": 0.3521091005520116,
+"source": "ths_hist",
+"rank": 12
+},
+{
+"name": "能源金属",
+"board_id": "881267",
+"pct": 0.313116315757056,
+"source": "ths_hist",
+"rank": 13
+},
+{
+"name": "专用设备",
+"board_id": "881118",
+"pct": 0.29136565401965964,
+"source": "ths_hist",
+"rank": 14
+},
+{
+"name": "计算机设备",
+"board_id": "881130",
+"pct": 0.23240828359423205,
+"source": "ths_hist",
+"rank": 15
+},
+{
+"name": "医药商业",
+"board_id": "881143",
+"pct": 0.22440633018845357,
+"source": "ths_hist",
+"rank": 16
+},
+{
+"name": "服装家纺",
+"board_id": "881136",
+"pct": 0.2234497353106324,
+"source": "ths_hist",
+"rank": 17
+},
+{
+"name": "油气开采及服务",
+"board_id": "881107",
+"pct": 0.1880914801525746,
+"source": "ths_hist",
+"rank": 18
+},
+{
+"name": "农化制品",
+"board_id": "881263",
+"pct": 0.1523156742348597,
+"source": "ths_hist",
+"rank": 19
+},
+{
+"name": "小家电",
+"board_id": "881173",
+"pct": 0.14159042098396135,
+"source": "ths_hist",
+"rank": 20
+}
+]
+}

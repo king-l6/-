@@ -18,7 +18,7 @@
       />
     </div>
     
-    <div v-else-if="!hasResults" class="py-6 text-center text-gray-500">
+    <div v-else-if="!hasResults" class="py-6 text-center text-gray-500 dark:text-neutral-400">
       暂无回测结果
     </div>
     

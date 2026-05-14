@@ -1,0 +1,432 @@
+{
+"version": 2,
+"trade_date": "2026-04-29",
+"built_at": "2026-05-13T14:15:04+00:00",
+"builder": "ths_concept_ths_industry",
+"concept_daily": "ths",
+"industry_daily": "ths",
+"concepts": [
+{
+"name": "金属钴",
+"board_id": "302174",
+"pct": 4.940432192336641,
+"source": "ths_hist",
+"rank": 1
+},
+{
+"name": "稀土永磁",
+"board_id": "300382",
+"pct": 4.1242576742978265,
+"source": "ths_hist",
+"rank": 2
+},
+{
+"name": "小金属概念",
+"board_id": "300809",
+"pct": 3.7275377979336666,
+"source": "ths_hist",
+"rank": 3
+},
+{
+"name": "盐湖提锂",
+"board_id": "307904",
+"pct": 3.651727061294241,
+"source": "ths_hist",
+"rank": 4
+},
+{
+"name": "钛白粉概念",
+"board_id": "300351",
+"pct": 3.5443277304995746,
+"source": "ths_hist",
+"rank": 5
+},
+{
+"name": "赛马概念",
+"board_id": "301602",
+"pct": 3.504301554752587,
+"source": "ths_hist",
+"rank": 6
+},
+{
+"name": "金属镍",
+"board_id": "301511",
+"pct": 3.4735831243307036,
+"source": "ths_hist",
+"rank": 7
+},
+{
+"name": "磷化工",
+"board_id": "300098",
+"pct": 3.451441225109786,
+"source": "ths_hist",
+"rank": 8
+},
+{
+"name": "金属铜",
+"board_id": "301577",
+"pct": 3.4380975174156614,
+"source": "ths_hist",
+"rank": 9
+},
+{
+"name": "金属铅",
+"board_id": "308864",
+"pct": 3.188846753439867,
+"source": "ths_hist",
+"rank": 10
+},
+{
+"name": "钠离子电池",
+"board_id": "301096",
+"pct": 3.1605200585460347,
+"source": "ths_hist",
+"rank": 11
+},
+{
+"name": "金属锌",
+"board_id": "301582",
+"pct": 3.0552432986624245,
+"source": "ths_hist",
+"rank": 12
+},
+{
+"name": "特色小镇",
+"board_id": "302674",
+"pct": 3.0364155592745634,
+"source": "ths_hist",
+"rank": 13
+},
+{
+"name": "金属回收",
+"board_id": "301107",
+"pct": 3.0282131852338967,
+"source": "ths_hist",
+"rank": 14
+},
+{
+"name": "固态电池",
+"board_id": "308294",
+"pct": 2.984355633655711,
+"source": "ths_hist",
+"rank": 15
+},
+{
+"name": "足球概念",
+"board_id": "301100",
+"pct": 2.726763757738282,
+"source": "ths_hist",
+"rank": 16
+},
+{
+"name": "BC电池",
+"board_id": "309084",
+"pct": 2.706900360173514,
+"source": "ths_hist",
+"rank": 17
+},
+{
+"name": "快手概念",
+"board_id": "308659",
+"pct": 2.6896062223668027,
+"source": "ths_hist",
+"rank": 18
+},
+{
+"name": "动力电池回收",
+"board_id": "307822",
+"pct": 2.6886766900260595,
+"source": "ths_hist",
+"rank": 19
+},
+{
+"name": "黄金概念",
+"board_id": "300248",
+"pct": 2.5638868051928387,
+"source": "ths_hist",
+"rank": 20
+},
+{
+"name": "石墨烯",
+"board_id": "300337",
+"pct": 2.5636133484527424,
+"source": "ths_hist",
+"rank": 21
+},
+{
+"name": "锂电池概念",
+"board_id": "300733",
+"pct": 2.5606778928670026,
+"source": "ths_hist",
+"rank": 22
+},
+{
+"name": "猪肉",
+"board_id": "300451",
+"pct": 2.553483168698678,
+"source": "ths_hist",
+"rank": 23
+},
+{
+"name": "宁德时代概念",
+"board_id": "306912",
+"pct": 2.4624057019085432,
+"source": "ths_hist",
+"rank": 24
+},
+{
+"name": "PET铜箔",
+"board_id": "309030",
+"pct": 2.4509123634819163,
+"source": "ths_hist",
+"rank": 25
+},
+{
+"name": "石墨电极",
+"board_id": "307512",
+"pct": 2.3145377224759844,
+"source": "ths_hist",
+"rank": 26
+},
+{
+"name": "汽车拆解概念",
+"board_id": "308694",
+"pct": 2.307007943352124,
+"source": "ths_hist",
+"rank": 27
+},
+{
+"name": "一体化压铸",
+"board_id": "308984",
+"pct": 2.2230637450951996,
+"source": "ths_hist",
+"rank": 28
+},
+{
+"name": "冰雪产业",
+"board_id": "307550",
+"pct": 2.2044899984367206,
+"source": "ths_hist",
+"rank": 29
+},
+{
+"name": "有机硅概念",
+"board_id": "301279",
+"pct": 2.19079066886676,
+"source": "ths_hist",
+"rank": 30
+},
+{
+"name": "钒电池",
+"board_id": "301174",
+"pct": 2.1324439860419986,
+"source": "ths_hist",
+"rank": 31
+},
+{
+"name": "TOPCON电池",
+"board_id": "308992",
+"pct": 2.1209204958653194,
+"source": "ths_hist",
+"rank": 32
+},
+{
+"name": "露营经济",
+"board_id": "308926",
+"pct": 2.1086171332590053,
+"source": "ths_hist",
+"rank": 33
+},
+{
+"name": "柔性屏(折叠屏)",
+"board_id": "308467",
+"pct": 2.0855552125560894,
+"source": "ths_hist",
+"rank": 34
+},
+{
+"name": "工业母机",
+"board_id": "300941",
+"pct": 2.027480059944886,
+"source": "ths_hist",
+"rank": 35
+},
+{
+"name": "电力物联网",
+"board_id": "308477",
+"pct": 2.0223031743509035,
+"source": "ths_hist",
+"rank": 36
+},
+{
+"name": "特钢概念",
+"board_id": "300845",
+"pct": 2.0162858158676134,
+"source": "ths_hist",
+"rank": 37
+},
+{
+"name": "净水概念",
+"board_id": "301032",
+"pct": 1.9559334389141814,
+"source": "ths_hist",
+"rank": 38
+},
+{
+"name": "体育产业",
+"board_id": "301605",
+"pct": 1.931560327391102,
+"source": "ths_hist",
+"rank": 39
+},
+{
+"name": "旅游概念",
+"board_id": "301223",
+"pct": 1.896754867293704,
+"source": "ths_hist",
+"rank": 40
+}
+],
+"industries": [
+{
+"name": "能源金属",
+"board_id": "881267",
+"pct": 5.807491759014005,
+"source": "ths_hist",
+"rank": 1
+},
+{
+"name": "小金属",
+"board_id": "881170",
+"pct": 4.866703309551901,
+"source": "ths_hist",
+"rank": 2
+},
+{
+"name": "电池",
+"board_id": "881281",
+"pct": 4.63869328864972,
+"source": "ths_hist",
+"rank": 3
+},
+{
+"name": "贵金属",
+"board_id": "881169",
+"pct": 3.8033632550223517,
+"source": "ths_hist",
+"rank": 4
+},
+{
+"name": "光伏设备",
+"board_id": "881279",
+"pct": 3.1283997746434977,
+"source": "ths_hist",
+"rank": 5
+},
+{
+"name": "金属新材料",
+"board_id": "881114",
+"pct": 2.5298717738292176,
+"source": "ths_hist",
+"rank": 6
+},
+{
+"name": "电机",
+"board_id": "881277",
+"pct": 2.301444378664508,
+"source": "ths_hist",
+"rank": 7
+},
+{
+"name": "互联网电商",
+"board_id": "881177",
+"pct": 2.2732628796921173,
+"source": "ths_hist",
+"rank": 8
+},
+{
+"name": "工业金属",
+"board_id": "881168",
+"pct": 2.2487061854077783,
+"source": "ths_hist",
+"rank": 9
+},
+{
+"name": "旅游及酒店",
+"board_id": "881160",
+"pct": 2.2200921401253515,
+"source": "ths_hist",
+"rank": 10
+},
+{
+"name": "游戏",
+"board_id": "881275",
+"pct": 2.199384505571045,
+"source": "ths_hist",
+"rank": 11
+},
+{
+"name": "保险",
+"board_id": "881156",
+"pct": 2.1908363316676116,
+"source": "ths_hist",
+"rank": 12
+},
+{
+"name": "房地产",
+"board_id": "881153",
+"pct": 2.1563552780764494,
+"source": "ths_hist",
+"rank": 13
+},
+{
+"name": "食品加工制造",
+"board_id": "881134",
+"pct": 2.035545991161425,
+"source": "ths_hist",
+"rank": 14
+},
+{
+"name": "化学原料",
+"board_id": "881108",
+"pct": 2.0056254840266075,
+"source": "ths_hist",
+"rank": 15
+},
+{
+"name": "环保设备",
+"board_id": "881284",
+"pct": 2.0035544086628665,
+"source": "ths_hist",
+"rank": 16
+},
+{
+"name": "钢铁",
+"board_id": "881112",
+"pct": 1.9982977402085433,
+"source": "ths_hist",
+"rank": 17
+},
+{
+"name": "服装家纺",
+"board_id": "881136",
+"pct": 1.9937789256512461,
+"source": "ths_hist",
+"rank": 18
+},
+{
+"name": "文化传媒",
+"board_id": "881164",
+"pct": 1.9757432538096475,
+"source": "ths_hist",
+"rank": 19
+},
+{
+"name": "贸易",
+"board_id": "881159",
+"pct": 1.9631128732412684,
+"source": "ths_hist",
+"rank": 20
+}
+]
+}

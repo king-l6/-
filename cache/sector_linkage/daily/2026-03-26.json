@@ -1,0 +1,432 @@
+{
+"version": 2,
+"trade_date": "2026-03-26",
+"built_at": "2026-05-12T11:36:16+00:00",
+"builder": "ths_concept_ths_industry",
+"concept_daily": "ths",
+"industry_daily": "ths",
+"concepts": [
+{
+"name": "可燃冰",
+"board_id": "300277",
+"pct": 0.43408492999783554,
+"source": "ths_hist",
+"rank": 1
+},
+{
+"name": "钠离子电池",
+"board_id": "301096",
+"pct": 0.2830666239656221,
+"source": "ths_hist",
+"rank": 2
+},
+{
+"name": "天津自贸区",
+"board_id": "301229",
+"pct": 0.23673135852910754,
+"source": "ths_hist",
+"rank": 3
+},
+{
+"name": "高压氧舱",
+"board_id": "309023",
+"pct": 0.2298675597503408,
+"source": "ths_hist",
+"rank": 4
+},
+{
+"name": "供销社",
+"board_id": "301669",
+"pct": 0.19883323495446525,
+"source": "ths_hist",
+"rank": 5
+},
+{
+"name": "人造肉",
+"board_id": "308517",
+"pct": 0.1873304862719305,
+"source": "ths_hist",
+"rank": 6
+},
+{
+"name": "氟化工概念",
+"board_id": "300085",
+"pct": 0.10336605816883004,
+"source": "ths_hist",
+"rank": 7
+},
+{
+"name": "环氧丙烷",
+"board_id": "308202",
+"pct": 0.05730368839613753,
+"source": "ths_hist",
+"rank": 8
+},
+{
+"name": "赛马概念",
+"board_id": "301602",
+"pct": -0.09531086369836128,
+"source": "ths_hist",
+"rank": 9
+},
+{
+"name": "养鸡",
+"board_id": "301576",
+"pct": -0.25803709415543885,
+"source": "ths_hist",
+"rank": 10
+},
+{
+"name": "固态电池",
+"board_id": "308294",
+"pct": -0.29264899510595965,
+"source": "ths_hist",
+"rank": 11
+},
+{
+"name": "举牌",
+"board_id": "300269",
+"pct": -0.30713365991021924,
+"source": "ths_hist",
+"rank": 12
+},
+{
+"name": "俄乌冲突概念",
+"board_id": "308850",
+"pct": -0.3818078708828221,
+"source": "ths_hist",
+"rank": 13
+},
+{
+"name": "煤化工概念",
+"board_id": "300084",
+"pct": -0.39258667002056713,
+"source": "ths_hist",
+"rank": 14
+},
+{
+"name": "青蒿素",
+"board_id": "301794",
+"pct": -0.3974190058498195,
+"source": "ths_hist",
+"rank": 15
+},
+{
+"name": "ST板块",
+"board_id": "300862",
+"pct": -0.42903660984089376,
+"source": "ths_hist",
+"rank": 16
+},
+{
+"name": "仿制药一致性评价",
+"board_id": "308572",
+"pct": -0.43130951027847697,
+"source": "ths_hist",
+"rank": 17
+},
+{
+"name": "化肥",
+"board_id": "301104",
+"pct": -0.4367870587902334,
+"source": "ths_hist",
+"rank": 18
+},
+{
+"name": "石墨电极",
+"board_id": "307512",
+"pct": -0.43742483001163457,
+"source": "ths_hist",
+"rank": 19
+},
+{
+"name": "高股息精选",
+"board_id": "309124",
+"pct": -0.4750000821231115,
+"source": "ths_hist",
+"rank": 20
+},
+{
+"name": "统一大市场",
+"board_id": "308901",
+"pct": -0.5127626853766554,
+"source": "ths_hist",
+"rank": 21
+},
+{
+"name": "丙烯酸",
+"board_id": "305376",
+"pct": -0.5159473272277615,
+"source": "ths_hist",
+"rank": 22
+},
+{
+"name": "烟草",
+"board_id": "308560",
+"pct": -0.5488119119982149,
+"source": "ths_hist",
+"rank": 23
+},
+{
+"name": "天然气",
+"board_id": "300358",
+"pct": -0.5536522881385286,
+"source": "ths_hist",
+"rank": 24
+},
+{
+"name": "大豆",
+"board_id": "301123",
+"pct": -0.5658264595361229,
+"source": "ths_hist",
+"rank": 25
+},
+{
+"name": "磷化工",
+"board_id": "300098",
+"pct": -0.5832280823798941,
+"source": "ths_hist",
+"rank": 26
+},
+{
+"name": "民爆概念",
+"board_id": "308834",
+"pct": -0.5877842540169764,
+"source": "ths_hist",
+"rank": 27
+},
+{
+"name": "可降解塑料",
+"board_id": "301117",
+"pct": -0.6002781998664108,
+"source": "ths_hist",
+"rank": 28
+},
+{
+"name": "消毒剂",
+"board_id": "308636",
+"pct": -0.6073076466922789,
+"source": "ths_hist",
+"rank": 29
+},
+{
+"name": "PEEK材料",
+"board_id": "309105",
+"pct": -0.6155850351369674,
+"source": "ths_hist",
+"rank": 30
+},
+{
+"name": "预制菜",
+"board_id": "308814",
+"pct": -0.6165917248237229,
+"source": "ths_hist",
+"rank": 31
+},
+{
+"name": "煤炭概念",
+"board_id": "308716",
+"pct": -0.6213962657961924,
+"source": "ths_hist",
+"rank": 32
+},
+{
+"name": "中韩自贸区",
+"board_id": "301541",
+"pct": -0.62636020381861,
+"source": "ths_hist",
+"rank": 33
+},
+{
+"name": "盐湖提锂",
+"board_id": "307904",
+"pct": -0.6661851464837665,
+"source": "ths_hist",
+"rank": 34
+},
+{
+"name": "航运概念",
+"board_id": "300973",
+"pct": -0.6775220386984304,
+"source": "ths_hist",
+"rank": 35
+},
+{
+"name": "代糖概念",
+"board_id": "308696",
+"pct": -0.6779874038179479,
+"source": "ths_hist",
+"rank": 36
+},
+{
+"name": "合成生物",
+"board_id": "309129",
+"pct": -0.6876932872763475,
+"source": "ths_hist",
+"rank": 37
+},
+{
+"name": "黑龙江自贸区",
+"board_id": "308547",
+"pct": -0.7004387740444318,
+"source": "ths_hist",
+"rank": 38
+},
+{
+"name": "新型烟草(电子烟)",
+"board_id": "301362",
+"pct": -0.7085926715654445,
+"source": "ths_hist",
+"rank": 39
+},
+{
+"name": "民营医院",
+"board_id": "301346",
+"pct": -0.7399840558033999,
+"source": "ths_hist",
+"rank": 40
+}
+],
+"industries": [
+{
+"name": "油气开采及服务",
+"board_id": "881107",
+"pct": 1.647231471762911,
+"source": "ths_hist",
+"rank": 1
+},
+{
+"name": "能源金属",
+"board_id": "881267",
+"pct": 1.4439418618461985,
+"source": "ths_hist",
+"rank": 2
+},
+{
+"name": "电池",
+"board_id": "881281",
+"pct": 0.9578969414770988,
+"source": "ths_hist",
+"rank": 3
+},
+{
+"name": "煤炭开采加工",
+"board_id": "881105",
+"pct": 0.4832218786194886,
+"source": "ths_hist",
+"rank": 4
+},
+{
+"name": "燃气",
+"board_id": "881146",
+"pct": 0.383099186711533,
+"source": "ths_hist",
+"rank": 5
+},
+{
+"name": "小家电",
+"board_id": "881173",
+"pct": 0.3231198265580604,
+"source": "ths_hist",
+"rank": 6
+},
+{
+"name": "银行",
+"board_id": "881155",
+"pct": 0.23992657851630295,
+"source": "ths_hist",
+"rank": 7
+},
+{
+"name": "物流",
+"board_id": "881152",
+"pct": 0.08633463367131444,
+"source": "ths_hist",
+"rank": 8
+},
+{
+"name": "包装印刷",
+"board_id": "881138",
+"pct": -0.11029373355483374,
+"source": "ths_hist",
+"rank": 9
+},
+{
+"name": "石油加工贸易",
+"board_id": "881180",
+"pct": -0.2059929948008965,
+"source": "ths_hist",
+"rank": 10
+},
+{
+"name": "公路铁路运输",
+"board_id": "881149",
+"pct": -0.22196890311252382,
+"source": "ths_hist",
+"rank": 11
+},
+{
+"name": "化学原料",
+"board_id": "881108",
+"pct": -0.29864598827790134,
+"source": "ths_hist",
+"rank": 12
+},
+{
+"name": "电力",
+"board_id": "881145",
+"pct": -0.3464592445741599,
+"source": "ths_hist",
+"rank": 13
+},
+{
+"name": "综合",
+"board_id": "881165",
+"pct": -0.5510066964302895,
+"source": "ths_hist",
+"rank": 14
+},
+{
+"name": "养殖业",
+"board_id": "881102",
+"pct": -0.5807678126553806,
+"source": "ths_hist",
+"rank": 15
+},
+{
+"name": "化学制药",
+"board_id": "881140",
+"pct": -0.5821835607263015,
+"source": "ths_hist",
+"rank": 16
+},
+{
+"name": "港口航运",
+"board_id": "881148",
+"pct": -0.6454804295412675,
+"source": "ths_hist",
+"rank": 17
+},
+{
+"name": "旅游及酒店",
+"board_id": "881160",
+"pct": -0.6591869926546479,
+"source": "ths_hist",
+"rank": 18
+},
+{
+"name": "化学制品",
+"board_id": "881109",
+"pct": -0.6797696860828761,
+"source": "ths_hist",
+"rank": 19
+},
+{
+"name": "食品加工制造",
+"board_id": "881134",
+"pct": -0.7538028203176839,
+"source": "ths_hist",
+"rank": 20
+}
+]
+}

@@ -1,0 +1,151 @@
+{
+"version": 2,
+"trade_date": "2026-02-11",
+"built_at": "2026-05-13T15:07:20+00:00",
+"builder": "ths_concept_ths_industry",
+"concept_daily": "ths",
+"industry_daily": "ths",
+"concepts": [],
+"industries": [
+{
+"name": "小金属",
+"board_id": "881170",
+"pct": 3.6439885924336446,
+"source": "ths_hist",
+"rank": 1
+},
+{
+"name": "能源金属",
+"board_id": "881267",
+"pct": 3.4399954583532732,
+"source": "ths_hist",
+"rank": 2
+},
+{
+"name": "油气开采及服务",
+"board_id": "881107",
+"pct": 2.0825335685540347,
+"source": "ths_hist",
+"rank": 3
+},
+{
+"name": "化学纤维",
+"board_id": "881264",
+"pct": 2.0491020827675843,
+"source": "ths_hist",
+"rank": 4
+},
+{
+"name": "贵金属",
+"board_id": "881169",
+"pct": 1.9603186333061684,
+"source": "ths_hist",
+"rank": 5
+},
+{
+"name": "钢铁",
+"board_id": "881112",
+"pct": 1.5616749262010954,
+"source": "ths_hist",
+"rank": 6
+},
+{
+"name": "造纸",
+"board_id": "881137",
+"pct": 1.5613357335175104,
+"source": "ths_hist",
+"rank": 7
+},
+{
+"name": "工业金属",
+"board_id": "881168",
+"pct": 1.545476602658269,
+"source": "ths_hist",
+"rank": 8
+},
+{
+"name": "农化制品",
+"board_id": "881263",
+"pct": 1.3716051895586112,
+"source": "ths_hist",
+"rank": 9
+},
+{
+"name": "化学原料",
+"board_id": "881108",
+"pct": 1.2938843370559505,
+"source": "ths_hist",
+"rank": 10
+},
+{
+"name": "建筑材料",
+"board_id": "881115",
+"pct": 1.2231276833789995,
+"source": "ths_hist",
+"rank": 11
+},
+{
+"name": "电子化学品",
+"board_id": "881172",
+"pct": 1.2176109137983282,
+"source": "ths_hist",
+"rank": 12
+},
+{
+"name": "煤炭开采加工",
+"board_id": "881105",
+"pct": 1.027107789579662,
+"source": "ths_hist",
+"rank": 13
+},
+{
+"name": "金属新材料",
+"board_id": "881114",
+"pct": 0.9282834138356622,
+"source": "ths_hist",
+"rank": 14
+},
+{
+"name": "非金属材料",
+"board_id": "881167",
+"pct": 0.7905931862772109,
+"source": "ths_hist",
+"rank": 15
+},
+{
+"name": "橡胶制品",
+"board_id": "881266",
+"pct": 0.734617592851694,
+"source": "ths_hist",
+"rank": 16
+},
+{
+"name": "石油加工贸易",
+"board_id": "881180",
+"pct": 0.7281612633886381,
+"source": "ths_hist",
+"rank": 17
+},
+{
+"name": "电池",
+"board_id": "881281",
+"pct": 0.7161295355378128,
+"source": "ths_hist",
+"rank": 18
+},
+{
+"name": "港口航运",
+"board_id": "881148",
+"pct": 0.6895818876478943,
+"source": "ths_hist",
+"rank": 19
+},
+{
+"name": "黑色家电",
+"board_id": "881132",
+"pct": 0.6045097312334491,
+"source": "ths_hist",
+"rank": 20
+}
+]
+}

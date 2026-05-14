@@ -1,0 +1,151 @@
+{
+"version": 2,
+"trade_date": "2026-02-03",
+"built_at": "2026-05-13T15:04:06+00:00",
+"builder": "ths_concept_ths_industry",
+"concept_daily": "ths",
+"industry_daily": "ths",
+"concepts": [],
+"industries": [
+{
+"name": "光伏设备",
+"board_id": "881279",
+"pct": 6.715260552667512,
+"source": "ths_hist",
+"rank": 1
+},
+{
+"name": "小金属",
+"board_id": "881170",
+"pct": 4.16193452874285,
+"source": "ths_hist",
+"rank": 2
+},
+{
+"name": "通信设备",
+"board_id": "881129",
+"pct": 4.118681217448494,
+"source": "ths_hist",
+"rank": 3
+},
+{
+"name": "军工装备",
+"board_id": "881166",
+"pct": 4.039838490972647,
+"source": "ths_hist",
+"rank": 4
+},
+{
+"name": "金属新材料",
+"board_id": "881114",
+"pct": 3.981158575754895,
+"source": "ths_hist",
+"rank": 5
+},
+{
+"name": "其他电源设备",
+"board_id": "881282",
+"pct": 3.769654568483616,
+"source": "ths_hist",
+"rank": 6
+},
+{
+"name": "工程机械",
+"board_id": "881268",
+"pct": 3.73039107645603,
+"source": "ths_hist",
+"rank": 7
+},
+{
+"name": "军工电子",
+"board_id": "881276",
+"pct": 3.6704157041823837,
+"source": "ths_hist",
+"rank": 8
+},
+{
+"name": "自动化设备",
+"board_id": "881171",
+"pct": 3.5429411720139914,
+"source": "ths_hist",
+"rank": 9
+},
+{
+"name": "能源金属",
+"board_id": "881267",
+"pct": 3.4800190847738666,
+"source": "ths_hist",
+"rank": 10
+},
+{
+"name": "通信服务",
+"board_id": "881162",
+"pct": 3.2520325203251987,
+"source": "ths_hist",
+"rank": 11
+},
+{
+"name": "其他电子",
+"board_id": "881123",
+"pct": 3.242089119471503,
+"source": "ths_hist",
+"rank": 12
+},
+{
+"name": "游戏",
+"board_id": "881275",
+"pct": 3.241310287149024,
+"source": "ths_hist",
+"rank": 13
+},
+{
+"name": "电子化学品",
+"board_id": "881172",
+"pct": 3.158687120798054,
+"source": "ths_hist",
+"rank": 14
+},
+{
+"name": "钢铁",
+"board_id": "881112",
+"pct": 3.128792068633901,
+"source": "ths_hist",
+"rank": 15
+},
+{
+"name": "电池",
+"board_id": "881281",
+"pct": 3.05431800758027,
+"source": "ths_hist",
+"rank": 16
+},
+{
+"name": "非金属材料",
+"board_id": "881167",
+"pct": 3.050399929239145,
+"source": "ths_hist",
+"rank": 17
+},
+{
+"name": "半导体",
+"board_id": "881121",
+"pct": 3.001481213216528,
+"source": "ths_hist",
+"rank": 18
+},
+{
+"name": "光学光电子",
+"board_id": "881122",
+"pct": 2.9851130117861446,
+"source": "ths_hist",
+"rank": 19
+},
+{
+"name": "医疗服务",
+"board_id": "881175",
+"pct": 2.9824431310253363,
+"source": "ths_hist",
+"rank": 20
+}
+]
+}

@@ -1,5 +1,5 @@
 <template>
-  <div ref="hostRef" class="w-full rounded border border-slate-200 bg-white" :style="{ height: heightPx + 'px' }" />
+  <div ref="hostRef" class="w-full rounded border border-slate-200 bg-white dark:border-neutral-700 dark:bg-neutral-950" :style="{ height: heightPx + 'px' }" />
 </template>
 
 <script setup lang="ts">

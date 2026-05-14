@@ -1,0 +1,432 @@
+{
+"version": 2,
+"trade_date": "2026-05-12",
+"built_at": "2026-05-13T14:46:45+00:00",
+"builder": "ths_concept_ths_industry",
+"concept_daily": "ths",
+"industry_daily": "ths",
+"concepts": [
+{
+"name": "光纤概念",
+"board_id": "309151",
+"pct": 1.782515190264533,
+"source": "ths_hist",
+"rank": 1
+},
+{
+"name": "柔性直流输电",
+"board_id": "308810",
+"pct": 1.5389116637278821,
+"source": "ths_hist",
+"rank": 2
+},
+{
+"name": "特高压",
+"board_id": "300353",
+"pct": 1.0692258283217404,
+"source": "ths_hist",
+"rank": 3
+},
+{
+"name": "PET铜箔",
+"board_id": "309030",
+"pct": 0.9867758703636431,
+"source": "ths_hist",
+"rank": 4
+},
+{
+"name": "共封装光学(CPO)",
+"board_id": "309049",
+"pct": 0.6994132185604629,
+"source": "ths_hist",
+"rank": 5
+},
+{
+"name": "赛马概念",
+"board_id": "301602",
+"pct": 0.6826714320424365,
+"source": "ths_hist",
+"rank": 6
+},
+{
+"name": "抽水蓄能",
+"board_id": "308753",
+"pct": 0.6307882368279838,
+"source": "ths_hist",
+"rank": 7
+},
+{
+"name": "中芯国际概念",
+"board_id": "308690",
+"pct": 0.6012966282074705,
+"source": "ths_hist",
+"rank": 8
+},
+{
+"name": "光刻机",
+"board_id": "309085",
+"pct": 0.5180994289905261,
+"source": "ths_hist",
+"rank": 9
+},
+{
+"name": "深圳国企改革",
+"board_id": "301171",
+"pct": 0.505136451355459,
+"source": "ths_hist",
+"rank": 10
+},
+{
+"name": "先进封装",
+"board_id": "309004",
+"pct": 0.4667653418589657,
+"source": "ths_hist",
+"rank": 11
+},
+{
+"name": "第三代半导体",
+"board_id": "308700",
+"pct": 0.4159467108343584,
+"source": "ths_hist",
+"rank": 12
+},
+{
+"name": "智能电网",
+"board_id": "300037",
+"pct": 0.4099438706473668,
+"source": "ths_hist",
+"rank": 13
+},
+{
+"name": "租售同权",
+"board_id": "302034",
+"pct": 0.358291545732059,
+"source": "ths_hist",
+"rank": 14
+},
+{
+"name": "PCB概念",
+"board_id": "308832",
+"pct": 0.336156632709006,
+"source": "ths_hist",
+"rank": 15
+},
+{
+"name": "举牌",
+"board_id": "300269",
+"pct": 0.2903239373283295,
+"source": "ths_hist",
+"rank": 16
+},
+{
+"name": "铜缆高速连接",
+"board_id": "309125",
+"pct": 0.2602584410269948,
+"source": "ths_hist",
+"rank": 17
+},
+{
+"name": "F5G概念",
+"board_id": "308977",
+"pct": 0.25338396364942284,
+"source": "ths_hist",
+"rank": 18
+},
+{
+"name": "成飞概念",
+"board_id": "309045",
+"pct": 0.12685035598329897,
+"source": "ths_hist",
+"rank": 19
+},
+{
+"name": "生物质能发电",
+"board_id": "308989",
+"pct": 0.12086489935325684,
+"source": "ths_hist",
+"rank": 20
+},
+{
+"name": "TOPCON电池",
+"board_id": "308992",
+"pct": 0.11803933748648632,
+"source": "ths_hist",
+"rank": 21
+},
+{
+"name": "虚拟电厂",
+"board_id": "308761",
+"pct": 0.06893252667299343,
+"source": "ths_hist",
+"rank": 22
+},
+{
+"name": "钛白粉概念",
+"board_id": "300351",
+"pct": 0.020568498939699253,
+"source": "ths_hist",
+"rank": 23
+},
+{
+"name": "OLED",
+"board_id": "301154",
+"pct": 0.01852978576546427,
+"source": "ths_hist",
+"rank": 24
+},
+{
+"name": "MiniLED",
+"board_id": "308628",
+"pct": 0.016984996468250024,
+"source": "ths_hist",
+"rank": 25
+},
+{
+"name": "超超临界发电",
+"board_id": "308969",
+"pct": 0.006568252352256998,
+"source": "ths_hist",
+"rank": 26
+},
+{
+"name": "培育钻石",
+"board_id": "308774",
+"pct": -0.01489654395638862,
+"source": "ths_hist",
+"rank": 27
+},
+{
+"name": "国家大基金持股",
+"board_id": "307816",
+"pct": -0.05146294287575737,
+"source": "ths_hist",
+"rank": 28
+},
+{
+"name": "华为数字能源",
+"board_id": "309169",
+"pct": -0.05702595743151129,
+"source": "ths_hist",
+"rank": 29
+},
+{
+"name": "绿色电力",
+"board_id": "308760",
+"pct": -0.14786943731472935,
+"source": "ths_hist",
+"rank": 30
+},
+{
+"name": "高股息精选",
+"board_id": "309124",
+"pct": -0.16665720596291678,
+"source": "ths_hist",
+"rank": 31
+},
+{
+"name": "风电",
+"board_id": "300200",
+"pct": -0.1813183752772729,
+"source": "ths_hist",
+"rank": 32
+},
+{
+"name": "科创次新股",
+"board_id": "308699",
+"pct": -0.18547772594644796,
+"source": "ths_hist",
+"rank": 33
+},
+{
+"name": "存储芯片",
+"board_id": "307940",
+"pct": -0.1868950202479014,
+"source": "ths_hist",
+"rank": 34
+},
+{
+"name": "ST板块",
+"board_id": "300862",
+"pct": -0.213288039913051,
+"source": "ths_hist",
+"rank": 35
+},
+{
+"name": "特色小镇",
+"board_id": "302674",
+"pct": -0.2210483064232216,
+"source": "ths_hist",
+"rank": 36
+},
+{
+"name": "电力物联网",
+"board_id": "308477",
+"pct": -0.22541716378755572,
+"source": "ths_hist",
+"rank": 37
+},
+{
+"name": "充电桩",
+"board_id": "300786",
+"pct": -0.2672179718810397,
+"source": "ths_hist",
+"rank": 38
+},
+{
+"name": "钙钛矿电池",
+"board_id": "308991",
+"pct": -0.2742572415842415,
+"source": "ths_hist",
+"rank": 39
+},
+{
+"name": "同花顺中特估100",
+"board_id": "309062",
+"pct": -0.2781383866059639,
+"source": "ths_hist",
+"rank": 40
+}
+],
+"industries": [
+{
+"name": "非金属材料",
+"board_id": "881167",
+"pct": 2.58663768681322,
+"source": "ths_hist",
+"rank": 1
+},
+{
+"name": "电网设备",
+"board_id": "881278",
+"pct": 1.5689437058365563,
+"source": "ths_hist",
+"rank": 2
+},
+{
+"name": "电力",
+"board_id": "881145",
+"pct": 1.5003040220326724,
+"source": "ths_hist",
+"rank": 3
+},
+{
+"name": "元件",
+"board_id": "881270",
+"pct": 0.8493097309284492,
+"source": "ths_hist",
+"rank": 4
+},
+{
+"name": "证券",
+"board_id": "881157",
+"pct": 0.37777327200743116,
+"source": "ths_hist",
+"rank": 5
+},
+{
+"name": "半导体",
+"board_id": "881121",
+"pct": 0.3491949381319026,
+"source": "ths_hist",
+"rank": 6
+},
+{
+"name": "电机",
+"board_id": "881277",
+"pct": 0.23141854763080172,
+"source": "ths_hist",
+"rank": 7
+},
+{
+"name": "电子化学品",
+"board_id": "881172",
+"pct": -0.045402351497236815,
+"source": "ths_hist",
+"rank": 8
+},
+{
+"name": "通信设备",
+"board_id": "881129",
+"pct": -0.06053371465117863,
+"source": "ths_hist",
+"rank": 9
+},
+{
+"name": "包装印刷",
+"board_id": "881138",
+"pct": -0.1298265080793226,
+"source": "ths_hist",
+"rank": 10
+},
+{
+"name": "房地产",
+"board_id": "881153",
+"pct": -0.13339914023878796,
+"source": "ths_hist",
+"rank": 11
+},
+{
+"name": "公路铁路运输",
+"board_id": "881149",
+"pct": -0.1985382853039841,
+"source": "ths_hist",
+"rank": 12
+},
+{
+"name": "银行",
+"board_id": "881155",
+"pct": -0.20108206762197156,
+"source": "ths_hist",
+"rank": 13
+},
+{
+"name": "光学光电子",
+"board_id": "881122",
+"pct": -0.3761673312577818,
+"source": "ths_hist",
+"rank": 14
+},
+{
+"name": "黑色家电",
+"board_id": "881132",
+"pct": -0.3907404133569936,
+"source": "ths_hist",
+"rank": 15
+},
+{
+"name": "其他电源设备",
+"board_id": "881282",
+"pct": -0.5178361509226126,
+"source": "ths_hist",
+"rank": 16
+},
+{
+"name": "服装家纺",
+"board_id": "881136",
+"pct": -0.5374282885195703,
+"source": "ths_hist",
+"rank": 17
+},
+{
+"name": "保险",
+"board_id": "881156",
+"pct": -0.5761064741284461,
+"source": "ths_hist",
+"rank": 18
+},
+{
+"name": "影视院线",
+"board_id": "881274",
+"pct": -0.6299197375925214,
+"source": "ths_hist",
+"rank": 19
+},
+{
+"name": "自动化设备",
+"board_id": "881171",
+"pct": -0.6446723631824303,
+"source": "ths_hist",
+"rank": 20
+}
+]
+}

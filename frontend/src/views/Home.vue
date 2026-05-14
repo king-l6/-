@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-gray-50">
+  <div class="min-h-screen bg-gray-50 text-gray-900 transition-colors dark:bg-neutral-950 dark:text-neutral-100">
     <div class="container mx-auto px-3 py-2">
       <Tabs v-model:activeKey="activeTab" type="line" size="small">
         <TabPane key="backtest" tab="策略回测">

@@ -1,0 +1,151 @@
+{
+"version": 2,
+"trade_date": "2026-01-16",
+"built_at": "2026-05-14T10:33:59+00:00",
+"builder": "ths_concept_ths_industry",
+"concept_daily": "ths",
+"industry_daily": "ths",
+"concepts": [],
+"industries": [
+{
+"name": "半导体",
+"board_id": "881121",
+"pct": 4.253751159352137,
+"source": "ths_hist",
+"rank": 1
+},
+{
+"name": "自动化设备",
+"board_id": "881171",
+"pct": 2.106930645133964,
+"source": "ths_hist",
+"rank": 2
+},
+{
+"name": "工程机械",
+"board_id": "881268",
+"pct": 2.0442291983687078,
+"source": "ths_hist",
+"rank": 3
+},
+{
+"name": "电机",
+"board_id": "881277",
+"pct": 1.89131201883328,
+"source": "ths_hist",
+"rank": 4
+},
+{
+"name": "电网设备",
+"board_id": "881278",
+"pct": 1.8847587685324907,
+"source": "ths_hist",
+"rank": 5
+},
+{
+"name": "其他电子",
+"board_id": "881123",
+"pct": 1.7979257756944644,
+"source": "ths_hist",
+"rank": 6
+},
+{
+"name": "元件",
+"board_id": "881270",
+"pct": 1.6927279288123653,
+"source": "ths_hist",
+"rank": 7
+},
+{
+"name": "电子化学品",
+"board_id": "881172",
+"pct": 1.6454602241155358,
+"source": "ths_hist",
+"rank": 8
+},
+{
+"name": "汽车零部件",
+"board_id": "881126",
+"pct": 1.6197433952848561,
+"source": "ths_hist",
+"rank": 9
+},
+{
+"name": "环保设备",
+"board_id": "881284",
+"pct": 1.5589899992695777,
+"source": "ths_hist",
+"rank": 10
+},
+{
+"name": "消费电子",
+"board_id": "881124",
+"pct": 1.4854967376771722,
+"source": "ths_hist",
+"rank": 11
+},
+{
+"name": "通用设备",
+"board_id": "881117",
+"pct": 1.4136398673571415,
+"source": "ths_hist",
+"rank": 12
+},
+{
+"name": "光伏设备",
+"board_id": "881279",
+"pct": 1.3814485866338044,
+"source": "ths_hist",
+"rank": 13
+},
+{
+"name": "光学光电子",
+"board_id": "881122",
+"pct": 1.0021065785745353,
+"source": "ths_hist",
+"rank": 14
+},
+{
+"name": "白色家电",
+"board_id": "881131",
+"pct": 0.8991686462311188,
+"source": "ths_hist",
+"rank": 15
+},
+{
+"name": "橡胶制品",
+"board_id": "881266",
+"pct": 0.8862988510220271,
+"source": "ths_hist",
+"rank": 16
+},
+{
+"name": "其他社会服务",
+"board_id": "881179",
+"pct": 0.8519002702147338,
+"source": "ths_hist",
+"rank": 17
+},
+{
+"name": "金属新材料",
+"board_id": "881114",
+"pct": 0.7199428441180933,
+"source": "ths_hist",
+"rank": 18
+},
+{
+"name": "专用设备",
+"board_id": "881118",
+"pct": 0.6842480227448267,
+"source": "ths_hist",
+"rank": 19
+},
+{
+"name": "通信设备",
+"board_id": "881129",
+"pct": 0.6723711215437023,
+"source": "ths_hist",
+"rank": 20
+}
+]
+}

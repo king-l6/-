@@ -91,6 +91,11 @@ export function formatLinkageIndustryLine(row: StockResult): string | null {
  */
 export function formatLinkageTableCell(row: StockResult): string {
   const parts: string[] = []
+  const d0 =
+    row.linkage_date_aligned === true
+      ? (row.linkage_board_trade_date || '').trim().slice(0, 10)
+      : ''
+  const tPrefix = d0.length >= 10 ? `[T日${d0}] ` : ''
   const lc = row.linkage_concepts
   if (lc && lc.length > 0) {
     parts.push(
@@ -110,8 +115,12 @@ export function formatLinkageTableCell(row: StockResult): string {
   const industry = formatLinkageIndustryLine(row)
   if (industry) parts.push(industry)
   if (parts.length > 0) {
-    return parts.join('；')
+    return tPrefix + parts.join('；')
   }
   const t = row.linkage_text?.trim()
-  return t || '-'
+  if (t) {
+    if (!tPrefix || t.startsWith('[T日')) return t
+    return tPrefix + t
+  }
+  return '-'
 }

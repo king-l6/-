@@ -355,6 +355,50 @@ export const consecutiveUpUpperShadowStrategy: StrategyTemplate = {
 };
 
 /**
+ * 四连阳摸板
+ * T 日前（截至 T-1）连续涨跌幅>0 不少于 4 日；T 日最高价触及涨停价（相对昨收涨幅≥9.8%）。
+ */
+export const fourUpTouchLimitStrategy: StrategyTemplate = {
+  id: 'four_up_touch_limit',
+  name: '四连阳摸板',
+  description:
+    'T日前（截至T-1日）连续涨跌幅>0的交易日不少于4天，且该连阳段内每日均未涨停（涨跌幅<9.8%）；T日最高价相对昨收涨幅≥9.8%（触及涨停价，收盘是否涨停不限）。',
+  timeRange: 90,
+  conditions: [
+    { type: 'consecutive_up_days_gte', date1: -1, consecutiveDays: 4 },
+    { type: 'consecutive_up_window_no_limit_up', date1: -1, limitPct: 9.8 },
+    { type: 'high_is_limit_up', date1: 0 },
+  ],
+  exclude: {
+    kcb: true,
+    cyb: true,
+    bjs: true,
+    st: true,
+    delist: true,
+  },
+};
+
+/** 连涨天数>5，且连阳段内无涨停（涨跌幅均<9.8%） */
+export const consecutiveUpGt5NoLimitStrategy: StrategyTemplate = {
+  id: 'consecutive_up_gt5_no_limit',
+  name: '连阳超五无涨停',
+  description:
+    'T日涨跌幅>0，且截至T日连续涨跌幅>0的交易日不少于6天（连涨>5）；该连阳区间内每日涨跌幅均<9.8%（无涨停）。回测结果含 consecutive_up_days（截至T的连阳天数）。',
+  timeRange: 90,
+  conditions: [
+    { type: 'consecutive_up_days_gte', date1: 0, consecutiveDays: 6 },
+    { type: 'consecutive_up_window_no_limit_up', date1: 0, limitPct: 9.8 },
+  ],
+  exclude: {
+    kcb: true,
+    cyb: true,
+    bjs: true,
+    st: true,
+    delist: true,
+  },
+};
+
+/**
  * 游资合力接力策略
  * 特征：
  * 1. 近10日内有涨停（体现活跃度与辨识度）
@@ -573,6 +617,8 @@ export const allStrategyTemplates: StrategyTemplate[] = [
   yzrPackStrongMarketStrategy, // 游资策略包-强势
   yzrConsensusRelayStrategy, // 游资合力接力
   consecutiveUpUpperShadowStrategy, // 连阳上影
+  fourUpTouchLimitStrategy, // 四连阳摸板
+  consecutiveUpGt5NoLimitStrategy, // 连阳超五无涨停
   bottomingBreakoutStrategy, // 筑底突破
   touchLimitNotCloseWithThreeLimitStrategy, // 摸板首板
   secondBoardStrategy, // 打板二版

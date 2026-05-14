@@ -17,6 +17,6 @@ else
     exit 1
 fi
 
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] 开始执行：拉取数据 + 六策略回测"
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] 开始执行：拉取数据 + 预设策略回测"
 $PY scripts/update_cache_and_backtest.py --workers 100
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] 执行结束"

@@ -1,0 +1,432 @@
+{
+"version": 2,
+"trade_date": "2026-05-06",
+"built_at": "2026-05-13T14:24:42+00:00",
+"builder": "ths_concept_ths_industry",
+"concept_daily": "ths",
+"industry_daily": "ths",
+"concepts": [
+{
+"name": "EDR概念",
+"board_id": "308803",
+"pct": 4.7971208576538915,
+"source": "ths_hist",
+"rank": 1
+},
+{
+"name": "算力租赁",
+"board_id": "309068",
+"pct": 4.414094053905093,
+"source": "ths_hist",
+"rank": 2
+},
+{
+"name": "存储芯片",
+"board_id": "307940",
+"pct": 4.411538100645029,
+"source": "ths_hist",
+"rank": 3
+},
+{
+"name": "PET铜箔",
+"board_id": "309030",
+"pct": 4.3226553063160145,
+"source": "ths_hist",
+"rank": 4
+},
+{
+"name": "AI PC",
+"board_id": "309121",
+"pct": 4.169627676319054,
+"source": "ths_hist",
+"rank": 5
+},
+{
+"name": "F5G概念",
+"board_id": "308977",
+"pct": 3.8549593314160857,
+"source": "ths_hist",
+"rank": 6
+},
+{
+"name": "快手概念",
+"board_id": "308659",
+"pct": 3.838802600241764,
+"source": "ths_hist",
+"rank": 7
+},
+{
+"name": "英伟达概念",
+"board_id": "309065",
+"pct": 3.7978322947000986,
+"source": "ths_hist",
+"rank": 8
+},
+{
+"name": "国家大基金持股",
+"board_id": "307816",
+"pct": 3.758901869311093,
+"source": "ths_hist",
+"rank": 9
+},
+{
+"name": "科创次新股",
+"board_id": "308699",
+"pct": 3.726591097359777,
+"source": "ths_hist",
+"rank": 10
+},
+{
+"name": "6G概念",
+"board_id": "309055",
+"pct": 3.6357625427754448,
+"source": "ths_hist",
+"rank": 11
+},
+{
+"name": "华为海思概念股",
+"board_id": "308527",
+"pct": 3.6042144266847043,
+"source": "ths_hist",
+"rank": 12
+},
+{
+"name": "数字水印",
+"board_id": "309050",
+"pct": 3.5793427479515305,
+"source": "ths_hist",
+"rank": 13
+},
+{
+"name": "东数西算(算力)",
+"board_id": "308828",
+"pct": 3.562046510237904,
+"source": "ths_hist",
+"rank": 14
+},
+{
+"name": "华为昇腾",
+"board_id": "309090",
+"pct": 3.5570844638944665,
+"source": "ths_hist",
+"rank": 15
+},
+{
+"name": "太赫兹",
+"board_id": "300795",
+"pct": 3.4529078656752255,
+"source": "ths_hist",
+"rank": 16
+},
+{
+"name": "共封装光学(CPO)",
+"board_id": "309049",
+"pct": 3.4193260062537423,
+"source": "ths_hist",
+"rank": 17
+},
+{
+"name": "先进封装",
+"board_id": "309004",
+"pct": 3.346717935778565,
+"source": "ths_hist",
+"rank": 18
+},
+{
+"name": "AI手机",
+"board_id": "309120",
+"pct": 3.2267618215082505,
+"source": "ths_hist",
+"rank": 19
+},
+{
+"name": "PCB概念",
+"board_id": "308832",
+"pct": 3.2190483765364375,
+"source": "ths_hist",
+"rank": 20
+},
+{
+"name": "华为手机",
+"board_id": "309167",
+"pct": 3.2075318645260475,
+"source": "ths_hist",
+"rank": 21
+},
+{
+"name": "金属镍",
+"board_id": "301511",
+"pct": 3.1907664187705187,
+"source": "ths_hist",
+"rank": 22
+},
+{
+"name": "互联网保险",
+"board_id": "301628",
+"pct": 3.097952197781839,
+"source": "ths_hist",
+"rank": 23
+},
+{
+"name": "数据中心",
+"board_id": "308642",
+"pct": 3.097525824182279,
+"source": "ths_hist",
+"rank": 24
+},
+{
+"name": "金属铅",
+"board_id": "308864",
+"pct": 3.0920701521927274,
+"source": "ths_hist",
+"rank": 25
+},
+{
+"name": "液冷服务器",
+"board_id": "309061",
+"pct": 3.086143654308704,
+"source": "ths_hist",
+"rank": 26
+},
+{
+"name": "WiFi 6",
+"board_id": "308791",
+"pct": 3.0723013554139866,
+"source": "ths_hist",
+"rank": 27
+},
+{
+"name": "金属锌",
+"board_id": "301582",
+"pct": 3.0677557312545067,
+"source": "ths_hist",
+"rank": 28
+},
+{
+"name": "AI语料",
+"board_id": "309126",
+"pct": 3.02395848987953,
+"source": "ths_hist",
+"rank": 29
+},
+{
+"name": "注册制次新股",
+"board_id": "308697",
+"pct": 2.9805868045751582,
+"source": "ths_hist",
+"rank": 30
+},
+{
+"name": "金属钴",
+"board_id": "302174",
+"pct": 2.9629156607134943,
+"source": "ths_hist",
+"rank": 31
+},
+{
+"name": "汽车芯片",
+"board_id": "308725",
+"pct": 2.9503054329430345,
+"source": "ths_hist",
+"rank": 32
+},
+{
+"name": "多模态AI",
+"board_id": "309104",
+"pct": 2.9459956033915047,
+"source": "ths_hist",
+"rank": 33
+},
+{
+"name": "云计算",
+"board_id": "300419",
+"pct": 2.936434466244786,
+"source": "ths_hist",
+"rank": 34
+},
+{
+"name": "富士康概念",
+"board_id": "307954",
+"pct": 2.9323325950336265,
+"source": "ths_hist",
+"rank": 35
+},
+{
+"name": "5G",
+"board_id": "300843",
+"pct": 2.89943318363286,
+"source": "ths_hist",
+"rank": 36
+},
+{
+"name": "超级电容",
+"board_id": "300926",
+"pct": 2.898411955828828,
+"source": "ths_hist",
+"rank": 37
+},
+{
+"name": "光纤概念",
+"board_id": "309151",
+"pct": 2.885239978041665,
+"source": "ths_hist",
+"rank": 38
+},
+{
+"name": "数据安全",
+"board_id": "308801",
+"pct": 2.870840365365046,
+"source": "ths_hist",
+"rank": 39
+},
+{
+"name": "卫星导航",
+"board_id": "300722",
+"pct": 2.8686417413472887,
+"source": "ths_hist",
+"rank": 40
+}
+],
+"industries": [
+{
+"name": "贵金属",
+"board_id": "881169",
+"pct": 5.463717611989827,
+"source": "ths_hist",
+"rank": 1
+},
+{
+"name": "其他电子",
+"board_id": "881123",
+"pct": 4.323346723134325,
+"source": "ths_hist",
+"rank": 2
+},
+{
+"name": "小金属",
+"board_id": "881170",
+"pct": 4.19346864148209,
+"source": "ths_hist",
+"rank": 3
+},
+{
+"name": "通信服务",
+"board_id": "881162",
+"pct": 3.9771193549875683,
+"source": "ths_hist",
+"rank": 4
+},
+{
+"name": "元件",
+"board_id": "881270",
+"pct": 3.6278199512607356,
+"source": "ths_hist",
+"rank": 5
+},
+{
+"name": "电池",
+"board_id": "881281",
+"pct": 3.5439535640044317,
+"source": "ths_hist",
+"rank": 6
+},
+{
+"name": "半导体",
+"board_id": "881121",
+"pct": 3.3784401560580157,
+"source": "ths_hist",
+"rank": 7
+},
+{
+"name": "电子化学品",
+"board_id": "881172",
+"pct": 3.135182046187923,
+"source": "ths_hist",
+"rank": 8
+},
+{
+"name": "IT服务",
+"board_id": "881271",
+"pct": 3.1089205155975463,
+"source": "ths_hist",
+"rank": 9
+},
+{
+"name": "通信设备",
+"board_id": "881129",
+"pct": 3.02929274669399,
+"source": "ths_hist",
+"rank": 10
+},
+{
+"name": "互联网电商",
+"board_id": "881177",
+"pct": 3.002789704327502,
+"source": "ths_hist",
+"rank": 11
+},
+{
+"name": "金属新材料",
+"board_id": "881114",
+"pct": 2.9587850998822995,
+"source": "ths_hist",
+"rank": 12
+},
+{
+"name": "其他电源设备",
+"board_id": "881282",
+"pct": 2.9581501480181016,
+"source": "ths_hist",
+"rank": 13
+},
+{
+"name": "电力",
+"board_id": "881145",
+"pct": 2.9378005524321127,
+"source": "ths_hist",
+"rank": 14
+},
+{
+"name": "工业金属",
+"board_id": "881168",
+"pct": 2.553697978173042,
+"source": "ths_hist",
+"rank": 15
+},
+{
+"name": "计算机设备",
+"board_id": "881130",
+"pct": 2.4704623058416475,
+"source": "ths_hist",
+"rank": 16
+},
+{
+"name": "电网设备",
+"board_id": "881278",
+"pct": 2.288077259689403,
+"source": "ths_hist",
+"rank": 17
+},
+{
+"name": "能源金属",
+"board_id": "881267",
+"pct": 2.036348997108539,
+"source": "ths_hist",
+"rank": 18
+},
+{
+"name": "军工电子",
+"board_id": "881276",
+"pct": 2.0071257126961894,
+"source": "ths_hist",
+"rank": 19
+},
+{
+"name": "风电设备",
+"board_id": "881280",
+"pct": 1.9866656369682767,
+"source": "ths_hist",
+"rank": 20
+}
+]
+}

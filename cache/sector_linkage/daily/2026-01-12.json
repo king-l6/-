@@ -1,0 +1,151 @@
+{
+"version": 2,
+"trade_date": "2026-01-12",
+"built_at": "2026-05-14T10:31:04+00:00",
+"builder": "ths_concept_ths_industry",
+"concept_daily": "ths",
+"industry_daily": "ths",
+"concepts": [],
+"industries": [
+{
+"name": "文化传媒",
+"board_id": "881164",
+"pct": 7.956446085401536,
+"source": "ths_hist",
+"rank": 1
+},
+{
+"name": "IT服务",
+"board_id": "881271",
+"pct": 7.92430836826139,
+"source": "ths_hist",
+"rank": 2
+},
+{
+"name": "软件开发",
+"board_id": "881272",
+"pct": 7.7608833832278235,
+"source": "ths_hist",
+"rank": 3
+},
+{
+"name": "军工电子",
+"board_id": "881276",
+"pct": 7.345150745420681,
+"source": "ths_hist",
+"rank": 4
+},
+{
+"name": "影视院线",
+"board_id": "881274",
+"pct": 6.482601971719881,
+"source": "ths_hist",
+"rank": 5
+},
+{
+"name": "游戏",
+"board_id": "881275",
+"pct": 5.977537385063458,
+"source": "ths_hist",
+"rank": 6
+},
+{
+"name": "互联网电商",
+"board_id": "881177",
+"pct": 5.5933572912745255,
+"source": "ths_hist",
+"rank": 7
+},
+{
+"name": "通信服务",
+"board_id": "881162",
+"pct": 5.093921500588672,
+"source": "ths_hist",
+"rank": 8
+},
+{
+"name": "军工装备",
+"board_id": "881166",
+"pct": 4.959783574087306,
+"source": "ths_hist",
+"rank": 9
+},
+{
+"name": "计算机设备",
+"board_id": "881130",
+"pct": 4.7193703698415135,
+"source": "ths_hist",
+"rank": 10
+},
+{
+"name": "通信设备",
+"board_id": "881129",
+"pct": 4.249892417547629,
+"source": "ths_hist",
+"rank": 11
+},
+{
+"name": "教育",
+"board_id": "881178",
+"pct": 3.971879656072841,
+"source": "ths_hist",
+"rank": 12
+},
+{
+"name": "黑色家电",
+"board_id": "881132",
+"pct": 3.7930671114705827,
+"source": "ths_hist",
+"rank": 13
+},
+{
+"name": "医疗服务",
+"board_id": "881175",
+"pct": 3.3403121693785343,
+"source": "ths_hist",
+"rank": 14
+},
+{
+"name": "金属新材料",
+"board_id": "881114",
+"pct": 3.3047137536120097,
+"source": "ths_hist",
+"rank": 15
+},
+{
+"name": "其他社会服务",
+"board_id": "881179",
+"pct": 3.293637293818441,
+"source": "ths_hist",
+"rank": 16
+},
+{
+"name": "纺织制造",
+"board_id": "881135",
+"pct": 2.8455717994102736,
+"source": "ths_hist",
+"rank": 17
+},
+{
+"name": "光伏设备",
+"board_id": "881279",
+"pct": 2.759535283042047,
+"source": "ths_hist",
+"rank": 18
+},
+{
+"name": "通用设备",
+"board_id": "881117",
+"pct": 2.6958547591737103,
+"source": "ths_hist",
+"rank": 19
+},
+{
+"name": "小金属",
+"board_id": "881170",
+"pct": 2.54921968027777,
+"source": "ths_hist",
+"rank": 20
+}
+]
+}

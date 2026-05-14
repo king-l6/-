@@ -28,19 +28,19 @@
       <Spin /> 加载文件列表...
     </div>
     
-    <div v-else-if="fileList.length === 0" class="py-6 text-center text-gray-500">
+    <div v-else-if="fileList.length === 0" class="py-6 text-center text-gray-500 dark:text-neutral-400">
       <template v-if="error">
-        <div class="text-red-600 mb-2">{{ error }}</div>
-        <div class="text-sm">请确认后端服务已启动（如 <code class="bg-gray-100 px-1">python app.py</code>），并点击「刷新列表」重试。</div>
+        <div class="text-red-600 dark:text-red-400 mb-2">{{ error }}</div>
+        <div class="text-sm">请确认后端服务已启动（如 <code class="rounded bg-gray-100 px-1 dark:bg-neutral-800 dark:text-neutral-200">python app.py</code>），并点击「刷新列表」重试。</div>
       </template>
       <template v-else>暂无历史回测数据文件</template>
     </div>
     
-    <div v-else class="flex flex-col md:flex-row gap-0 h-full min-h-0" style="min-height: 320px;">
+    <div v-else class="history-results-shell flex flex-col md:flex-row gap-0 h-full min-h-0" style="min-height: 320px;">
       <!-- 移动端：文件选择下拉（仅小屏显示） -->
-      <div class="md:hidden flex-shrink-0 p-2 bg-gray-50 border-b border-gray-200">
+      <div class="md:hidden flex-shrink-0 border-b border-gray-200 bg-gray-50 p-2 dark:border-neutral-700 dark:bg-neutral-900/90">
         <div class="flex items-center gap-2">
-          <span class="text-sm font-semibold text-gray-700 whitespace-nowrap">选择文件：</span>
+          <span class="whitespace-nowrap text-sm font-semibold text-gray-700 dark:text-neutral-200">选择文件：</span>
           <Select
             v-model:value="activeFile"
             placeholder="请选择回测文件"
@@ -56,11 +56,11 @@
       </div>
 
       <!-- 左侧导航栏（仅 md 及以上显示，偏窄以让右侧表格更早露出） -->
-      <div class="hidden md:block w-48 lg:w-52 flex-shrink-0 bg-gray-50 border-r border-gray-300 pr-0">
-        <div class="px-2 py-1.5 border-b border-gray-200 bg-white">
+      <div class="hidden w-48 flex-shrink-0 border-r border-gray-300 bg-gray-50 pr-0 dark:border-neutral-700 dark:bg-neutral-900/90 md:block lg:w-52">
+        <div class="border-b border-gray-200 bg-white px-2 py-1.5 dark:border-neutral-700 dark:bg-neutral-950">
           <div class="flex items-center justify-between gap-1">
-            <span class="text-xs font-semibold text-gray-800 truncate">文件列表</span>
-            <span class="text-[10px] text-gray-500 bg-gray-100 px-1 py-0.5 rounded shrink-0">共{{ fileList.length }}</span>
+            <span class="truncate text-xs font-semibold text-gray-800 dark:text-neutral-100">文件列表</span>
+            <span class="shrink-0 rounded bg-gray-100 px-1 py-0.5 text-[10px] text-gray-500 dark:bg-neutral-800 dark:text-neutral-400">共{{ fileList.length }}</span>
           </div>
         </div>
         <div class="overflow-y-auto" style="max-height: calc(100vh - 160px);">
@@ -82,14 +82,14 @@
               ]"
             >
               <div class="flex flex-col w-full">
-                <span class="text-xs font-medium text-gray-800 truncate" :title="file.filename">
+                <span class="truncate text-xs font-medium text-gray-800 dark:text-neutral-100" :title="file.filename">
                   {{ formatFileName(file.filename) }}
                 </span>
                 <div class="mt-0.5 flex items-center justify-between gap-2">
-                  <span class="text-xs text-gray-500 truncate" :title="formatFullDate(file.modified)">
+                  <span class="truncate text-xs text-gray-500 dark:text-neutral-400" :title="formatFullDate(file.modified)">
                     {{ formatFileDate(file.modified) }}
                   </span>
-                  <span v-if="typeof file.count === 'number'" class="text-xs text-gray-500 whitespace-nowrap">
+                  <span v-if="typeof file.count === 'number'" class="whitespace-nowrap text-xs text-gray-500 dark:text-neutral-400">
                     {{ file.count }} 条
                   </span>
                 </div>
@@ -103,9 +103,9 @@
       <div class="flex-1 min-w-0 overflow-auto pl-1.5 pr-2 md:pl-2">
 
       <!-- 元数据信息 -->
-      <div v-if="metaInfo" class="mb-1.5 py-1 px-2 bg-blue-50 border-l-4 border-blue-500 rounded">
-        <div v-if="isMultiStrategyOverlapFile" class="text-[11px] leading-snug text-gray-700 space-y-0.5">
-          <div v-if="(metaInfo as any).note" class="text-gray-800">{{ (metaInfo as any).note }}</div>
+      <div v-if="metaInfo" class="mb-1.5 rounded border-l-4 border-blue-500 bg-blue-50 px-2 py-1 dark:border-blue-400 dark:bg-blue-950/35">
+        <div v-if="isMultiStrategyOverlapFile" class="space-y-0.5 text-[11px] leading-snug text-gray-700 dark:text-neutral-200">
+          <div v-if="(metaInfo as any).note" class="text-gray-800 dark:text-neutral-100">{{ (metaInfo as any).note }}</div>
           <div>
             <span class="font-semibold">类型:</span> 多策略同日汇总（{{ (metaInfo as any).kind || 'overlap' }}） |
             <span class="font-semibold">数据条数:</span> {{ metaInfo.count ?? results.length }}
@@ -114,7 +114,7 @@
             </template>
           </div>
         </div>
-        <div v-else class="text-[11px] leading-snug text-gray-700">
+        <div v-else class="text-[11px] leading-snug text-gray-700 dark:text-neutral-200">
           <span class="font-semibold">策略名称:</span> {{ metaInfo.strategy_name || '未知' }} | 
           <span class="font-semibold">运行时间:</span> {{ formatDate(metaInfo.run_at) }} | 
           <span class="font-semibold">数据条数:</span> {{ metaInfo.count || results.length }}
@@ -138,7 +138,7 @@
       </div>
       
       <!-- 无数据 -->
-      <div v-else-if="!hasResults" class="py-6 text-center text-gray-500">
+      <div v-else-if="!hasResults" class="py-6 text-center text-gray-500 dark:text-neutral-400">
         请选择一个文件查看数据
       </div>
       
@@ -148,15 +148,14 @@
         <Card title="每个交易日匹配数量" size="small" class="mb-2" :body-style="{ padding: '8px 10px' }">
           <div class="relative w-full min-w-0" style="height: 200px;">
             <div :ref="setChartRef" class="w-full h-full" style="min-width: 300px;"></div>
-            <div v-if="dailyChartData.dates.length === 0" class="absolute inset-0 flex items-center justify-center bg-gray-50 text-gray-500 text-sm">
+            <div v-if="dailyChartData.dates.length === 0" class="absolute inset-0 flex items-center justify-center bg-gray-50 text-sm text-gray-500 dark:bg-neutral-900/80 dark:text-neutral-400">
               暂无按日数据，无法绘制趋势图
             </div>
           </div>
-          <p v-if="!isMultiStrategyOverlapFile" class="text-[11px] text-gray-500 mt-1 leading-snug">
-            按每条结果的 <span class="font-mono">match_date</span> 计数。默认全量 jsonl 常为「每只股票只保留窗口内最后一次命中」，日频不等于「当日全市场真实命中数」；需要后者时请用
-            <span class="font-mono text-[10px]">batch_backtest.py --all-match-dates</span> 重新生成结果文件。
+          <p v-if="!isMultiStrategyOverlapFile" class="mt-1 text-[11px] leading-snug text-gray-500 dark:text-neutral-400">
+            按每条结果的 <span class="font-mono">match_date</span> 计数。全量 jsonl 为窗口内各命中日各一行（同股可多日多行），与按日扫描口径一致。
           </p>
-          <p v-else class="text-[11px] text-gray-500 mt-1 leading-snug">
+          <p v-else class="mt-1 text-[11px] leading-snug text-gray-500 dark:text-neutral-400">
             按 <span class="font-mono">match_date</span> 计数；本文件为「同日多策略重叠」汇总，表格中「重叠策略」列为当日同时命中的策略名。
           </p>
         </Card>
@@ -164,7 +163,7 @@
         <Tabs v-model:activeKey="contentTabKey" type="card" size="small" class="mb-2">
           <TabPane key="favorites" :tab="`我的自选${collectedItems.length > 0 ? ` (${collectedItems.length})` : ''}`">
             <Card :title="`我的自选${collectedItems.length > 0 ? ` (${collectedItems.length} 条)` : ''}`" size="small" class="mb-0">
-              <div v-if="collectedItems.length === 0" class="py-6 text-center text-gray-500 text-sm">
+              <div v-if="collectedItems.length === 0" class="py-6 text-center text-sm text-gray-500 dark:text-neutral-400">
                 点击「数据列表」中表格「代码·名称」列前的 ＋ 图标可加入自选
               </div>
               <Table
@@ -184,7 +183,7 @@
                     <Tooltip :title="formatLinkageTableCell(record as StockResult)">
                       <LinkageTableCell
                         :record="record as StockResult"
-                        text-class="text-xs text-gray-800 max-w-[14rem] inline-block truncate align-top"
+                        text-class="text-xs text-gray-800 max-w-[14rem] inline-block truncate align-top dark:text-neutral-100"
                       />
                     </Tooltip>
                   </template>
@@ -197,7 +196,7 @@
               <div class="text-sm font-semibold text-primary">
                 找到 {{ filteredResults.length }} 只符合条件的股票
               </div>
-              <div class="text-xs text-slate-600" v-if="!isMultiStrategyOverlapFile && tenDayHitStats.validCount > 0">
+              <div class="text-xs text-slate-600 dark:text-neutral-400" v-if="!isMultiStrategyOverlapFile && tenDayHitStats.validCount > 0">
                 次日开盘买入后10个交易日内最高涨幅&gt;5% 概率：
                 <span class="font-semibold text-rose-600">
                   {{ tenDayHitStats.hitCount }}/{{ tenDayHitStats.validCount }} ({{ tenDayHitStats.hitRateText }})
@@ -214,6 +213,15 @@
                 size="small"
                 class="w-[148px]"
                 placeholder="收涨日数>="
+              />
+              <InputNumber
+                v-if="showConsecutiveUpDaysFilter"
+                v-model:value="minConsecutiveUpDaysFilter"
+                :min="1"
+                :max="30"
+                size="small"
+                class="w-[148px]"
+                placeholder="连阳天数>="
               />
               <Button v-if="!isMultiStrategyOverlapFile" size="small" @click="openColumnModal">
                 <template #icon><MenuOutlined /></template>
@@ -287,12 +295,12 @@
                       >
                         {{ s }}
                       </Tag>
-                      <span v-if="overlapStrategyLabels(record as StockResult).length === 0" class="text-gray-400 text-xs">-</span>
+                      <span v-if="overlapStrategyLabels(record as StockResult).length === 0" class="text-xs text-gray-400 dark:text-neutral-500">-</span>
                     </div>
                   </template>
                   <template v-else-if="column.key === 'overlap_summary'">
                     <Tooltip :title="String((record as any).overlap_summary || '').trim() || undefined">
-                      <span class="text-xs text-gray-700 line-clamp-2 cursor-default">
+                      <span class="line-clamp-2 cursor-default text-xs text-gray-700 dark:text-neutral-300">
                         {{ (record as any).overlap_summary || '-' }}
                       </span>
                     </Tooltip>
@@ -301,7 +309,7 @@
                     <Tooltip :title="formatLinkageTableCell(record as StockResult)">
                       <LinkageTableCell
                         :record="record as StockResult"
-                        text-class="text-xs text-gray-800 max-w-[min(48rem,88vw)] inline-block truncate align-top"
+                        text-class="text-xs text-gray-800 max-w-[min(48rem,88vw)] inline-block truncate align-top dark:text-neutral-100"
                       />
                     </Tooltip>
                   </template>
@@ -320,7 +328,7 @@
       :width="420"
       destroy-on-close
     >
-      <p class="text-xs text-gray-500 mb-2">
+      <p class="mb-2 text-xs text-gray-500 dark:text-neutral-400">
         拖拽左侧手柄调整列顺序；取消勾选可隐藏列（「代码·名称」不可隐藏）。设置按「密集 / 普通」分别保存。
       </p>
       <draggable
@@ -328,20 +336,20 @@
         item-key="key"
         handle=".col-pref-drag-handle"
         :animation="160"
-        class="border border-gray-200 rounded max-h-[55vh] overflow-y-auto"
+        class="max-h-[55vh] overflow-y-auto rounded border border-gray-200 dark:border-neutral-700"
       >
         <template #item="{ element }">
           <div
-            class="flex items-center gap-2 px-2 py-1.5 border-b border-gray-100 last:border-b-0 bg-white hover:bg-gray-50"
+            class="flex items-center gap-2 border-b border-gray-100 bg-white px-2 py-1.5 last:border-b-0 hover:bg-gray-50 dark:border-neutral-800 dark:bg-neutral-950 dark:hover:bg-neutral-900/80"
           >
-            <HolderOutlined class="col-pref-drag-handle text-gray-400 shrink-0 cursor-move text-sm" />
+            <HolderOutlined class="col-pref-drag-handle shrink-0 cursor-move text-sm text-gray-400 dark:text-neutral-500" />
             <Checkbox
               :checked="element.visible"
               :disabled="element.required"
               @update:checked="(v: boolean | string) => onDraftVisibleChange(element, !!v)"
             />
-            <span class="text-sm text-gray-800 flex-1 min-w-0 truncate" :title="element.title">{{ element.title }}</span>
-            <span v-if="element.required" class="text-[10px] text-gray-400 shrink-0">必选</span>
+            <span class="flex-1 min-w-0 truncate text-sm text-gray-800 dark:text-neutral-100" :title="element.title">{{ element.title }}</span>
+            <span v-if="element.required" class="shrink-0 text-[10px] text-gray-400 dark:text-neutral-500">必选</span>
           </div>
         </template>
       </draggable>
@@ -355,6 +363,7 @@
         </div>
       </template>
     </Modal>
+    <ConsecutiveUpVolumeChartModal v-model:open="volumeChartOpen" :record="volumeChartRecord" />
   </Card>
 </template>
 
@@ -367,6 +376,7 @@ import type { ColumnsType } from 'ant-design-vue/es/table'
 import type { StockResult } from '@/types'
 import { formatLinkageTableCell } from '@/utils/linkageDisplay'
 import LinkageTableCell from '@/components/LinkageTableCell.vue'
+import ConsecutiveUpVolumeChartModal from '@/components/ConsecutiveUpVolumeChartModal.vue'
 import {
   STOCK_CODE_NAME_COLUMN_KEY,
   STOCK_CODE_NAME_COLUMN_TITLE
@@ -435,7 +445,9 @@ const {
   isStrategyFile,
   isMainForceBuildHistoryFile,
   minMainForceBullishDays,
+  minConsecutiveUpDaysFilter,
   showMainForceBullishFilter,
+  showConsecutiveUpDaysFilter,
   isDayLeader,
   getDayLeaderLabel,
   handleExport,
@@ -443,6 +455,13 @@ const {
   filterDay2Strong,
   isMultiStrategyOverlapFile
 } = useHistoryResults()
+
+const volumeChartOpen = ref(false)
+const volumeChartRecord = ref<StockResult | null>(null)
+function openConsecutiveUpVolumeChart(record: StockResult) {
+  volumeChartRecord.value = record
+  volumeChartOpen.value = true
+}
 
 const { densePrefs, normalPrefs, setDensePrefs, setNormalPrefs, resetDensePrefs, resetNormalPrefs } =
   useHistoryTableColumnPrefs()
@@ -524,9 +543,10 @@ const collectedColumns = computed<ColumnsType<StockResult>>(() => {
     { title: '匹配价', dataIndex: 'match_price', key: 'match_price', width: 80, customRender: ({ text }) => text != null ? text.toFixed(2) : '-' },
     { title: '当前价', dataIndex: 'current_price', key: 'current_price', width: 80, customRender: ({ text }) => text != null ? text.toFixed(2) : '-' }
   ]
+  const streak = hasConsecutiveUpStrategyColumns.value ? historyConsecutiveUpDenseColumns : []
   const mid = hasMainForceResultColumns.value ? historyMainForceDenseColumns : []
   const tail: ColumnsType<StockResult> = [{ title: '操作', key: 'action', width: 70, fixed: 'right' }]
-  return [...head, ...mid, ...tail]
+  return [...head, ...streak, ...mid, ...tail]
 })
 
 function renderDay2BuyHitCell(record: StockResult): string {
@@ -536,6 +556,15 @@ function renderDay2BuyHitCell(record: StockResult): string {
   const sign = day10ClosePct >= 0 ? '+' : ''
   return `10日收盘 ${sign}${day10ClosePct.toFixed(2)}%`
 }
+
+/** 连阳类战法：结果中含 consecutive_up_days，单独展示「连阳天数」列（与策略条件 date1 锚点一致） */
+const CONSECUTIVE_UP_STRATEGY_NAMES = new Set(['连阳上影', '四连阳摸板', '连阳超五无涨停'])
+
+const hasConsecutiveUpStrategyColumns = computed(() => {
+  const sn = String(metaInfo.value?.strategy_name || '').trim()
+  if (CONSECUTIVE_UP_STRATEGY_NAMES.has(sn)) return true
+  return false
+})
 
 /** 历史 jsonl 含主力建仓字段时展示（与 ResultsTable 一致口径） */
 const hasMainForceResultColumns = computed(() => {
@@ -550,6 +579,62 @@ const hasMainForceResultColumns = computed(() => {
     )
   })
 })
+
+const historyConsecutiveUpColumns: ColumnsType<StockResult> = [
+  {
+    title: '连阳天数',
+    dataIndex: 'consecutive_up_days',
+    key: 'consecutive_up_days',
+    width: 100,
+    align: 'right',
+    sorter: (a, b) => (a.consecutive_up_days || 0) - (b.consecutive_up_days || 0),
+    customRender: ({ text }) => (text != null && text !== '' ? String(text) : '-')
+  },
+  {
+    title: '连涨量',
+    key: 'consecutive_up_volume_chart',
+    width: 88,
+    align: 'center',
+    customRender: ({ record }) => {
+      const r = record as StockResult
+      const n = r.consecutive_up_days ?? 0
+      if (n < 2) return '-'
+      return h(
+        Button,
+        { type: 'link', size: 'small', onClick: () => openConsecutiveUpVolumeChart(r) },
+        () => '趋势图'
+      )
+    }
+  }
+]
+
+const historyConsecutiveUpDenseColumns: ColumnsType<StockResult> = [
+  {
+    title: '连阳天',
+    dataIndex: 'consecutive_up_days',
+    key: 'consecutive_up_days',
+    width: 72,
+    align: 'right',
+    sorter: (a, b) => (a.consecutive_up_days || 0) - (b.consecutive_up_days || 0),
+    customRender: ({ text }) => (text != null && text !== '' ? String(text) : '-')
+  },
+  {
+    title: '量图',
+    key: 'consecutive_up_volume_chart',
+    width: 72,
+    align: 'center',
+    customRender: ({ record }) => {
+      const r = record as StockResult
+      const n = r.consecutive_up_days ?? 0
+      if (n < 2) return '-'
+      return h(
+        Button,
+        { type: 'link', size: 'small', onClick: () => openConsecutiveUpVolumeChart(r) },
+        () => '图'
+      )
+    }
+  }
+]
 
 const historyMainForceColumns: ColumnsType<StockResult> = [
   {
@@ -774,13 +859,15 @@ const historyDayDenseColumns: ColumnsType<StockResult> = [
 ]
 
 const columns = computed<ColumnsType<StockResult>>(() => {
+  const streak = hasConsecutiveUpStrategyColumns.value ? historyConsecutiveUpColumns : []
   const mid = hasMainForceResultColumns.value ? historyMainForceColumns : []
-  return [...historyHeadColumns, ...mid, ...historyDayColumns]
+  return [...historyHeadColumns, ...streak, ...mid, ...historyDayColumns]
 })
 
 const denseColumns = computed<ColumnsType<StockResult>>(() => {
+  const streak = hasConsecutiveUpStrategyColumns.value ? historyConsecutiveUpDenseColumns : []
   const mid = hasMainForceResultColumns.value ? historyMainForceDenseColumns : []
-  return [...historyHeadDenseColumns, ...mid, ...historyDayDenseColumns]
+  return [...historyHeadDenseColumns, ...streak, ...mid, ...historyDayDenseColumns]
 })
 
 const tenDayHitStats = computed(() => {
@@ -1118,5 +1205,51 @@ watch(
 
 .file-menu-item :deep(.ant-menu-title-content) {
   width: 100%;
+}
+</style>
+
+<style>
+/* 深色：HistoryResults 内左侧菜单与表格高亮行（与 scoped 中浅色规则对应） */
+html.dark .history-results-shell .ant-menu-item:hover {
+  background-color: #2f2f2f !important;
+  border-color: #434343 !important;
+}
+html.dark .history-results-shell .ant-menu-item-selected {
+  background-color: #153450 !important;
+  color: #8cc8ff !important;
+  border-color: #177ddc !important;
+  box-shadow: none !important;
+}
+html.dark .history-results-shell .strategy-file {
+  background-color: rgba(250, 173, 20, 0.14) !important;
+  border-left-color: #d89614 !important;
+}
+html.dark .history-results-shell .strategy-file:hover {
+  background-color: rgba(250, 173, 20, 0.22) !important;
+}
+html.dark .history-results-shell .strategy-file.ant-menu-item-selected {
+  background-color: rgba(250, 173, 20, 0.28) !important;
+  border-color: #d89614 !important;
+}
+html.dark .history-results-shell .strategy-file.strategy-file-main-force {
+  background-color: rgba(82, 196, 26, 0.12) !important;
+  border-left-color: #52c41a !important;
+}
+html.dark .history-results-shell .strategy-file.strategy-file-main-force:hover {
+  background-color: rgba(82, 196, 26, 0.2) !important;
+}
+html.dark .history-results-shell .strategy-file.strategy-file-main-force.ant-menu-item-selected {
+  background-color: rgba(82, 196, 26, 0.26) !important;
+  border-color: #52c41a !important;
+}
+html.dark .history-results-shell .row-day-leader {
+  border-left-color: #fbbf24 !important;
+  background-color: rgba(251, 191, 36, 0.12) !important;
+}
+html.dark .history-results-shell .row-day-leader.bg-red-50 {
+  background-color: rgba(248, 113, 113, 0.12) !important;
+}
+html.dark .history-results-shell .row-day-leader.bg-green-50 {
+  background-color: rgba(74, 222, 128, 0.12) !important;
 }
 </style>

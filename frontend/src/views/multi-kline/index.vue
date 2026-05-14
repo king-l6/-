@@ -16,15 +16,15 @@
         </template>
       </Alert>
 
-      <div class="mb-3 rounded border border-slate-200 bg-slate-50/80 px-3 py-2 text-xs text-slate-700 space-y-2">
-        <div class="font-semibold text-slate-800">主线龙头是怎么认定的</div>
+      <div class="mb-3 space-y-2 rounded border border-slate-200 bg-slate-50/80 px-3 py-2 text-xs text-slate-700 dark:border-neutral-700 dark:bg-neutral-900/70 dark:text-neutral-200">
+        <div class="font-semibold text-slate-800 dark:text-neutral-100">主线龙头是怎么认定的</div>
         <ul class="list-disc pl-4 space-y-1">
           <li>
             <strong>后端（当日谁算涨停池、谁当 top1）</strong>：在本地全市场日截面里，涨幅达到该股近似涨停阈值（主板等约 9.8%，300/301/688/689 约
             20%）的归入当日涨停池；在池内按<strong>连板数</strong>从高到低排序，同连板再比<strong>收盘×成交量</strong>、涨幅、量能等，取前
             {{ leaderMeta.top_k ?? 5 }} 只为「龙头列表」，其中<strong>第一只为当日主线 top1</strong>。连板数在滚动历史日上累计，当日未涨停或当日无该票截面则连板清零/断档。
           </li>
-          <li v-if="leaderMeta.note" class="text-slate-600">{{ leaderMeta.note }}</li>
+          <li v-if="leaderMeta.note" class="text-slate-600 dark:text-neutral-400">{{ leaderMeta.note }}</li>
           <li>
             <strong>「龙头分段」</strong>：在情绪接口返回的窗口内，把<strong>连续多个交易日 top1 为同一只票</strong>的区间合并成一段，得到下表「开始～结束」；段内「最高连板」为该段日历日内该票作为
             top1 时连板数的最大值。
@@ -42,25 +42,25 @@
 
       <div class="flex flex-wrap gap-2 items-end mb-2">
         <div>
-          <div class="text-xs text-gray-500 mb-1">情绪窗口（交易日，与情绪周期页一致）</div>
+          <div class="mb-1 text-xs text-gray-500 dark:text-neutral-400">情绪窗口（交易日，与情绪周期页一致）</div>
           <InputNumber v-model:value="emotionDays" :min="30" :max="500" :step="10" class="w-[120px]" />
         </div>
         <div>
-          <div class="text-xs text-gray-500 mb-1">叠图只数（自动选龙头时的上限）</div>
+          <div class="mb-1 text-xs text-gray-500 dark:text-neutral-400">叠图只数（自动选龙头时的上限）</div>
           <InputNumber v-model:value="maxOverlay" :min="1" :max="12" class="w-[88px]" />
         </div>
         <Button type="primary" :loading="loading" @click="loadFromEmotionCycle">从情绪周期加载</Button>
         <div class="flex-1 min-w-[200px]">
-          <div class="text-xs text-gray-500 mb-1">覆盖写股票代码（可选，逗号分隔；留空则用龙头推导，只数受左侧上限）</div>
+          <div class="mb-1 text-xs text-gray-500 dark:text-neutral-400">覆盖写股票代码（可选，逗号分隔；留空则用龙头推导，只数受左侧上限）</div>
           <Input v-model:value="codesText" placeholder="留空自动；或 600376,002652" allow-clear />
         </div>
       </div>
-      <div class="text-xs text-gray-500 mb-2">
+      <div class="mb-2 text-xs text-gray-500 dark:text-neutral-400">
         当前 K 线区间：<span class="font-mono">{{ dateRange?.[0] || '—' }} ~ {{ dateRange?.[1] || '—' }}</span>
       </div>
 
       <div v-if="segmentRows.length" class="mb-3">
-        <div class="text-sm font-medium text-slate-800 mb-2">主线龙头时间段（按开始日期先后）</div>
+        <div class="mb-2 text-sm font-medium text-slate-800 dark:text-neutral-100">主线龙头时间段（按开始日期先后）</div>
         <Table
           size="small"
           :columns="segmentColumns"

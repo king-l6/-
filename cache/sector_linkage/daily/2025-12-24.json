@@ -1,0 +1,151 @@
+{
+"version": 2,
+"trade_date": "2025-12-24",
+"built_at": "2026-05-14T10:22:28+00:00",
+"builder": "ths_concept_ths_industry",
+"concept_daily": "ths",
+"industry_daily": "ths",
+"concepts": [],
+"industries": [
+{
+"name": "其他电源设备",
+"board_id": "881282",
+"pct": 3.9436930214944432,
+"source": "ths_hist",
+"rank": 1
+},
+{
+"name": "军工电子",
+"board_id": "881276",
+"pct": 3.731991409201041,
+"source": "ths_hist",
+"rank": 2
+},
+{
+"name": "军工装备",
+"board_id": "881166",
+"pct": 3.2601576620791883,
+"source": "ths_hist",
+"rank": 3
+},
+{
+"name": "造纸",
+"board_id": "881137",
+"pct": 3.2594078088204137,
+"source": "ths_hist",
+"rank": 4
+},
+{
+"name": "其他电子",
+"board_id": "881123",
+"pct": 3.181611928664907,
+"source": "ths_hist",
+"rank": 5
+},
+{
+"name": "元件",
+"board_id": "881270",
+"pct": 2.9349747465014397,
+"source": "ths_hist",
+"rank": 6
+},
+{
+"name": "包装印刷",
+"board_id": "881138",
+"pct": 2.73987566302194,
+"source": "ths_hist",
+"rank": 7
+},
+{
+"name": "消费电子",
+"board_id": "881124",
+"pct": 2.50675129089335,
+"source": "ths_hist",
+"rank": 8
+},
+{
+"name": "金属新材料",
+"board_id": "881114",
+"pct": 2.4652224237564413,
+"source": "ths_hist",
+"rank": 9
+},
+{
+"name": "黑色家电",
+"board_id": "881132",
+"pct": 2.452701339341168,
+"source": "ths_hist",
+"rank": 10
+},
+{
+"name": "光伏设备",
+"board_id": "881279",
+"pct": 2.409931913447272,
+"source": "ths_hist",
+"rank": 11
+},
+{
+"name": "化学纤维",
+"board_id": "881264",
+"pct": 2.3960169476752835,
+"source": "ths_hist",
+"rank": 12
+},
+{
+"name": "塑料制品",
+"board_id": "881265",
+"pct": 2.1352506023539997,
+"source": "ths_hist",
+"rank": 13
+},
+{
+"name": "多元金融",
+"board_id": "881283",
+"pct": 1.979588772594254,
+"source": "ths_hist",
+"rank": 14
+},
+{
+"name": "半导体",
+"board_id": "881121",
+"pct": 1.948199569958442,
+"source": "ths_hist",
+"rank": 15
+},
+{
+"name": "白色家电",
+"board_id": "881131",
+"pct": 1.9313871096105828,
+"source": "ths_hist",
+"rank": 16
+},
+{
+"name": "通信设备",
+"board_id": "881129",
+"pct": 1.7374531895304912,
+"source": "ths_hist",
+"rank": 17
+},
+{
+"name": "计算机设备",
+"board_id": "881130",
+"pct": 1.708927455124587,
+"source": "ths_hist",
+"rank": 18
+},
+{
+"name": "自动化设备",
+"board_id": "881171",
+"pct": 1.6303178749654368,
+"source": "ths_hist",
+"rank": 19
+},
+{
+"name": "IT服务",
+"board_id": "881271",
+"pct": 1.6086683017932701,
+"source": "ths_hist",
+"rank": 20
+}
+]
+}
