@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: stock-backtest
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: oregon
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: FLASK_PORT
+        value: "8086"
+      - key: PYTHONUNBUFFERED
+        value: "1"
+    healthCheckPath: /api/stocks
