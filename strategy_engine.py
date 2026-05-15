@@ -5,8 +5,11 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from threading import Lock
 import importlib.util
 import json
+import logging
 import os
 from collections import defaultdict
+
+logger = logging.getLogger(__name__)
 
 
 class StrategyEngine:
@@ -23,6 +26,41 @@ class StrategyEngine:
         self._jsonl_buf = defaultdict(lambda: {'strategy_name': None, 'lines': [], 'meta_written': False})
         self._jsonl_flush_size = int(os.environ.get('BACKTEST_JSONL_BUFFER', '40') or '40')
         self._match_print_count = 0
+
+    @staticmethod
+    def _calc_max_backward_offset(conditions):
+        """计算策略条件需要向前回溯的最大交易日数（三处共享逻辑）。"""
+        offset = 0
+        for c in conditions:
+            date1 = c.get('date1', 0)
+            date2 = c.get('date2', 0)
+            if isinstance(date1, (int, float)) and date1 < 0:
+                offset = max(offset, abs(int(date1)))
+            if isinstance(date2, (int, float)) and date2 < 0:
+                offset = max(offset, abs(int(date2)))
+            cond_type = c.get('type')
+            if cond_type in ('recent_n_day_pct_change_lt', 'avg_amount_gte'):
+                offset = max(offset, int(c.get('days', 5)) - 1)
+            elif cond_type == 'close_below_ma_deviation':
+                offset = max(offset, int(c.get('period', 20)) - 1)
+            elif cond_type == 'rsi_lt':
+                offset = max(offset, int(c.get('period', 6)) + 1)
+            elif cond_type == 'stop_fall_signal':
+                offset = max(offset, int(c.get('volumeDays', 5)) - 1)
+            elif cond_type == 'listed_days_gte':
+                offset = max(offset, int(c.get('days', 120)) - 1)
+            elif cond_type == 'main_force_build_position':
+                offset = max(offset, int(c.get('windowDays', 10)) + 20)
+            elif cond_type == 'consecutive_yang_line_days_gte':
+                offset = max(offset, int(c.get('consecutiveDays', c.get('days', 6))) - 1)
+        return offset
+
+    @staticmethod
+    def _resolve_base_idx(base_date_str, base_date, date_pos, dates):
+        """从 date_pos 字典或 dates 列表中定位 base_date 的下标。"""
+        if date_pos is not None and base_date_str in date_pos:
+            return date_pos[base_date_str]
+        return dates.index(base_date)
 
     def _prepare_df_for_strategy(self, df, conditions):
         """单次：_ds、date_map、交易日序列、指标预计算（df 须已按日期升序）。"""
@@ -94,7 +132,7 @@ class StrategyEngine:
                 for line in lines:
                     f.write(line + '\n')
         except Exception as e:
-            print(f"[WARNING] 批量写出结果失败: {e}")
+            logger.warning("批量写出结果失败: %s", e)
 
     def _queue_jsonl_row(self, filepath, strategy_name, result, count):
         """缓冲写入一条 jsonl；须在持有 results_lock 时调用。"""
@@ -207,10 +245,10 @@ class StrategyEngine:
         if strategy_name is None:
             strategy_name = f"策略_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         
-        # 打印策略信息
-        print(f'策略名称: {strategy_name}')
-        print(f'策略条件数量: {len(conditions)}')
-        print(f'回测时间范围: {time_range} 个交易日' + (f'，仅扫描 T={only_t_date}' if only_t_date else ''))
+        # 记录策略信息
+        logger.info('策略名称: %s', strategy_name)
+        logger.info('策略条件数量: %d', len(conditions))
+        logger.info('回测时间范围: %d 个交易日%s', time_range, f'，仅扫描 T={only_t_date}' if only_t_date else '')
         
         # 结果文件路径（仅全量回测时写入）
         results_filepath = os.path.join(self.results_dir, f"{strategy_name}_结果.jsonl") if write_results else None
@@ -221,38 +259,18 @@ class StrategyEngine:
 
         # 在回测开始前，确保有足够的数据
         if ensure_sufficient_data:
-            print(f'开始数据预检查，确保有足够的数据用于回测 {time_range} 个交易日...')
+            logger.info('开始数据预检查，确保有足够的数据用于回测 %d 个交易日...', time_range)
             self.data_fetcher.ensure_sufficient_data(time_range, max_workers=100)
         else:
-            print(f'跳过 ensure_sufficient_data（由调用方保证缓存已就绪）')
+            logger.info('跳过 ensure_sufficient_data（由调用方保证缓存已就绪）')
         
         # 获取所有股票
         stocks = self.data_fetcher.get_stock_list()
-        print(f'获取到 {len(stocks)} 只股票')
+        logger.info('获取到 %d 只股票', len(stocks))
         
         # 计算回测时间范围：timeRange 为交易日数，不含周末
         # 若策略依赖较长历史（如上市天数/长周期指标），需要拉取更长数据窗口
-        max_backward_offset = 0
-        for c in conditions:
-            date1 = c.get('date1', 0)
-            date2 = c.get('date2', 0)
-            if isinstance(date1, (int, float)) and date1 < 0:
-                max_backward_offset = max(max_backward_offset, abs(int(date1)))
-            if isinstance(date2, (int, float)) and date2 < 0:
-                max_backward_offset = max(max_backward_offset, abs(int(date2)))
-            cond_type = c.get('type')
-            if cond_type in ('recent_n_day_pct_change_lt', 'avg_amount_gte'):
-                max_backward_offset = max(max_backward_offset, int(c.get('days', 5)) - 1)
-            elif cond_type == 'close_below_ma_deviation':
-                max_backward_offset = max(max_backward_offset, int(c.get('period', 20)) - 1)
-            elif cond_type == 'rsi_lt':
-                max_backward_offset = max(max_backward_offset, int(c.get('period', 6)) + 1)
-            elif cond_type == 'stop_fall_signal':
-                max_backward_offset = max(max_backward_offset, int(c.get('volumeDays', 5)) - 1)
-            elif cond_type == 'listed_days_gte':
-                max_backward_offset = max(max_backward_offset, int(c.get('days', 120)) - 1)
-            elif cond_type == 'main_force_build_position':
-                max_backward_offset = max(max_backward_offset, int(c.get('windowDays', 10)) + 20)
+        max_backward_offset = self._calc_max_backward_offset(conditions)
 
         # 与本地 K 缓存右端对齐：自然日「今天」若在周末，用最近周五，避免 c_end < end_date 误判未覆盖而全网拉取
         if only_t_date:
@@ -270,7 +288,7 @@ class StrategyEngine:
         total_stocks = len(stocks)
         processed_count = [0]  # 使用列表以便在闭包中修改
         
-        print(f"开始回测，共 {total_stocks} 只股票，回测最近 {time_range} 个交易日，使用 {self.max_workers} 个并发线程")
+        logger.info("开始回测，共 %d 只股票，回测最近 %d 个交易日，使用 %d 个并发线程", total_stocks, time_range, self.max_workers)
         
         # 使用线程池并发处理
         spot_kw = spot_by_code if spot_by_code else None
@@ -299,18 +317,14 @@ class StrategyEngine:
                 if processed_count[0] % 10 == 0:
                     percentage = 100 * processed_count[0] // total_stocks if total_stocks > 0 else 0
                     if only_t_date:
-                        print(
-                            f"进度: {processed_count[0]}/{total_stocks} ({percentage}%) "
-                            f"- 策略: {strategy_name} - T日: {only_t_date} "
-                            f"- 已找到 {len(results)} 只符合条件的股票",
-                            flush=True,
+                        logger.info(
+                            "进度: %d/%d (%d%%) - 策略: %s - T日: %s - 已找到 %d 只符合条件的股票",
+                            processed_count[0], total_stocks, percentage, strategy_name, only_t_date, len(results),
                         )
                     else:
-                        print(
-                            f"进度: {processed_count[0]}/{total_stocks} ({percentage}%) "
-                            f"- 策略: {strategy_name} "
-                            f"- 已找到 {len(results)} 只符合条件的股票",
-                            flush=True,
+                        logger.info(
+                            "进度: %d/%d (%d%%) - 策略: %s - 已找到 %d 只符合条件的股票",
+                            processed_count[0], total_stocks, percentage, strategy_name, len(results),
                         )
                 
                 try:
@@ -331,31 +345,31 @@ class StrategyEngine:
                                 )
                                 self._match_print_count += 1
                                 if verbose:
-                                    print(
-                                        f"✓ 找到: {r['code']} {r['name']} (匹配日期: {r.get('match_date', 'N/A')})",
-                                        flush=True,
+                                    logger.debug(
+                                        "找到: %s %s (匹配日期: %s)",
+                                        r['code'], r['name'], r.get('match_date', 'N/A'),
                                     )
                                 elif self._match_print_count % 200 == 0:
-                                    print(
-                                        f"[INFO] 已匹配 {self._match_print_count} 条（最新 {r['code']} {r['name']} {r.get('match_date', '')}）",
-                                        flush=True,
+                                    logger.info(
+                                        "已匹配 %d 条（最新 %s %s %s）",
+                                        self._match_print_count, r['code'], r['name'], r.get('match_date', ''),
                                     )
                 except Exception as e:
                     # 输出错误信息以便调试
                     if processed_count[0] % 100 == 0:  # 每100只股票输出一次错误统计
-                        print(f"[WARNING] 处理股票时出错: {type(e).__name__}: {str(e)}", flush=True)
+                        logger.warning("处理股票时出错: %s: %s", type(e).__name__, str(e))
                     continue
 
         if results_filepath:
             with self.results_lock:
                 self._flush_jsonl_buffer(results_filepath)
 
-        print(f"回测完成！共检查 {total_stocks} 只股票，找到 {len(results)} 条符合条件的记录")
+        logger.info("回测完成！共检查 %d 只股票，找到 %d 条符合条件的记录", total_stocks, len(results))
         if results:
             results.sort(key=lambda r: (r.get('match_date', '9999-99-99'), r.get('code', '')))
             if write_results and results_filepath:
                 self._write_sorted_results(results_filepath, strategy_name, results)
-                print(f"结果已保存（按符合日期排序）: {results_filepath}")
+                logger.info("结果已保存（按符合日期排序）: %s", results_filepath)
                 self._try_enrich_sector_linkage(results_filepath)
         return results
 
@@ -375,7 +389,7 @@ class StrategyEngine:
                     r['match_date'] = self._normalize_match_date(r.get('match_date'))
                     f.write(json.dumps(r, ensure_ascii=False, default=str) + '\n')
         except Exception as e:
-            print(f"[WARNING] 保存排序结果失败: {e}")
+            logger.warning("保存排序结果失败: %s", e)
 
     def _try_enrich_sector_linkage(self, results_filepath: str) -> None:
         """回测落盘后补充板块/概念联动（含当日涨幅名次）；失败不影响主结果。"""
@@ -452,87 +466,12 @@ class StrategyEngine:
                 )
             if df is None or df.empty:
                 return False
-            
-            # 确保有足够的列
-            required_columns = ['日期', '涨跌幅', '成交量']
-            if not all(col in df.columns for col in required_columns):
-                return False
-            
-            # 按日期排序（从早到晚）
             df = df.sort_values('日期').reset_index(drop=True)
-            
-            # 优化：检查是否有依赖涨停的条件，如果有，则检查是否有涨停日
-            has_limit_up_condition = any(
-                c.get('type') in ('limit_up', 'three_limit_up', 'recent_limit_up')
-                for c in conditions
+            return self._check_strategy_fast(
+                code, conditions, start_date, end_date, time_range,
+                only_t_date=only_t_date, df=df,
             )
-            if has_limit_up_condition:
-                # 如果有涨停条件但没有任何涨停日，直接跳过
-                if (df['涨跌幅'] >= 9.8).sum() == 0:
-                    return False
-            
-            # 计算需要的最少交易日数（T-5 需预留 5 个交易日）
-            max_backward_offset = 0
-            for c in conditions:
-                date1 = c.get('date1', 0)
-                date2 = c.get('date2', 0)
-                if date1 < 0:
-                    max_backward_offset = max(max_backward_offset, abs(date1))
-                if date2 < 0:
-                    max_backward_offset = max(max_backward_offset, abs(date2))
-                cond_type = c.get('type')
-                if cond_type in ('recent_n_day_pct_change_lt', 'avg_amount_gte'):
-                    max_backward_offset = max(max_backward_offset, int(c.get('days', 5)) - 1)
-                elif cond_type == 'close_below_ma_deviation':
-                    max_backward_offset = max(max_backward_offset, int(c.get('period', 20)) - 1)
-                elif cond_type == 'rsi_lt':
-                    max_backward_offset = max(max_backward_offset, int(c.get('period', 6)) + 1)
-                elif cond_type == 'stop_fall_signal':
-                    max_backward_offset = max(max_backward_offset, int(c.get('volumeDays', 5)) - 1)
-                elif cond_type == 'listed_days_gte':
-                    max_backward_offset = max(max_backward_offset, int(c.get('days', 120)) - 1)
-                elif cond_type == 'main_force_build_position':
-                    max_backward_offset = max(max_backward_offset, int(c.get('windowDays', 10)) + 20)
-            min_required_idx = max_backward_offset
-
-            date_map, dates_str, date_pos, dates_sorted, indicator_ctx = self._prepare_df_for_strategy(df, conditions)
-            ctx_tail = {
-                'date_map': date_map, 'dates_str': dates_str, 'date_pos': date_pos, 'dates_sorted': dates_sorted,
-                'indicator_ctx': indicator_ctx,
-            }
-
-            # 无 only_t_date：在「最近 time_range 根 K 线」内按时间正序枚举每个 T，全量回测输出窗口内每个命中日（同股可多日多行）。
-            # 有 only_t_date：增量脚本已指定 T 日列表，不得再截成尾部 time_range 根，否则 timeRange 大（如主力建仓 120）
-            # 时早于「df 尾窗」的 T 永远不会被扫到。
-            if only_t_date:
-                only_d = only_t_date[:10] if isinstance(only_t_date, str) else only_t_date.strftime('%Y-%m-%d')
-                if only_d not in date_pos:
-                    return False
-                idx = date_pos[only_d]
-                if idx < 1:
-                    return False
-                base_date = df.iloc[idx]['日期']
-                if self._check_conditions_from_date_fast(
-                    conditions, base_date, df, date_map, dates_sorted,
-                    dates_str=dates_str, date_pos=date_pos, indicator_ctx=indicator_ctx,
-                ):
-                    return {'df': df, 'base_date': base_date, **ctx_tail}
-                return False
-
-            min_i = max(min_required_idx, len(df) - time_range)
-            acc = []
-            for i in range(min_i, len(df)):
-                base_date = df.iloc[i]['日期']
-                if self._check_conditions_from_date_fast(
-                    conditions, base_date, df, date_map, dates_sorted,
-                    dates_str=dates_str, date_pos=date_pos, indicator_ctx=indicator_ctx,
-                ):
-                    acc.append({'df': df, 'base_date': base_date, **ctx_tail})
-            if not acc:
-                return False
-            return acc[0] if len(acc) == 1 else acc
-        except Exception as e:
-            # 静默处理错误
+        except Exception:
             return False
 
     def _check_strategy_fast(
@@ -545,6 +484,11 @@ class StrategyEngine:
                 return False
 
             required_columns = ['日期', '涨跌幅', '成交量']
+            if any(
+                c.get('type') in ('consecutive_yang_line_days_gte', 'consecutive_yang_line_window_no_limit_up')
+                for c in conditions
+            ):
+                required_columns = ['日期', '开盘', '收盘', '涨跌幅', '成交量']
             if not all(col in df.columns for col in required_columns):
                 return False
 
@@ -556,27 +500,7 @@ class StrategyEngine:
                 if (df['涨跌幅'] >= 9.8).sum() == 0:
                     return False
 
-            max_backward_offset = 0
-            for c in conditions:
-                date1 = c.get('date1', 0)
-                date2 = c.get('date2', 0)
-                if date1 < 0:
-                    max_backward_offset = max(max_backward_offset, abs(date1))
-                if date2 < 0:
-                    max_backward_offset = max(max_backward_offset, abs(date2))
-                cond_type = c.get('type')
-                if cond_type in ('recent_n_day_pct_change_lt', 'avg_amount_gte'):
-                    max_backward_offset = max(max_backward_offset, int(c.get('days', 5)) - 1)
-                elif cond_type == 'close_below_ma_deviation':
-                    max_backward_offset = max(max_backward_offset, int(c.get('period', 20)) - 1)
-                elif cond_type == 'rsi_lt':
-                    max_backward_offset = max(max_backward_offset, int(c.get('period', 6)) + 1)
-                elif cond_type == 'stop_fall_signal':
-                    max_backward_offset = max(max_backward_offset, int(c.get('volumeDays', 5)) - 1)
-                elif cond_type == 'listed_days_gte':
-                    max_backward_offset = max(max_backward_offset, int(c.get('days', 120)) - 1)
-                elif cond_type == 'main_force_build_position':
-                    max_backward_offset = max(max_backward_offset, int(c.get('windowDays', 10)) + 20)
+            max_backward_offset = self._calc_max_backward_offset(conditions)
             min_required_idx = max_backward_offset
 
             if date_map is None or dates_str is None or date_pos is None or dates_sorted is None or indicator_ctx is None:
@@ -796,6 +720,14 @@ class StrategyEngine:
         except Exception as e:
             return False
 
+    def _get_row_by_offset(self, base_date, offset, df, date_map, dates_str, date_pos):
+        """根据日期偏移获取 (row, date_str)，失败返回 (None, None)。"""
+        d = self._get_date_offset(base_date, offset, df, dates_str=dates_str, date_pos=date_pos)
+        if d is None:
+            return None, None
+        ds = d.strftime('%Y-%m-%d')
+        return date_map.get(ds), ds
+
     def _evaluate_condition(
         self, condition, base_date, date_map, df,
         dates_sorted=None, dates_str=None, date_pos=None, indicator_ctx=None,
@@ -816,72 +748,29 @@ class StrategyEngine:
             cond_type = condition.get('type')
 
             if cond_type == 'limit_up':
-                # 涨停条件：date1涨停
-                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df, dates_str=dates_str, date_pos=date_pos)
-                if date1 is None:
-                    return False  # 无法找到对应的交易日
-                date1_str = date1.strftime('%Y-%m-%d')
-                if date1_str not in date_map:
-                    return False
-                row = date_map[date1_str]
-                return row['涨跌幅'] >= 9.8
+                row, _ = self._get_row_by_offset(base_date, condition.get('date1', 0), df, date_map, dates_str, date_pos)
+                return row is not None and row['涨跌幅'] >= 9.8
             
             elif cond_type == 'pct_change_gt':
-                # 涨幅大于零：date1涨幅>0
-                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df, dates_str=dates_str, date_pos=date_pos)
-                if date1 is None:
-                    return False  # 无法找到对应的交易日
-                date1_str = date1.strftime('%Y-%m-%d')
-                if date1_str not in date_map:
-                    return False
-                row = date_map[date1_str]
-                return row['涨跌幅'] > condition.get('value', 0)
+                row, _ = self._get_row_by_offset(base_date, condition.get('date1', 0), df, date_map, dates_str, date_pos)
+                return row is not None and row['涨跌幅'] > condition.get('value', 0)
             
             elif cond_type == 'pct_change_lt':
-                # 涨幅小于零：date1涨幅<0
-                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df, dates_str=dates_str, date_pos=date_pos)
-                if date1 is None:
-                    return False  # 无法找到对应的交易日
-                date1_str = date1.strftime('%Y-%m-%d')
-                if date1_str not in date_map:
-                    return False
-                row = date_map[date1_str]
-                return row['涨跌幅'] < condition.get('value', 0)
+                row, _ = self._get_row_by_offset(base_date, condition.get('date1', 0), df, date_map, dates_str, date_pos)
+                return row is not None and row['涨跌幅'] < condition.get('value', 0)
             
             elif cond_type == 'pct_change_between':
-                # 涨幅大于且小于：date1涨幅在 [minValue, maxValue] 范围内
-                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df, dates_str=dates_str, date_pos=date_pos)
-                if date1 is None:
-                    return False  # 无法找到对应的交易日
-                date1_str = date1.strftime('%Y-%m-%d')
-                if date1_str not in date_map:
+                row, _ = self._get_row_by_offset(base_date, condition.get('date1', 0), df, date_map, dates_str, date_pos)
+                if row is None:
                     return False
-                row = date_map[date1_str]
-                min_value = condition.get('minValue', 0)
-                max_value = condition.get('maxValue', 10)
-                pct_change = row['涨跌幅']
-                return min_value <= pct_change <= max_value
+                return condition.get('minValue', 0) <= row['涨跌幅'] <= condition.get('maxValue', 10)
             
             elif cond_type == 'volume_ratio':
-                # 成交量比例：date1成交量 / date2成交量 > ratio
-                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df, dates_str=dates_str, date_pos=date_pos)
-                date2 = self._get_date_offset(base_date, condition.get('date2', 0), df, dates_str=dates_str, date_pos=date_pos)
-                if date1 is None or date2 is None:
-                    return False  # 无法找到对应的交易日
-                date1_str = date1.strftime('%Y-%m-%d')
-                date2_str = date2.strftime('%Y-%m-%d')
-                
-                if date1_str not in date_map or date2_str not in date_map:
+                row1, _ = self._get_row_by_offset(base_date, condition.get('date1', 0), df, date_map, dates_str, date_pos)
+                row2, _ = self._get_row_by_offset(base_date, condition.get('date2', 0), df, date_map, dates_str, date_pos)
+                if row1 is None or row2 is None or row2['成交量'] == 0:
                     return False
-                
-                vol1 = date_map[date1_str]['成交量']
-                vol2 = date_map[date2_str]['成交量']
-                
-                if vol2 == 0:
-                    return False
-                
-                ratio = vol1 / vol2
-                return ratio > condition.get('ratio', 1)
+                return (row1['成交量'] / row2['成交量']) > condition.get('ratio', 1)
             
             elif cond_type == 'three_limit_up':
                 # 三连板：在指定时间范围内（从base_date往前推）出现连续三天涨停
@@ -926,117 +815,35 @@ class StrategyEngine:
                 
                 return False
 
-            elif cond_type == 'touch_limit_not_close':
-                """
-                摸板未封条件：
-                - 目标日（date1 偏移后的交易日）最高价相对前一交易日收盘涨幅 >= 9.8%
-                - 但当日收盘涨跌幅 < 9.8%（即当日未收盘涨停）
-
-                注意：这里的 9.8% 与涨停判断保持一致。
-                """
-                # 1. 找到目标交易日（通常是 T 日：date1=0）
-                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df, dates_str=dates_str, date_pos=date_pos)
-                if date1 is None:
+            elif cond_type in ('touch_limit_not_close', 'high_is_limit_up'):
+                row_t, target_str = self._get_row_by_offset(base_date, condition.get('date1', 0), df, date_map, dates_str, date_pos)
+                if row_t is None:
                     return False
-
-                target_str = date1.strftime('%Y-%m-%d')
-                if target_str not in date_map:
-                    return False
-
-                # 2. 准备所需字段
-                row_t = date_map[target_str]
                 try:
+                    high_t = float(row_t.get('最高') or 0)
                     pct_change_t = float(row_t.get('涨跌幅') or 0)
-                    high_t = float(row_t.get('最高') or 0)
                 except Exception:
                     return False
-
-                # 如果缺少关键列，直接认为不满足
                 if high_t <= 0:
                     return False
-
-                # 3. 找到 T 日在交易日序列中的位置，获取前一交易日收盘价
                 try:
                     idx = date_pos[target_str]
                 except KeyError:
                     return False
-
                 if idx == 0:
-                    # 没有前一交易日，无法判断是否摸板
                     return False
-
-                prev_str = dates_str[idx - 1]
-                if prev_str not in date_map:
+                prev_row = date_map.get(dates_str[idx - 1])
+                if prev_row is None:
                     return False
-
                 try:
-                    prev_close = float(date_map[prev_str].get('收盘') or 0)
+                    prev_close = float(prev_row.get('收盘') or 0)
                 except Exception:
                     return False
-
                 if prev_close <= 0:
                     return False
-
-                # 4. 计算最高价相对前收盘的涨幅
                 high_pct = (high_t - prev_close) / prev_close * 100
-
-                # 5. 满足：最高价达到或超过“涨停”阈值，但收盘未涨停
-                return high_pct >= 9.8 and pct_change_t < 9.8
-
-            elif cond_type == 'high_is_limit_up':
-                """
-                最高价触及涨停价条件：
-                - 目标日（date1 偏移后的交易日）最高价相对前一交易日收盘涨幅 >= 9.8%
-                - 用于识别当日最高价触及涨停价的情况（无论收盘是否涨停）
-
-                注意：这里的 9.8% 与涨停判断保持一致。
-                """
-                # 1. 找到目标交易日
-                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df, dates_str=dates_str, date_pos=date_pos)
-                if date1 is None:
-                    return False
-
-                target_str = date1.strftime('%Y-%m-%d')
-                if target_str not in date_map:
-                    return False
-
-                # 2. 准备所需字段
-                row_t = date_map[target_str]
-                try:
-                    high_t = float(row_t.get('最高') or 0)
-                except Exception:
-                    return False
-
-                # 如果缺少关键列，直接认为不满足
-                if high_t <= 0:
-                    return False
-
-                # 3. 找到 T 日在交易日序列中的位置，获取前一交易日收盘价
-                try:
-                    idx = date_pos[target_str]
-                except KeyError:
-                    return False
-
-                if idx == 0:
-                    # 没有前一交易日，无法判断
-                    return False
-
-                prev_str = dates_str[idx - 1]
-                if prev_str not in date_map:
-                    return False
-
-                try:
-                    prev_close = float(date_map[prev_str].get('收盘') or 0)
-                except Exception:
-                    return False
-
-                if prev_close <= 0:
-                    return False
-
-                # 4. 计算最高价相对前收盘的涨幅
-                high_pct = (high_t - prev_close) / prev_close * 100
-
-                # 5. 满足：最高价达到或超过涨停阈值
+                if cond_type == 'touch_limit_not_close':
+                    return high_pct >= 9.8 and pct_change_t < 9.8
                 return high_pct >= 9.8
 
             elif cond_type == 'recent_limit_up':
@@ -1077,20 +884,13 @@ class StrategyEngine:
             
             elif cond_type == 'ma_cross_up':
                 # 均线上穿：date1日期的短均线上穿长均线
-                # date1: 检查日期偏移（0表示base_date）
-                # short_period: 短期均线周期（默认5）
-                # long_period: 长期均线周期（默认10）
-                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df, dates_str=dates_str, date_pos=date_pos)
-                if date1 is None:
+                _, date1_str = self._get_row_by_offset(base_date, condition.get('date1', 0), df, date_map, dates_str, date_pos)
+                if date1_str is None:
                     return False
-
                 short_period = int(condition.get('shortPeriod', 5))
                 long_period = int(condition.get('longPeriod', 10))
-
                 if len(df) < long_period:
                     return False
-
-                date1_str = date1.strftime('%Y-%m-%d')
                 key = (short_period, long_period)
                 pair = indicator_ctx['ma_cross'].get(key)
                 if pair is None:
@@ -1117,14 +917,14 @@ class StrategyEngine:
 
             elif cond_type == 'recent_n_day_pct_change_lt':
                 # 近 N 个交易日累计涨跌幅 <= value（例如近5日 <= -12%）
-                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df, dates_str=dates_str, date_pos=date_pos)
-                if date1 is None:
+                _, date1_str = self._get_row_by_offset(base_date, condition.get('date1', 0), df, date_map, dates_str, date_pos)
+                if date1_str is None:
                     return False
                 days = int(condition.get('days', 5))
                 if days <= 1:
                     return False
                 try:
-                    end_idx = date_pos[date1.strftime('%Y-%m-%d')]
+                    end_idx = date_pos[date1_str]
                 except KeyError:
                     return False
                 start_idx = end_idx - days + 1
@@ -1143,14 +943,13 @@ class StrategyEngine:
 
             elif cond_type == 'close_below_ma_deviation':
                 # 收盘价低于 N 日均线一定乖离（默认低于20日线6%）
-                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df, dates_str=dates_str, date_pos=date_pos)
-                if date1 is None:
+                _, date1_str = self._get_row_by_offset(base_date, condition.get('date1', 0), df, date_map, dates_str, date_pos)
+                if date1_str is None:
                     return False
                 period = int(condition.get('period', 20))
                 deviation = float(condition.get('deviation', 0.06))
                 if period <= 1:
                     return False
-                date1_str = date1.strftime('%Y-%m-%d')
                 ma_arr = indicator_ctx['ma_period'].get(period)
                 if ma_arr is None:
                     return False
@@ -1166,8 +965,8 @@ class StrategyEngine:
 
             elif cond_type == 'rsi_lt':
                 # RSI(period) < value（默认 RSI(6) < 25）
-                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df, dates_str=dates_str, date_pos=date_pos)
-                if date1 is None:
+                _, date1_str = self._get_row_by_offset(base_date, condition.get('date1', 0), df, date_map, dates_str, date_pos)
+                if date1_str is None:
                     return False
                 period = int(condition.get('period', 6))
                 threshold = float(condition.get('value', 25))
@@ -1177,7 +976,7 @@ class StrategyEngine:
                 if rsi_arr is None:
                     return False
                 try:
-                    i = date_pos[date1.strftime('%Y-%m-%d')]
+                    i = date_pos[date1_str]
                 except KeyError:
                     return False
                 rsi_v = float(rsi_arr[i])
@@ -1185,13 +984,9 @@ class StrategyEngine:
 
             elif cond_type == 'stop_fall_signal':
                 # 止跌迹象：长下影 或 放量（二选一）
-                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df, dates_str=dates_str, date_pos=date_pos)
-                if date1 is None:
+                row, date1_str = self._get_row_by_offset(base_date, condition.get('date1', 0), df, date_map, dates_str, date_pos)
+                if row is None:
                     return False
-                date1_str = date1.strftime('%Y-%m-%d')
-                if date1_str not in date_map:
-                    return False
-                row = date_map[date1_str]
                 open_v = float(row.get('开盘') or 0)
                 close_v = float(row.get('收盘') or 0)
                 high_v = float(row.get('最高') or 0)
@@ -1233,15 +1028,15 @@ class StrategyEngine:
 
             elif cond_type == 'avg_amount_gte':
                 # 近 N 日日均成交额 >= value
-                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df, dates_str=dates_str, date_pos=date_pos)
-                if date1 is None:
+                _, date1_str = self._get_row_by_offset(base_date, condition.get('date1', 0), df, date_map, dates_str, date_pos)
+                if date1_str is None:
                     return False
                 days = int(condition.get('days', 20))
                 threshold = float(condition.get('value', 200000000))
                 if days <= 1:
                     return False
                 try:
-                    end_idx = date_pos[date1.strftime('%Y-%m-%d')]
+                    end_idx = date_pos[date1_str]
                 except KeyError:
                     return False
                 start_idx = end_idx - days + 1
@@ -1256,10 +1051,9 @@ class StrategyEngine:
                     return False
                 return (sum(amounts) / days) >= threshold
             elif cond_type == 'main_force_build_position':
-                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df, dates_str=dates_str, date_pos=date_pos)
-                if date1 is None:
+                _, date1_str = self._get_row_by_offset(base_date, condition.get('date1', 0), df, date_map, dates_str, date_pos)
+                if date1_str is None:
                     return False
-                date1_str = date1.strftime('%Y-%m-%d')
                 try:
                     base_idx = date_pos[date1_str]
                 except KeyError:
@@ -1272,11 +1066,11 @@ class StrategyEngine:
                 )
                 return bool(detail.get('main_force_build_tag'))
             elif cond_type == 'consecutive_up_days_gte':
-                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df, dates_str=dates_str, date_pos=date_pos)
-                if date1 is None:
+                _, date1_str = self._get_row_by_offset(base_date, condition.get('date1', 0), df, date_map, dates_str, date_pos)
+                if date1_str is None:
                     return False
                 try:
-                    end_idx = date_pos[date1.strftime('%Y-%m-%d')]
+                    end_idx = date_pos[date1_str]
                 except KeyError:
                     return False
                 min_days = int(condition.get('consecutiveDays', condition.get('days', 3)))
@@ -1299,11 +1093,11 @@ class StrategyEngine:
                 return True
             elif cond_type == 'consecutive_up_window_no_limit_up':
                 # 以 date1 为结束日，向前连续「涨跌幅>0」的整段区间内，每日涨跌幅均 < limitPct（默认 9.8%，与涨停判定一致）
-                date1 = self._get_date_offset(base_date, condition.get('date1', -1), df, dates_str=dates_str, date_pos=date_pos)
-                if date1 is None:
+                _, date1_str = self._get_row_by_offset(base_date, condition.get('date1', -1), df, date_map, dates_str, date_pos)
+                if date1_str is None:
                     return False
                 try:
-                    end_idx = date_pos[date1.strftime('%Y-%m-%d')]
+                    end_idx = date_pos[date1_str]
                 except KeyError:
                     return False
                 try:
@@ -1323,12 +1117,54 @@ class StrategyEngine:
                         return False
                     i -= 1
                 return True
-            elif cond_type == 'upper_shadow_pct_gt':
-                date1 = self._get_date_offset(base_date, condition.get('date1', 0), df, dates_str=dates_str, date_pos=date_pos)
-                if date1 is None:
+            elif cond_type == 'consecutive_yang_line_days_gte':
+                # 与东财「连续阳线」常见口径一致：收盘 > 开盘，沿 date1 锚点向前数连续根数
+                _, date1_str = self._get_row_by_offset(base_date, condition.get('date1', 0), df, date_map, dates_str, date_pos)
+                if date1_str is None:
                     return False
                 try:
-                    end_idx = date_pos[date1.strftime('%Y-%m-%d')]
+                    end_idx = date_pos[date1_str]
+                except KeyError:
+                    return False
+                min_days = int(condition.get('consecutiveDays', condition.get('days', 6)))
+                if min_days <= 0:
+                    return False
+                yang_days = self._compute_consecutive_yang_line_days(
+                    end_idx=end_idx, dates_str=dates_str, date_map=date_map
+                )
+                return yang_days >= min_days
+            elif cond_type == 'consecutive_yang_line_window_no_limit_up':
+                # 以 date1 为结束日：T 须为实体阳线；向前连续实体阳线段内，每日涨跌幅均 < limitPct（允许单日相对昨收跌）
+                _, date1_str = self._get_row_by_offset(base_date, condition.get('date1', 0), df, date_map, dates_str, date_pos)
+                if date1_str is None:
+                    return False
+                try:
+                    end_idx = date_pos[date1_str]
+                except KeyError:
+                    return False
+                try:
+                    thresh = float(condition.get('limitPct', 9.8))
+                except Exception:
+                    thresh = 9.8
+                row_end = date_map.get(dates_str[end_idx]) or {}
+                if not self._row_is_yang_line(row_end):
+                    return False
+                i = end_idx
+                while i >= 0:
+                    row = date_map.get(dates_str[i]) or {}
+                    if not self._row_is_yang_line(row):
+                        break
+                    pct = float(row.get('涨跌幅') or 0)
+                    if pct >= thresh:
+                        return False
+                    i -= 1
+                return True
+            elif cond_type == 'upper_shadow_pct_gt':
+                _, date1_str = self._get_row_by_offset(base_date, condition.get('date1', 0), df, date_map, dates_str, date_pos)
+                if date1_str is None:
+                    return False
+                try:
+                    end_idx = date_pos[date1_str]
                 except KeyError:
                     return False
                 threshold = float(condition.get('value', 2.0))
@@ -1493,10 +1329,7 @@ class StrategyEngine:
             
             # 计算匹配日当天（T日）的振幅和涨跌幅
             try:
-                if date_pos is not None and base_date_str in date_pos:
-                    base_idx = date_pos[base_date_str]
-                else:
-                    base_idx = dates.index(base_date)
+                base_idx = self._resolve_base_idx(base_date_str, base_date, date_pos, dates)
                 base_close = float(date_map[base_date_str]['收盘']) if base_date_str in date_map else None
                 base_open = float(date_map[base_date_str]['开盘']) if base_date_str in date_map and '开盘' in date_map[base_date_str] else None
                 
@@ -1520,10 +1353,7 @@ class StrategyEngine:
             # 额外标记：月内三连板+首板策略中，T 日最高价触及涨停价但收盘未涨停
             try:
                 if self._is_month_three_limit_first_board(conditions):
-                    if date_pos is not None and base_date_str in date_pos:
-                        base_idx = date_pos[base_date_str]
-                    else:
-                        base_idx = dates.index(base_date)
+                    base_idx = self._resolve_base_idx(base_date_str, base_date, date_pos, dates)
                     if base_idx >= 1 and base_date_str in date_map:
                         prev_date = dates[base_idx - 1]
                         prev_str = prev_date.strftime('%Y-%m-%d')
@@ -1546,10 +1376,7 @@ class StrategyEngine:
             
             # 计算第二天和第三天的振幅和涨跌幅
             try:
-                if date_pos is not None and base_date_str in date_pos:
-                    base_idx = date_pos[base_date_str]
-                else:
-                    base_idx = dates.index(base_date)
+                base_idx = self._resolve_base_idx(base_date_str, base_date, date_pos, dates)
                 base_close = float(date_map[base_date_str]['收盘']) if base_date_str in date_map else None
                 
                 # 第二天（base_date + 1个交易日）
@@ -1599,10 +1426,7 @@ class StrategyEngine:
 
             # 次日开盘买入后，统计 10 个交易日内最高涨幅及首次达到 5% 的天数（买入当日记为第 1 天）
             try:
-                if date_pos is not None and base_date_str in date_pos:
-                    base_idx = date_pos[base_date_str]
-                else:
-                    base_idx = dates.index(base_date)
+                base_idx = self._resolve_base_idx(base_date_str, base_date, date_pos, dates)
                 if base_idx + 1 < len(dates):
                     buy_date = dates[base_idx + 1]
                     buy_date_str = buy_date.strftime('%Y-%m-%d')
@@ -1639,10 +1463,7 @@ class StrategyEngine:
 
             # 主力建仓：输出 main_force_build_tag / T 日涨停打标等（与是否命中一致，供前端展示与筛选）
             try:
-                if date_pos is not None and base_date_str in date_pos:
-                    base_idx = date_pos[base_date_str]
-                else:
-                    base_idx = dates.index(base_date)
+                base_idx = self._resolve_base_idx(base_date_str, base_date, date_pos, dates)
                 ic = check_result.get('indicator_ctx')
                 if ic is None:
                     ic = self._build_indicator_ctx(conditions, df)
@@ -1656,48 +1477,93 @@ class StrategyEngine:
             except Exception:
                 pass
 
-            # 连阳相关字段：连续涨天数（与条件中 consecutive_* 的 date1 锚点对齐）、上影与触板仍按 T 日连阳段
+            # 连阳相关字段：涨跌幅连涨 vs 实体阳线（东财「连续阳线」口径）
             try:
-                if date_pos is not None and base_date_str in date_pos:
-                    base_idx = date_pos[base_date_str]
-                else:
-                    base_idx = dates.index(base_date)
+                base_idx = self._resolve_base_idx(base_date_str, base_date, date_pos, dates)
                 dates_str_line = check_result.get('dates_str') or [d.strftime('%Y-%m-%d') for d in dates]
-                streak_at_t = self._compute_consecutive_up_days(
-                    base_idx, dates_str_line, date_map,
+
+                has_yang_cond = any(
+                    c.get('type') in ('consecutive_yang_line_days_gte', 'consecutive_yang_line_window_no_limit_up')
+                    for c in (conditions or [])
                 )
-                # 展示用：取所有 consecutive_up_days_gte / consecutive_up_window_no_limit_up 中最小的 date1（如 -1=截至 T-1）
-                min_d1 = 0
-                for c in conditions or []:
-                    if c.get('type') in ('consecutive_up_days_gte', 'consecutive_up_window_no_limit_up'):
-                        try:
-                            d1 = int(c.get('date1', 0))
-                            if d1 < min_d1:
-                                min_d1 = d1
-                        except (TypeError, ValueError):
-                            pass
-                anchor_idx = base_idx + min_d1
-                if anchor_idx < 0:
-                    anchor_idx = 0
-                if anchor_idx >= len(dates_str_line):
-                    anchor_idx = len(dates_str_line) - 1
-                detail['consecutive_up_days'] = self._compute_consecutive_up_days(
-                    anchor_idx, dates_str_line, date_map,
+                has_up_cond = any(
+                    c.get('type') in ('consecutive_up_days_gte', 'consecutive_up_window_no_limit_up')
+                    for c in (conditions or [])
                 )
-                detail['consecutive_up_streak_end_date'] = dates_str_line[anchor_idx]
-                max_upper_shadow_pct = self._compute_max_upper_shadow_pct(
-                    base_idx,
-                    dates_str_line,
-                    date_map,
-                    window_days=streak_at_t,
-                )
-                detail['upper_shadow_pct'] = round(max_upper_shadow_pct, 2) if max_upper_shadow_pct is not None else None
-                detail['consecutive_up_has_limit_touch'] = self._compute_has_limit_touch_in_window(
-                    base_idx,
-                    dates_str_line,
-                    date_map,
-                    window_days=streak_at_t,
-                )
+
+                if has_yang_cond:
+                    min_d1_y = 0
+                    for c in conditions or []:
+                        if c.get('type') in (
+                            'consecutive_yang_line_days_gte',
+                            'consecutive_yang_line_window_no_limit_up',
+                        ):
+                            try:
+                                d1 = int(c.get('date1', 0))
+                                if d1 < min_d1_y:
+                                    min_d1_y = d1
+                            except (TypeError, ValueError):
+                                pass
+                    anchor_y = base_idx + min_d1_y
+                    if anchor_y < 0:
+                        anchor_y = 0
+                    if anchor_y >= len(dates_str_line):
+                        anchor_y = len(dates_str_line) - 1
+                    ydays = self._compute_consecutive_yang_line_days(anchor_y, dates_str_line, date_map)
+                    detail['consecutive_yang_line_days'] = ydays
+                    detail['consecutive_yang_streak_end_date'] = dates_str_line[anchor_y]
+                    uy = self._compute_max_upper_shadow_pct(
+                        base_idx,
+                        dates_str_line,
+                        date_map,
+                        window_days=ydays,
+                    )
+                    detail['upper_shadow_pct'] = round(uy, 2) if uy is not None else None
+                    detail['consecutive_up_has_limit_touch'] = self._compute_has_limit_touch_in_window(
+                        base_idx,
+                        dates_str_line,
+                        date_map,
+                        window_days=ydays,
+                    )
+
+                if has_up_cond:
+                    streak_at_t = self._compute_consecutive_up_days(
+                        base_idx, dates_str_line, date_map,
+                    )
+                    min_d1 = 0
+                    for c in conditions or []:
+                        if c.get('type') in ('consecutive_up_days_gte', 'consecutive_up_window_no_limit_up'):
+                            try:
+                                d1 = int(c.get('date1', 0))
+                                if d1 < min_d1:
+                                    min_d1 = d1
+                            except (TypeError, ValueError):
+                                pass
+                    anchor_idx = base_idx + min_d1
+                    if anchor_idx < 0:
+                        anchor_idx = 0
+                    if anchor_idx >= len(dates_str_line):
+                        anchor_idx = len(dates_str_line) - 1
+                    detail['consecutive_up_days'] = self._compute_consecutive_up_days(
+                        anchor_idx, dates_str_line, date_map,
+                    )
+                    detail['consecutive_up_streak_end_date'] = dates_str_line[anchor_idx]
+                    if not has_yang_cond:
+                        max_upper_shadow_pct = self._compute_max_upper_shadow_pct(
+                            base_idx,
+                            dates_str_line,
+                            date_map,
+                            window_days=streak_at_t,
+                        )
+                        detail['upper_shadow_pct'] = (
+                            round(max_upper_shadow_pct, 2) if max_upper_shadow_pct is not None else None
+                        )
+                        detail['consecutive_up_has_limit_touch'] = self._compute_has_limit_touch_in_window(
+                            base_idx,
+                            dates_str_line,
+                            date_map,
+                            window_days=streak_at_t,
+                        )
             except Exception:
                 pass
             
@@ -1714,6 +1580,29 @@ class StrategyEngine:
             row = date_map.get(dates_str[i]) or {}
             pct = float(row.get('涨跌幅') or 0)
             if pct > 0:
+                cnt += 1
+            else:
+                break
+        return cnt
+
+    @staticmethod
+    def _row_is_yang_line(row):
+        """实体阳线：收盘 > 开盘（与东财「连续阳线」常见口径一致）。"""
+        try:
+            o = float(row.get('开盘') or 0)
+            c = float(row.get('收盘') or 0)
+        except (TypeError, ValueError):
+            return False
+        return o > 0 and c > o
+
+    def _compute_consecutive_yang_line_days(self, end_idx, dates_str, date_map):
+        """截至 end_idx（含）向前连续实体阳线（收盘>开盘）天数。"""
+        if end_idx is None or end_idx < 0 or end_idx >= len(dates_str):
+            return 0
+        cnt = 0
+        for i in range(end_idx, -1, -1):
+            row = date_map.get(dates_str[i]) or {}
+            if self._row_is_yang_line(row):
                 cnt += 1
             else:
                 break

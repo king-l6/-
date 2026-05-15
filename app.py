@@ -10,6 +10,7 @@ from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from datetime import datetime, timedelta
 import json
+import logging
 import os
 import threading
 import subprocess
@@ -17,6 +18,13 @@ import re
 from strategy_engine import StrategyEngine
 from data_fetcher import DataFetcher
 from emotion_cycle_service import analyze_emotion_cycle, get_emotion_cycle_health
+
+# 配置日志
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+)
 
 # 使用前端构建产物（构建到 static 目录）
 FRONTEND_DIST_PATH = os.path.join(os.path.dirname(__file__), 'static')
@@ -141,10 +149,10 @@ def backtest():
         strategy = data.get('strategy', {})
         strategy_name = data.get('strategy_name', None)  # 可选：策略名称
 
-        # 打印接收到的策略信息
-        print(f'收到回测请求，策略名称: {strategy_name}')
-        print(f'策略条件数量: {len(strategy.get("conditions", []))}')
-        print(f'回测时间范围: {strategy.get("timeRange", 30)} 个交易日')
+        # 记录接收到的策略信息
+        logger.info('收到回测请求，策略名称: %s', strategy_name)
+        logger.info('策略条件数量: %d', len(strategy.get("conditions", [])))
+        logger.info('回测时间范围: %d 个交易日', strategy.get("timeRange", 30))
 
         def _sorted_results(rows):
             """按 match_date 升序、code 升序排列"""
@@ -155,18 +163,18 @@ def backtest():
         if cache_key in _backtest_cache:
             results, ts = _backtest_cache[cache_key]
             if (datetime.now() - ts).total_seconds() < _BACKTEST_CACHE_TTL:
-                print(f'返回缓存结果，共 {len(results)} 条')
+                logger.info('返回缓存结果，共 %d 条', len(results))
                 return jsonify({'success': True, 'data': _sorted_results(results), 'count': len(results), '_cached': True})
 
         # 执行回测
-        print(f'开始执行回测...')
+        logger.info('开始执行回测...')
         results = strategy_engine.backtest(strategy, strategy_name=strategy_name)
         results = _sorted_results(results)
         _backtest_cache[cache_key] = (results, datetime.now())
         if len(_backtest_cache) > 50:
             _backtest_cache.clear()
 
-        print(f'回测完成，找到 {len(results)} 只符合条件的股票')
+        logger.info('回测完成，找到 %d 只符合条件的股票', len(results))
         return jsonify({
             'success': True,
             'data': results,
@@ -176,8 +184,8 @@ def backtest():
         import traceback
         error_msg = str(e)
         error_traceback = traceback.format_exc()
-        print(f'回测出错: {error_msg}')
-        print(f'错误堆栈: {error_traceback}')
+        logger.error('回测出错: %s', error_msg)
+        logger.error('错误堆栈: %s', error_traceback)
         return jsonify({
             'success': False,
             'error': error_msg,
@@ -198,13 +206,13 @@ def batch_backtest():
                 'error': '请提供至少一个策略'
             }), 400
         
-        print(f'收到批量回测请求，共 {len(strategies)} 个策略')
-        
+        logger.info('收到批量回测请求，共 %d 个策略', len(strategies))
+
         results = []
         for idx, strategy in enumerate(strategies):
             strategy_name = strategy_names[idx] if idx < len(strategy_names) else f"策略_{idx+1}"
-            print(f'[API] 执行策略 {idx+1}/{len(strategies)}: {strategy_name}')
-            
+            logger.info('执行策略 %d/%d: %s', idx+1, len(strategies), strategy_name)
+
             try:
                 # 执行单个策略回测
                 strategy_results = strategy_engine.backtest(strategy, strategy_name=strategy_name)
@@ -215,11 +223,11 @@ def batch_backtest():
                     'count': len(strategy_results),
                     'success': True
                 })
-                print(f'[API] 策略 {strategy_name} 完成，找到 {len(strategy_results)} 只股票')
+                logger.info('策略 %s 完成，找到 %d 只股票', strategy_name, len(strategy_results))
             except Exception as e:
                 import traceback
                 error_traceback = traceback.format_exc()
-                print(f'[API] 策略 {strategy_name} 执行失败: {str(e)}')
+                logger.error('策略 %s 执行失败: %s', strategy_name, str(e))
                 results.append({
                     'strategy_name': strategy_name,
                     'strategy': strategy,
@@ -228,12 +236,12 @@ def batch_backtest():
                     'success': False,
                     'error': str(e)
                 })
-        
+
         # 统计汇总
         total_stocks = sum(r['count'] for r in results)
         success_count = sum(1 for r in results if r['success'])
-        
-        print(f'批量回测完成，成功 {success_count}/{len(strategies)} 个策略，共找到 {total_stocks} 只股票')
+
+        logger.info('批量回测完成，成功 %d/%d 个策略，共找到 %d 只股票', success_count, len(strategies), total_stocks)
         
         return jsonify({
             'success': True,
@@ -248,8 +256,8 @@ def batch_backtest():
         import traceback
         error_msg = str(e)
         error_traceback = traceback.format_exc()
-        print(f'批量回测出错: {error_msg}')
-        print(f'错误堆栈: {error_traceback}')
+        logger.error('批量回测出错: %s', error_msg)
+        logger.error('错误堆栈: %s', error_traceback)
         return jsonify({
             'success': False,
             'error': error_msg,

@@ -360,7 +360,12 @@ export function useHistoryResults() {
     /** 盘中快照脚本产出：不参与按策略聚合，需在左侧单独可选 */
     if (/_intraday_\d{8}_\d{6}_结果\.jsonl$/i.test(filename)) return null
     const withDate = filename.match(/^(.+)_\d{8}_结果\.jsonl$/)
-    if (withDate && strategyNames.includes(withDate[1])) return withDate[1]
+    if (withDate) {
+      const prefix = withDate[1]
+      if (strategyNames.includes(prefix)) return prefix
+      // 如 连阳超五无涨停_实体阳线_20260514：勿并入「连阳超五无涨停」聚合（后端也不会按该文件名合并）
+      return null
+    }
     const main = filename.replace(/_结果\.jsonl$/, '').replace(/\.jsonl$/, '')
     if (strategyNames.includes(main)) return main
     for (const name of strategyNames) {

@@ -3,6 +3,7 @@ A股数据获取器 - 股票列表与日 K 均使用 AkShare。
 """
 import pandas as pd
 from datetime import datetime, timedelta, time as dt_time
+import logging
 import time
 import os
 import json
@@ -10,6 +11,8 @@ import glob
 import re
 import threading
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 _MAIN_BOARD_CACHE_PURGED_ONCE = False
 
@@ -37,9 +40,9 @@ def _eastmoney_hist_cb_record_stock_failure() -> None:
             _eastmoney_hist_cb_open = True
             if not _eastmoney_hist_cb_logged:
                 _eastmoney_hist_cb_logged = True
-                print(
-                    f'[INFO] 东财日K(stock_zh_a_hist)累计失败已达 {EASTMONEY_HIST_CB_THRESHOLD} 只，'
-                    '本会话后续将跳过东财，直接使用新浪/腾讯'
+                logger.info(
+                    '东财日K(stock_zh_a_hist)累计失败已达 %d 只，本会话后续将跳过东财，直接使用新浪/腾讯',
+                    EASTMONEY_HIST_CB_THRESHOLD
                 )
 
 # 新缓存文件名：{code}_{start}.json，结束日在文件内 end_date；增量补数不改路径，避免 Git 大量删建。
@@ -252,7 +255,7 @@ class DataFetcher:
                 self.stock_list_cache_time is not None and
                 (datetime.now() - self.stock_list_cache_time).seconds < self.cache_duration):
             filtered = self._filter_stock_list_rows(self.stock_list_cache)
-            print(f"[DEBUG] 使用内存缓存，共 {len(filtered)} 只股票")
+            logger.debug("使用内存缓存，共 {len(filtered)} 只股票")
             return filtered
 
         # 检查文件缓存（包括过期缓存，作为备用）
@@ -260,45 +263,39 @@ class DataFetcher:
         fallback_cache_time = None
         try:
             if os.path.exists(self.stock_list_cache_file):
-                print(f"[DEBUG] 尝试从文件缓存加载股票列表: {self.stock_list_cache_file}")
+                logger.debug("尝试从文件缓存加载股票列表: {self.stock_list_cache_file}")
                 with open(self.stock_list_cache_file, 'r', encoding='utf-8') as f:
                     cache_data = json.load(f)
                     cache_time = datetime.fromisoformat(cache_data['cache_time'])
                     cache_age = (datetime.now() - cache_time).total_seconds()
-                    print(f"[DEBUG] 缓存文件时间: {cache_time}, 缓存年龄: {cache_age/3600:.2f} 小时")
+                    logger.debug("缓存文件时间: {cache_time}, 缓存年龄: {cache_age/3600:.2f} 小时")
                     stocks = self._filter_stock_list_rows(cache_data.get('stocks', []))
                     if stocks:
                         fallback_stocks = stocks
                         fallback_cache_time = cache_time
                     if cache_age < 86400:  # 24小时内有效
                         if stocks:
-                            print(f"[INFO] 从文件缓存加载股票列表（缓存时间: {cache_time}），共 {len(stocks)} 只股票")
+                            logger.info("从文件缓存加载股票列表（缓存时间: {cache_time}），共 {len(stocks)} 只股票")
                             self.stock_list_cache = stocks
                             self.stock_list_cache_time = cache_time
                             return stocks
                     else:
-                        print(f"[DEBUG] 缓存文件已过期（超过24小时），尝试重新获取，如有失败将使用过期缓存")
+                        logger.debug("缓存文件已过期（超过24小时），尝试重新获取，如有失败将使用过期缓存")
         except Exception as e:
-            print(f"[WARNING] 读取缓存文件失败: {e}")
+            logger.warning("读取缓存文件失败: {e}")
 
         if getattr(self, 'cache_only', False):
             if fallback_stocks:
                 self.stock_list_cache = fallback_stocks
                 self.stock_list_cache_time = fallback_cache_time or datetime.now()
-                print(
-                    f'[INFO] cache_only：股票列表仅用本地 stock_list.json（不访问 AkShare），共 {len(fallback_stocks)} 只',
-                    flush=True,
-                )
+                logger.info('cache_only：股票列表仅用本地 stock_list.json（不访问 AkShare），共 %d 只', len(fallback_stocks))
                 return fallback_stocks
-            print('[ERROR] cache_only 模式需要有效的 cache/stock_list.json', flush=True)
+            logger.error('cache_only 模式需要有效的 cache/stock_list.json')
             return []
 
         stock_list = fetch_main_board_stocks_akshare() or []
         if stock_list:
-            print(
-                f'[INFO] 股票列表来自 AkShare（沪深主板），共 {len(stock_list)} 只',
-                flush=True,
-            )
+            logger.info('股票列表来自 AkShare（沪深主板），共 %d 只', len(stock_list))
             self.stock_list_cache = stock_list
             self.stock_list_cache_time = datetime.now()
             with open(self.stock_list_cache_file, 'w', encoding='utf-8') as f:
@@ -308,17 +305,17 @@ class DataFetcher:
                     ensure_ascii=False,
                     indent=2,
                 )
-            print(f"[INFO] 获取 {len(stock_list)} 只主板股票")
+            logger.info('获取 %d 只主板股票', len(stock_list))
             return stock_list
 
-        print('[WARNING] AkShare 沪深主板列表不可用或为空，尝试使用过期缓存', flush=True)
+        logger.warning('AkShare 沪深主板列表不可用或为空，尝试使用过期缓存')
         if fallback_stocks:
-            print(f"[INFO] 使用过期缓存（{len(fallback_stocks)} 只股票）")
+            logger.info('使用过期缓存（%d 只股票）', len(fallback_stocks))
             self.stock_list_cache = fallback_stocks
             self.stock_list_cache_time = fallback_cache_time
             return fallback_stocks
 
-        print('[ERROR] 无法获取股票列表，且无可用缓存')
+        logger.error('无法获取股票列表，且无可用缓存')
         return []
 
     def _get_cache_path(self, code, start_date, end_date=None):
@@ -435,15 +432,9 @@ class DataFetcher:
             def _fallback():
                 loc = self._local_fallback_last_trade_date_from_stock_cache()
                 if loc:
-                    print(
-                        f'[INFO] AkShare 探测 000001 失败或当日无 K，改用本地缓存推断「最近交易日参照」: {loc}',
-                        flush=True,
-                    )
+                    logger.info('AkShare 探测 000001 失败或当日无 K，改用本地缓存推断「最近交易日参照」: %s', loc)
                     return loc
-                print(
-                    f'[WARN] AkShare 与本地缓存均无法确定最近交易日，退回日历近似值: {last_trade}',
-                    flush=True,
-                )
+                logger.warning('AkShare 与本地缓存均无法确定最近交易日，退回日历近似值: %s', last_trade)
                 return last_trade
 
             try:
@@ -463,7 +454,7 @@ class DataFetcher:
                     if out is None:
                         out = _fallback()
             except Exception as e:
-                print(f'[WARNING] 获取最近可用交易日异常: {e}', flush=True)
+                logger.warning('获取最近可用交易日异常: %s', e)
                 out = _fallback()
             self._lt_probe_memo = (out, time.monotonic())
             self._lt_clip_log_key = None
@@ -473,10 +464,9 @@ class DataFetcher:
             key = (out, clipped)
             if self._lt_clip_log_key != key:
                 self._lt_clip_log_key = key
-                print(
-                    f'[INFO] 收盘前口径：最近可用交易日由 {out} 调整为 {clipped}（避免中午不完整日 K）；'
-                    f'可调 DATA_FETCH_EOD_HHMM 或设 DATA_FETCH_DISABLE_INTRADAY_CAP=1。',
-                    flush=True,
+                logger.info(
+                    '收盘前口径：最近可用交易日由 %s 调整为 %s（避免中午不完整日 K）；可调 DATA_FETCH_EOD_HHMM 或设 DATA_FETCH_DISABLE_INTRADAY_CAP=1。',
+                    out, clipped
                 )
         return clipped
 
@@ -571,12 +561,12 @@ class DataFetcher:
             if cache_age< 86400:  # 1天内有效
                 return self._trading_days_full_cache
 
-        print(f'[INFO] 预加载交易日历: {start_s} 至 {end_s}')
+        logger.info('预加载交易日历: {start_s} 至 {end_s}')
         result = self._fetch_trading_days_from_api(start_s, end_s)
         if result:
             self._trading_days_full_cache = result
             self._trading_days_cache_time = datetime.now()
-            print(f'[INFO] 交易日历已缓存，共 {len(result)} 个交易日')
+            logger.info('交易日历已缓存，共 {len(result)} 个交易日')
         return result
 
     def get_trading_days_between(self, start_date, end_date):
@@ -725,9 +715,9 @@ class DataFetcher:
                 except Exception:
                     pass
             if deleted > 0:
-                print(f'[INFO] 删除非主板/指数缓存 {deleted} 个文件', flush=True)
+                logger.info('删除非主板/指数缓存 %d 个文件', deleted)
         except Exception as e:
-            print(f'[WARNING] 清理非主板缓存失败: {e}', flush=True)
+            logger.warning('清理非主板缓存失败: %s', e)
 
     def remove_duplicate_cache(self):
         """先删非主板/指数缓存，再删重复缓存：每只股票只保留一份（保留 start_date 最早的那份，覆盖范围最大）"""
@@ -761,9 +751,9 @@ class DataFetcher:
                     except Exception:
                         pass
             if deleted > 0:
-                print(f"[INFO] 删除重复缓存 {deleted} 个文件")
+                logger.info("删除重复缓存 {deleted} 个文件")
         except Exception as e:
-            print(f"[WARNING] 清理重复缓存失败: {e}")
+            logger.warning("清理重复缓存失败: {e}")
 
     def _fetch_from_akshare(self, code, start_date, end_date):
         """从 AkShare 拉取日 K 并返回 DataFrame，不写缓存。
@@ -901,19 +891,16 @@ class DataFetcher:
         elif hint in ('tencent', 'tx'):
             sources = (('tencent', _pull_tencent),)
         else:
+            # 优化后的默认顺序：新浪 → 腾讯 → 东财（东财最慢且不稳定）
             sources = (
-                ('eastmoney', _pull_eastmoney),
                 ('sina', _pull_sina),
                 ('tencent', _pull_tencent),
+                ('eastmoney', _pull_eastmoney),
             )
         if _eastmoney_hist_cb_is_open():
             sources = tuple(s for s in sources if s[0] != 'eastmoney')
         if not sources:
-            print(
-                '[ERROR] 日 K 数据源列表为空（例如东财熔断且当前仅配置东财）。'
-                '请设置 DATA_FETCH_STOCK_HIST_SOURCE=sina 或稍后重试。',
-                flush=True,
-            )
+            logger.error('日 K 数据源列表为空（例如东财熔断且当前仅配置东财）。请设置 DATA_FETCH_STOCK_HIST_SOURCE=sina 或稍后重试。')
             return None
 
         last_error: Optional[Exception] = None
@@ -925,7 +912,7 @@ class DataFetcher:
                         out = _finalize_hist_df_from_chinese_columns(raw_df)
                         if out is not None and not out.empty:
                             if i > 0:
-                                print(f'[INFO] {code} 日K 使用备用数据源: {src_name}')
+                                logger.info('%s 日K 使用备用数据源: %s', code, src_name)
                             return out
                     break
                 except Exception as e:
@@ -933,13 +920,13 @@ class DataFetcher:
                     if _is_transient_network_err(e) and attempt < 2:
                         time.sleep(1.2 * (2 ** attempt))
                         continue
-                    print(f'[DEBUG] AkShare({src_name}) 获取 {code} 失败: {e}')
+                    logger.debug('AkShare(%s) 获取 %s 失败: %s', src_name, code, e)
                     break
             if src_name == 'eastmoney':
                 _eastmoney_hist_cb_record_stock_failure()
 
         if last_error is not None:
-            print(f'[DEBUG] AkShare 获取 {code} 全部数据源失败，末次错误: {last_error}')
+            logger.debug('AkShare 获取 %s 全部数据源失败，末次错误: %s', code, last_error)
         return None
 
     def _fetch_from_api(self, code, start_date, end_date):
@@ -1009,7 +996,7 @@ class DataFetcher:
                 if start_str < existing_start:
                     by_code[code] = (start_str, end_str, fp)
 
-        print(f'[INFO] 扫描 {len(files)} 个缓存，其中 {len(by_code)} 个需补齐至 {last_trade}')
+        logger.info('扫描 {len(files)} 个缓存，其中 {len(by_code)} 个需补齐至 {last_trade}')
 
         # 获取股票列表，并根据 task_index / task_count 进行分片（若启用）
         all_stocks = self.get_stock_list()
@@ -1028,12 +1015,12 @@ class DataFetcher:
                         selected_codes = set()
                     else:
                         selected_codes = {s['code'] for s in stocks_sorted[start:end]}
-                print(f'[INFO] 多任务分片模式：task_index={task_index}, task_count={task_count}, 本任务负责 {len(selected_codes)} 只股票')
+                logger.info('多任务分片模式：task_index={task_index}, task_count={task_count}, 本任务负责 {len(selected_codes)} 只股票')
             except Exception as e:
-                print(f'[WARNING] 计算多任务分片范围失败，将退回为全量模式: {e}')
+                logger.warning('计算多任务分片范围失败，将退回为全量模式: {e}')
                 selected_codes = None
         else:
-            print('[INFO] 未启用多任务分片（处理全部股票）')
+            logger.info('未启用多任务分片（处理全部股票）')
 
         all_codes = {s['code'] for s in all_stocks}
         if selected_codes is not None:
@@ -1042,7 +1029,7 @@ class DataFetcher:
         missing_codes = all_codes - cached_codes
         
         if missing_codes:
-            print(f'[INFO] 发现 {len(missing_codes)} 只股票没有缓存文件，需要创建新缓存')
+            logger.info('发现 {len(missing_codes)} 只股票没有缓存文件，需要创建新缓存')
             # 为没有缓存的股票创建缓存（拉取近一个月数据）
             today = datetime.now()
             start_date = (today - timedelta(days=50)).strftime('%Y%m%d')
@@ -1056,7 +1043,7 @@ class DataFetcher:
                 except Exception:
                     return code, False
             
-            print(f'[INFO] 为 {len(missing_codes)} 只股票创建缓存...')
+            logger.info('为 {len(missing_codes)} 只股票创建缓存...')
             created = 0
             with ThreadPoolExecutor(max_workers=max_workers) as ex:
                 futures = {ex.submit(create_cache, code): code for code in missing_codes}
@@ -1065,8 +1052,8 @@ class DataFetcher:
                     if success:
                         created += 1
                     if (i + 1) % 50 == 0:
-                        print(f'  进度: {i+1}/{len(missing_codes)} | 已创建: {created}', flush=True)
-            print(f'[INFO] 已为 {created}/{len(missing_codes)} 只股票创建缓存')
+                        logger.info('  进度: %d/%d | 已创建: %d', i+1, len(missing_codes), created)
+            logger.info('已为 %d/%d 只股票创建缓存', created, len(missing_codes))
             
             # 重新扫描缓存文件，按实际最后交易日判断是否需更新
             files = glob.glob(pattern)
@@ -1088,10 +1075,10 @@ class DataFetcher:
         if selected_codes is not None:
             before = len(by_code)
             by_code = {code: v for code, v in by_code.items() if code in selected_codes}
-            print(f'[INFO] 分片过滤：原待更新 {before} 只股票，本任务负责 {len(by_code)} 只')
+            logger.info('分片过滤：原待更新 %d 只股票，本任务负责 %d 只', before, len(by_code))
 
         if not by_code:
-            print('[INFO] 所有缓存已含最近交易日数据，或当前分片无待更新股票')
+            logger.info('所有缓存已含最近交易日数据，或当前分片无待更新股票')
             return
 
         def update_one(code_start_end_path):
@@ -1155,7 +1142,7 @@ class DataFetcher:
 
         tasks = [(code, s, e, p) for code, (s, e, p) in by_code.items()]
         total = len(tasks)
-        print(f'[INFO] 待更新 {total} 个缓存（缓存最后日 < 上个交易日 {last_trade}）')
+        logger.info('待更新 %d 个缓存（缓存最后日 < 上个交易日 %s）', total, last_trade)
         success = 0
         with ThreadPoolExecutor(max_workers=max_workers) as ex:
             futures = {ex.submit(update_one, t): t[0] for t in tasks}
@@ -1165,10 +1152,10 @@ class DataFetcher:
                     success += 1
                 step = max(1, total // 20)  # 至少每 5% 或更小集合每条
                 if ((i + 1) % step == 0) or (i == total - 1):
-                    print(f'进度: {i+1}/{total} | 已更新: {success}', flush=True)
-        print(f'[INFO] 今日数据已落盘: 更新 {success}/{total} 个缓存')
+                    logger.info('进度: %d/%d | 已更新: %d', i+1, total, success)
+        logger.info('今日数据已落盘: 更新 %d/%d 个缓存', success, total)
         if success < total and total > 0:
-            print(f'[TIP] 部分股票未更新可能因 AkShare 无数据（如 ST/退市股），可忽略')
+            logger.info('部分股票未更新可能因 AkShare 无数据（如 ST/退市股），可忽略')
 
     def ensure_sufficient_data(self, time_range, max_workers=100):
         """确保有足够的数据用于回测
@@ -1180,7 +1167,7 @@ class DataFetcher:
         from concurrent.futures import ThreadPoolExecutor, as_completed
 
         if getattr(self, 'cache_only', False):
-            print('[INFO] cache_only：跳过 ensure_sufficient_data（不通过网络预拉取 K 线）')
+            logger.info('cache_only：跳过 ensure_sufficient_data（不通过网络预拉取 K 线）')
             return
         
         # 计算需要的日历日数：约 1 交易日 ≈ 1.4 日历日，多取一些确保覆盖
@@ -1191,8 +1178,8 @@ class DataFetcher:
         required_start_date = (end_date - timedelta(days=calendar_days)).strftime('%Y%m%d')
         end_date_str = end_date.strftime('%Y%m%d')
         
-        print(f'[INFO] 检查数据完整性：回测需要 {time_range} 个交易日（约 {calendar_days} 个日历日）')
-        print(f'[INFO] 需要的数据范围：{required_start_date} 至 {end_date_str}')
+        logger.info('检查数据完整性：回测需要 {time_range} 个交易日（约 {calendar_days} 个日历日）')
+        logger.info('需要的数据范围：{required_start_date} 至 {end_date_str}')
         
         # 获取所有股票
         all_stocks = self.get_stock_list()
@@ -1246,10 +1233,10 @@ class DataFetcher:
                     need_fetch_codes.append(code)
         
         if not need_fetch_codes:
-            print(f'[INFO] 所有股票的数据都已足够，无需额外拉取')
+            logger.info('所有股票的数据都已足够，无需额外拉取')
             return
         
-        print(f'[INFO] 发现 {len(need_fetch_codes)} 只股票需要拉取更多数据')
+        logger.info('发现 {len(need_fetch_codes)} 只股票需要拉取更多数据')
         
         # 批量拉取数据
         # 使用 get_stock_data 方法，它会自动处理缓存合并
@@ -1271,7 +1258,7 @@ class DataFetcher:
             except Exception as e:
                 return code, False
         
-        print(f'[INFO] 开始批量拉取数据...')
+        logger.info('开始批量拉取数据...')
         success = 0
         with ThreadPoolExecutor(max_workers=max_workers) as ex:
             futures = {ex.submit(fetch_data, code): code for code in need_fetch_codes}
@@ -1280,9 +1267,9 @@ class DataFetcher:
                 if ok:
                     success += 1
                 if (i + 1) % 50 == 0 or (i + 1) == len(need_fetch_codes):
-                    print(f'  进度: {i+1}/{len(need_fetch_codes)} | 已拉取: {success}', flush=True)
+                    logger.info('  进度: %d/%d | 已拉取: %d', i+1, len(need_fetch_codes), success)
         
-        print(f'[INFO] 数据预拉取完成: {success}/{len(need_fetch_codes)} 只股票数据已就绪')
+        logger.info('数据预拉取完成: %d/%d 只股票数据已就绪', success, len(need_fetch_codes))
         
         # 清理重复缓存
         self.remove_duplicate_cache()
@@ -1555,7 +1542,7 @@ class DataFetcher:
             self.invalidate_cache_index()
             return df
         except Exception as e:
-            print(f"[ERROR] 获取 {code} 数据失败: {e}")
+            logger.error("获取 {code} 数据失败: {e}")
         return None
 
     def get_recent_days_data(self, code, days=10, max_retries=3):
@@ -1571,7 +1558,7 @@ class DataFetcher:
                         return df
             except Exception as e:
                 if attempt == max_retries - 1:
-                    print(f"[ERROR] 获取 {code} 近{days}天数据失败: {e}")
+                    logger.error("获取 {code} 近{days}天数据失败: {e}")
             time.sleep(1)
         return None
 
@@ -1599,7 +1586,7 @@ class DataFetcher:
                     }
             except Exception as e:
                 if attempt == max_retries - 1:
-                    print(f"[ERROR] 获取 {code} 今日数据失败: {e}")
+                    logger.error("获取 {code} 今日数据失败: {e}")
             time.sleep(1)
         return None
 
@@ -1629,7 +1616,7 @@ class DataFetcher:
                 'turnover': float(row['换手率'])
             }
         except Exception as e:
-            print(f"[ERROR] 获取 {code} {date} 数据失败: {e}")
+            logger.error("获取 {code} {date} 数据失败: {e}")
         return None
 
     def is_limit_up(self, code, date):
@@ -1650,4 +1637,4 @@ def purge_stock_data_dir_main_board_only_once():
     try:
         DataFetcher().remove_duplicate_cache()
     except Exception as e:
-        print(f'[WARNING] 首次清理非主板缓存失败: {e}', flush=True)
+        logger.warning('首次清理非主板缓存失败: %s', e)

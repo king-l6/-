@@ -57,11 +57,11 @@ RUN mkdir -p cache/stock_data results
 # 设置环境变量
 ENV FLASK_APP=app.py
 ENV FLASK_ENV=production
-ENV FLASK_PORT=8086
+ENV FLASK_PORT=7860
 ENV PYTHONUNBUFFERED=1
 
 # 暴露端口
-EXPOSE 8086
+EXPOSE 7860
 
 # 启动应用
 CMD ["python", "app.py"]

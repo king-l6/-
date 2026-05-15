@@ -1,0 +1,22 @@
+{
+  "strategies": [
+    {
+      "name": "连阳超五无涨停_实体阳线",
+      "description": "东财「连续阳线」常见口径：截至T日连续「收盘>开盘」不少于6天；该实体阳线段内每日涨跌幅均<9.8%（无涨停）。与 common_strategies 中「涨跌幅>0」连阳版并存，结果单独文件。",
+      "strategy": {
+        "conditions": [
+          { "type": "consecutive_yang_line_days_gte", "date1": 0, "consecutiveDays": 6 },
+          { "type": "consecutive_yang_line_window_no_limit_up", "date1": 0, "limitPct": 9.8 }
+        ],
+        "exclude": {
+          "kcb": true,
+          "cyb": true,
+          "bjs": true,
+          "st": true,
+          "delist": true
+        },
+        "timeRange": 90
+      }
+    }
+  ]
+}
