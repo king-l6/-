@@ -91,6 +91,7 @@ def main():
     parser.add_argument('--date', default=None, help='T 日，格式 YYYY-MM-DD；不传则用「最近交易日」')
     parser.add_argument('--workers', type=int, default=50, help='并发线程数')
     parser.add_argument('--no-check-cache', action='store_true', help='不检查缓存是否最新，直接跑')
+    parser.add_argument('--strategy', default=None, help='只跑指定策略名称（精确匹配）')
     args = parser.parse_args()
 
     from data_fetcher import DataFetcher
@@ -129,6 +130,11 @@ def main():
     print()
 
     strategies = load_strategies(args.config)
+    if args.strategy:
+        strategies = [s for s in strategies if s['name'] == args.strategy]
+        if not strategies:
+            print(f'[ERROR] 未找到策略: {args.strategy}')
+            sys.exit(1)
     engine = StrategyEngine(fetcher, max_workers=args.workers)
 
     total_count = 0

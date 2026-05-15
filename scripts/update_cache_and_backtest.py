@@ -66,6 +66,7 @@ def main():
     parser.add_argument('--auto-shard-count', type=int, default=None,
                         help='自动多进程分片数量（>=2）：补缓存与增量回测均用该分片数，只改一次即可')
     parser.add_argument('--config', default='common_strategies.json', help='策略配置文件路径')
+    parser.add_argument('--strategy', default=None, help='只跑指定策略名称（精确匹配）')
     args = parser.parse_args()
 
     from data_fetcher import DataFetcher
@@ -124,6 +125,8 @@ def main():
             ]
         else:
             cmd = [sys.executable, 'batch_backtest.py', '--config', args.config]
+        if args.strategy:
+            cmd += ['--strategies', args.strategy]
         print(f'执行: {" ".join(cmd)}\n')
         code = subprocess.run(cmd)
         if code.returncode != 0:
@@ -189,6 +192,8 @@ def main():
         ]
     else:
         cmd = [sys.executable, 'batch_backtest.py', '--config', args.config]
+    if args.strategy:
+        cmd += ['--strategies', args.strategy]
     print(f'执行: {" ".join(cmd)}\n')
     code = subprocess.run(cmd)
     if code.returncode != 0:
