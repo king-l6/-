@@ -1,12 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python3 app.py)",
-      "Bash(time curl:*)",
-      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f'数据条数: {d[\\\\\"data\\\\\"][\\\\\"count\\\\\"]}, 缓存: {d.get\\(\\\\\"_cached\\\\\", False\\)}'\\)\")",
-      "Bash(curl -s \"http://localhost:8086/api/strategies\")",
-      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f'策略数量: {len\\(d[\\\\\"data\\\\\"]\\)}'\\); print\\('策略列表:'\\); [print\\(f' - {s[\\\\\"name\\\\\"]}'\\) for s in d['data']]\")",
-      "Bash(kill -9 74493 74892)"
+      "Bash(python3 scripts/update_cache_and_backtest.py --no-backtest*)",
+      "Bash(python3 scripts/update_cache_and_backtest.py --incremental*)",
+      "Bash(python3 scripts/incremental_backtest.py*)",
+      "Bash(python3 scripts/update_cache_and_backtest.py --workers*)",
+      "Bash(python3 scripts/update_cache_and_backtest.py --strategy*)"
     ]
   }
 }
