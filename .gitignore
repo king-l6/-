@@ -65,5 +65,10 @@ fetch_log_fast.txt
 # Cursor IDE
 .cursor/
 
+.claude/
+
+# Cache
+cache/
+
 # 回测结果（本地生成；勿纳入版本库，否则 git checkout / pull 会把已删的旧策略文件又还原）
 results/*.jsonl
