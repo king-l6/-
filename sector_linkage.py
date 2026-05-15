@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 板块/概念联动：多数据源链（与 data_fetcher 日 K 思路一致）——`enrich_sector_linkage` 默认 **auto**
-（东财 spot 优先，失败再新浪）；`--source sina` 仅用新浪。
+（新浪 spot 优先 0.2~0.4s，失败再东财 34~72s）；`--source eastmoney` 仅用东财。
 
 - 概念（按 match_date 默认）：**同花顺** `stock_board_concept_name_ths` + `stock_board_concept_index_ths`，逐概念拉区间 K 算 T 日涨跌幅（较慢、较稳）；可选 `SECTOR_LINKAGE_CONCEPT_DAILY=eastmoney` 或 `--concept-daily eastmoney` 改东财 `stock_board_concept_hist_em`（每板块只拉 T 日一根，快但易 `RemoteDisconnected`）。
 - 概念（运行时刻 spot）：东财 + 新浪 `stock_sector_spot` / `stock_sector_detail`。
@@ -173,20 +173,28 @@ def load_top_concept_boards(
     source: str = "auto",
 ) -> Tuple[List[BoardRow], str]:
     """
-    source: 'auto' 先东财再新浪；'sina' 仅用新浪（东财不可用时避免长时间重试）。
+    source: 'auto' 先新浪再东财（新浪 0.4s vs 东财 72s）；'eastmoney' 仅用东财。
     返回 (板块行列表, 实际使用的数据源标签)。
     """
-    if source == "sina":
-        sina = _top_concepts_sina(top_n, min_pct)
-        return sina, "sina" if sina else "none"
+    if source == "eastmoney":
+        try:
+            em = _top_concepts_eastmoney(top_n, min_pct)
+            if em:
+                return em, "eastmoney"
+        except Exception:
+            pass
+        return [], "none"
+    # auto: 新浪优先（快 160x），失败再东财
+    sina = _top_concepts_sina(top_n, min_pct)
+    if sina:
+        return sina, "sina"
     try:
         em = _top_concepts_eastmoney(top_n, min_pct)
         if em:
             return em, "eastmoney"
     except Exception:  # noqa: BLE001
         pass
-    sina = _top_concepts_sina(top_n, min_pct)
-    return sina, "sina" if sina else "none"
+    return [], "none"
 
 
 def _top_industry_eastmoney(top_n: int, min_pct: Optional[float]) -> List[BoardRow]:
@@ -241,17 +249,28 @@ def load_top_industry_boards(
     *,
     source: str = "auto",
 ) -> Tuple[List[BoardRow], str]:
-    if source == "sina":
-        sina = _top_industry_sina(top_n, min_pct)
-        return sina, "sina" if sina else "none"
+    """
+    source: 'auto' 先新浪再东财（新浪 0.2s vs 东财 34s）；'eastmoney' 仅用东财。
+    """
+    if source == "eastmoney":
+        try:
+            em = _top_industry_eastmoney(top_n, min_pct)
+            if em:
+                return em, "eastmoney"
+        except Exception:
+            pass
+        return [], "none"
+    # auto: 新浪优先（快 187x），失败再东财
+    sina = _top_industry_sina(top_n, min_pct)
+    if sina:
+        return sina, "sina"
     try:
         em = _top_industry_eastmoney(top_n, min_pct)
         if em:
             return em, "eastmoney"
     except Exception:  # noqa: BLE001
         pass
-    sina = _top_industry_sina(top_n, min_pct)
-    return sina, "sina" if sina else "none"
+    return [], "none"
 
 
 LINKAGE_DAILY_SNAPSHOT_VERSION = 2
