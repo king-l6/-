@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from data_fetcher import DataFetcher, merge_sina_spot_into_hist_df
+from transaction_cost import TransactionCost
 import pandas as pd
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from threading import Lock
@@ -1460,6 +1461,57 @@ class StrategyEngine:
                             detail['day2_buy_hit_5pct_day'] = hit_day
             except (ValueError, KeyError, IndexError):
                 pass
+
+            # ── 交易成本模型：扣除佣金/印花税/滑点后的净收益 ──
+            try:
+                tc = TransactionCost()
+                base_idx = self._resolve_base_idx(base_date_str, base_date, date_pos, dates)
+                if base_idx + 1 < len(dates):
+                    buy_date = dates[base_idx + 1]
+                    buy_date_str = buy_date.strftime('%Y-%m-%d')
+                    buy_row = date_map.get(buy_date_str)
+                    if buy_row:
+                        buy_price = float(buy_row.get('开盘') or 0)
+                        if buy_price > 0:
+                            actual_buy = tc.adjust_buy_price(buy_price)
+                            # 次日（T+2）卖出
+                            if base_idx + 2 < len(dates):
+                                sell_date = dates[base_idx + 2]
+                                sell_str = sell_date.strftime('%Y-%m-%d')
+                                sell_row = date_map.get(sell_str)
+                                if sell_row:
+                                    sell_close = float(sell_row.get('收盘') or 0)
+                                    if sell_close > 0:
+                                        actual_sell = tc.adjust_sell_price(sell_close)
+                                        cost_info = tc.calc_net_return(actual_buy, actual_sell)
+                                        detail['net_return_2d'] = cost_info['net_return_pct']
+                                        detail['cost_rate'] = cost_info['cost_rate']
+                            # 10日收盘卖出
+                            if base_idx + 10 < len(dates):
+                                end_idx = min(base_idx + 10, len(dates) - 1)
+                                end_date_str = dates[end_idx].strftime('%Y-%m-%d')
+                                end_row = date_map.get(end_date_str)
+                                if end_row:
+                                    end_close = float(end_row.get('收盘') or 0)
+                                    if end_close > 0:
+                                        actual_sell_10d = tc.adjust_sell_price(end_close)
+                                        cost_info_10d = tc.calc_net_return(actual_buy, actual_sell_10d)
+                                        detail['net_return_10d'] = cost_info_10d['net_return_pct']
+                            # 止损线：亏损超-5%时的净收益
+                            stop_loss_pct = -5.0
+                            for idx in range(base_idx + 1, min(base_idx + 11, len(dates))):
+                                cur_row = date_map.get(dates[idx].strftime('%Y-%m-%d'))
+                                if cur_row:
+                                    cur_low = float(cur_row.get('最低') or 0)
+                                    if cur_low > 0:
+                                        intraday_pct = (cur_low - buy_price) / buy_price * 100
+                                        if intraday_pct <= stop_loss_pct:
+                                            actual_stop = tc.adjust_sell_price(buy_price * (1 + stop_loss_pct / 100))
+                                            stop_info = tc.calc_net_return(actual_buy, actual_stop)
+                                            detail['stop_loss_net_return'] = stop_info['net_return_pct']
+                                            break
+            except Exception as e:
+                logger.debug('交易成本计算异常 %s: %s', code, e)
 
             # 主力建仓：输出 main_force_build_tag / T 日涨停打标等（与是否命中一致，供前端展示与筛选）
             try:
