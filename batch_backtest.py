@@ -22,6 +22,9 @@
 6. 仅本地缓存回测（不访问 AkShare / 不拉 K 线）：
    python batch_backtest.py --cache-only --no-parallel
 
+7. 指定单个/若干策略时默认仅用本地缓存（不补数）；需联网补 K 线时加 --fetch：
+   python batch_backtest.py --strategies "昨摸板今涨停"
+
 7. 全量回测默认即窗口内「每个命中日」各一行（同股可多日多行；日频图与当日扫描口径一致）。
 """
 
@@ -173,12 +176,23 @@ def main():
         help='仅使用本地 cache/stock_data 与 stock_list.json 回测，不访问 AkShare（ensure_sufficient_data 跳过）',
     )
     parser.add_argument(
+        '--fetch',
+        '--online',
+        dest='fetch_online',
+        action='store_true',
+        help='允许访问 AkShare 补数（与 --strategies 联用时覆盖默认的仅缓存模式）',
+    )
+    parser.add_argument(
         '--all-match-dates',
         action='store_true',
         help='已废弃：全量默认即输出窗口内每个命中日，此参数无效果（保留仅为兼容旧命令行）',
     )
 
     args = parser.parse_args()
+
+    # 指定策略名时默认只读本地缓存，避免新策略全量回测前先跑 ensure_sufficient_data 拉全网
+    if args.strategies and not args.fetch_online and not args.cache_only:
+        args.cache_only = True
 
     print('=' * 80)
     print('批量策略回测工具')
@@ -189,7 +203,10 @@ def main():
     if args.max_parallel:
         print(f'最大并行策略数: {args.max_parallel}')
     if args.cache_only:
-        print('数据模式: 仅本地缓存（--cache-only，不拉网）')
+        if args.strategies and not args.fetch_online:
+            print('数据模式: 仅本地缓存（指定策略默认；需联网补数请加 --fetch）')
+        else:
+            print('数据模式: 仅本地缓存（--cache-only，不拉网）')
     print()
     
     # 加载策略

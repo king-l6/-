@@ -109,6 +109,62 @@
         },
         "timeRange": 90
       }
+    },
+    {
+      "name": "昨摸板今涨停",
+      "description": "T-1日最高价相对前一日收盘涨幅≥9.8%（触及涨停价）但收盘未涨停（涨跌幅<9.8%）；T日涨停（涨跌幅≥9.8%）。",
+      "strategy": {
+        "conditions": [
+          { "type": "touch_limit_not_close", "date1": -1 },
+          { "type": "limit_up", "date1": 0 }
+        ],
+        "exclude": {
+          "kcb": true,
+          "cyb": true,
+          "bjs": true,
+          "st": true,
+          "delist": true
+        },
+        "timeRange": 90
+      }
+    },
+    {
+      "name": "昨摸板今触板",
+      "description": "T-1日最高价触及涨停价但未封板（涨跌幅<9.8%）；T日仅要求最高价触及涨停价（相对昨收≥9.8%），收盘封板与否均算命中。",
+      "strategy": {
+        "conditions": [
+          { "type": "touch_limit_not_close", "date1": -1 },
+          { "type": "high_is_limit_up", "date1": 0 }
+        ],
+        "exclude": {
+          "kcb": true,
+          "cyb": true,
+          "bjs": true,
+          "st": true,
+          "delist": true
+        },
+        "timeRange": 90
+      }
+    },
+    {
+      "name": "T日摸板未封",
+      "description": "T-3、T-2、T-1日涨跌幅均>0；T日最高价触及涨停价但收盘未涨停（涨跌幅<9.8%）。",
+      "strategy": {
+        "conditions": [
+          { "type": "pct_change_gt", "date1": -3, "value": 0 },
+          { "type": "pct_change_gt", "date1": -2, "value": 0 },
+          { "type": "pct_change_gt", "date1": -1, "value": 0 },
+          { "type": "touch_limit_not_close", "date1": 0 }
+        ],
+        "exclude": {
+          "kcb": true,
+          "cyb": true,
+          "bjs": true,
+          "st": true,
+          "delist": true
+        },
+        "timeRange": 90
+      }
     }
   ]
 }

@@ -378,6 +378,74 @@ export const fourUpTouchLimitStrategy: StrategyTemplate = {
   },
 };
 
+/**
+ * 昨摸板今涨停
+ * T-1 最高价触及涨停价但收盘未封板；T 日涨停。
+ */
+export const prevTouchLimitTodayLimitUpStrategy: StrategyTemplate = {
+  id: 'prev_touch_limit_today_limit_up',
+  name: '昨摸板今涨停',
+  description:
+    'T-1日最高价相对前一日收盘涨幅≥9.8%（触及涨停价）但收盘未涨停；T日涨停。',
+  timeRange: 90,
+  conditions: [
+    { type: 'touch_limit_not_close', date1: -1 },
+    { type: 'limit_up', date1: 0 },
+  ],
+  exclude: {
+    kcb: true,
+    cyb: true,
+    bjs: true,
+    st: true,
+    delist: true,
+  },
+};
+
+/**
+ * 昨摸板今触板
+ * T-1 摸板未封；T 日最高价触及涨停价（收盘是否涨停不限）。
+ */
+export const prevTouchLimitTodayTouchLimitStrategy: StrategyTemplate = {
+  id: 'prev_touch_limit_today_touch_limit',
+  name: '昨摸板今触板',
+  description:
+    'T-1摸板未封；T日仅看最高价是否触及涨停价，收盘封板与否均算命中。',
+  timeRange: 90,
+  conditions: [
+    { type: 'touch_limit_not_close', date1: -1 },
+    { type: 'high_is_limit_up', date1: 0 },
+  ],
+  exclude: {
+    kcb: true,
+    cyb: true,
+    bjs: true,
+    st: true,
+    delist: true,
+  },
+};
+
+/** T 日摸板未封，且 T-3～T-1 连续三日上涨 */
+export const tDayTouchLimitNotCloseStrategy: StrategyTemplate = {
+  id: 't_day_touch_limit_not_close',
+  name: 'T日摸板未封',
+  description:
+    'T-3、T-2、T-1日涨跌幅均>0；T日最高价触及涨停价但收盘未涨停。',
+  timeRange: 90,
+  conditions: [
+    { type: 'pct_change_gt', date1: -3, value: 0 },
+    { type: 'pct_change_gt', date1: -2, value: 0 },
+    { type: 'pct_change_gt', date1: -1, value: 0 },
+    { type: 'touch_limit_not_close', date1: 0 },
+  ],
+  exclude: {
+    kcb: true,
+    cyb: true,
+    bjs: true,
+    st: true,
+    delist: true,
+  },
+};
+
 /** 连涨天数>5，且连阳段内无涨停（涨跌幅均<9.8%） */
 export const consecutiveUpGt5NoLimitStrategy: StrategyTemplate = {
   id: 'consecutive_up_gt5_no_limit',
@@ -618,6 +686,9 @@ export const allStrategyTemplates: StrategyTemplate[] = [
   yzrConsensusRelayStrategy, // 游资合力接力
   consecutiveUpUpperShadowStrategy, // 连阳上影
   fourUpTouchLimitStrategy, // 四连阳摸板
+  prevTouchLimitTodayLimitUpStrategy, // 昨摸板今涨停
+  prevTouchLimitTodayTouchLimitStrategy, // 昨摸板今触板
+  tDayTouchLimitNotCloseStrategy, // T日摸板未封
   consecutiveUpGt5NoLimitStrategy, // 连阳超五无涨停
   bottomingBreakoutStrategy, // 筑底突破
   touchLimitNotCloseWithThreeLimitStrategy, // 摸板首板
