@@ -345,6 +345,40 @@ def get_trading_days():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/api/sector-ranking', methods=['GET'])
+def api_sector_ranking():
+    """板块/概念每日排行（近一年数据）"""
+    try:
+        cache_root = os.path.join(os.path.dirname(__file__), 'cache', 'sector_linkage', 'daily')
+        if not os.path.isdir(cache_root):
+            return jsonify({'success': True, 'data': []})
+
+        # 获取所有日期文件
+        files = []
+        for f in os.listdir(cache_root):
+            if f.endswith('.json') and len(f) == 15:  # YYYY-MM-DD.json
+                files.append(f[:-5])
+        files.sort(reverse=True)
+
+        # 返回日期列表和最新一天的完整数据
+        date = request.args.get('date')
+        if date and date in files:
+            filepath = os.path.join(cache_root, f'{date}.json')
+            with open(filepath, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            return jsonify({'success': True, 'dates': files, 'data': data})
+
+        # 默认返回最新一天
+        if files:
+            filepath = os.path.join(cache_root, f'{files[0]}.json')
+            with open(filepath, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            return jsonify({'success': True, 'dates': files, 'data': data})
+
+        return jsonify({'success': True, 'dates': [], 'data': None})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/api/results/list', methods=['GET'])
 def get_results_list():
     """获取 results 目录下的所有文件列表"""

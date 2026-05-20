@@ -31,6 +31,11 @@ const routes = [
         path: 'multi-kline',
         name: 'MultiKline',
         component: () => import('@/views/multi-kline/index.vue')
+      },
+      {
+        path: 'sector-ranking',
+        name: 'SectorRanking',
+        component: () => import('@/views/sector-ranking/index.vue')
       }
     ]
   }

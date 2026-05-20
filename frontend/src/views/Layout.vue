@@ -14,6 +14,7 @@
           <TabPane key="history-results" tab="历史回测数据" />
           <TabPane key="emotion-cycle" tab="情绪周期" />
           <TabPane key="multi-kline" tab="多股复盘K" />
+          <TabPane key="sector-ranking" tab="板块排行" />
         </Tabs>
         <div class="flex shrink-0 items-center gap-2">
           <span class="hidden text-xs text-gray-500 dark:text-neutral-400 sm:inline">外观</span>
@@ -56,7 +57,8 @@ const routeToKey: Record<string, string> = {
   CommonStrategies: 'common-strategies',
   HistoryResults: 'history-results',
   EmotionCycle: 'emotion-cycle',
-  MultiKline: 'multi-kline'
+  MultiKline: 'multi-kline',
+  SectorRanking: 'sector-ranking'
 }
 
 const keyToPath: Record<string, string> = {
@@ -64,7 +66,8 @@ const keyToPath: Record<string, string> = {
   'common-strategies': '/common-strategies',
   'history-results': '/history-results',
   'emotion-cycle': '/emotion-cycle',
-  'multi-kline': '/multi-kline'
+  'multi-kline': '/multi-kline',
+  'sector-ranking': '/sector-ranking'
 }
 
 const activeKey = computed({
