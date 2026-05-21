@@ -172,11 +172,45 @@ def update_cache(today_str: str, today_compact: str):
                 "涨跌额": r["change_amount"],
                 "换手率": 0,
             }
-            cache_data["data"].append(new_row)
-            cache_data["end_date"] = today_compact
             
-            # 写入新文件
-            new_file = os.path.join(CACHE_DIR, f"{code}_{today_compact}.json")
+            # 增量计算MACD
+            ema12_seed = cache_data.get("ema12_seed")
+            ema26_seed = cache_data.get("ema26_seed")
+            dea_seed = cache_data.get("dea_seed")
+            
+            if ema12_seed is not None and ema26_seed is not None and dea_seed is not None:
+                close = r["close"]
+                k12 = 2 / 13
+                k26 = 2 / 27
+                k9 = 2 / 10
+                
+                new_ema12 = close * k12 + ema12_seed * (1 - k12)
+                new_ema26 = close * k26 + ema26_seed * (1 - k26)
+                new_dif = new_ema12 - new_ema26
+                new_dea = new_dif * k9 + dea_seed * (1 - k9)
+                new_bar = 2 * (new_dif - new_dea)
+                
+                new_row["DIF"] = round(new_dif, 4)
+                new_row["DEA"] = round(new_dea, 4)
+                new_row["MACD_BAR"] = round(new_bar, 4)
+                
+                # 更新种子值
+                cache_data["ema12_seed"] = round(new_ema12, 6)
+                cache_data["ema26_seed"] = round(new_ema26, 6)
+                cache_data["dea_seed"] = round(new_dea, 6)
+                
+                # 计算信号强度
+                data_rows = cache_data["data"]
+                if len(data_rows) >= 3:
+                    pct3 = (close / data_rows[-3]["收盘"] - 1) * 100
+                    cache_data["last_signal_strength"] = round(abs(new_bar) * (100 + abs(pct3)), 1)
+            
+            cache_data["data"].append(new_row)
+            
+            # 写回原缓存文件（更新 end_date、cache_time，追加数据行）
+            new_file = latest_file  # 直接覆盖原文件
+            cache_data["end_date"] = today_compact
+            cache_data["cache_time"] = datetime.now().isoformat()
             try:
                 with open(new_file, "w", encoding="utf-8") as f:
                     json.dump(cache_data, f, ensure_ascii=False)
