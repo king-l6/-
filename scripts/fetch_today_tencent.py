@@ -98,9 +98,9 @@ def fetch_batch(codes: list):
 
 def update_cache(today_str: str, today_compact: str):
     """更新缓存"""
-    # 获取所有股票代码
-    files = glob.glob(os.path.join(CACHE_DIR, "*_20250414.json"))
-    codes = [os.path.basename(f).split("_")[0] for f in files]
+    # 获取所有股票代码（从所有缓存文件中提取）
+    all_files = glob.glob(os.path.join(CACHE_DIR, "*.json"))
+    codes = list(set([os.path.basename(f).split("_")[0] for f in all_files]))
     print(f"共 {len(codes)} 只股票需要更新", flush=True)
     
     # 检查哪些已经有今天的数据
