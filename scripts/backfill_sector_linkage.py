@@ -56,7 +56,7 @@ def main():
     existing = set()
     if os.path.isdir(daily_dir):
         for f in os.listdir(daily_dir):
-            if f.endswith(".json") and len(f) == 14:
+            if f.endswith(".json") and len(f) == 15:
                 existing.add(f[:-5])
     
     print(f"[INFO] 已有板块数据 {len(existing)} 天", flush=True)

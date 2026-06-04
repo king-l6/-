@@ -386,16 +386,7 @@ def main():
             'results': results
         }, f, ensure_ascii=False, indent=2)
     print(f'\n结果已保存到: {output_file}')
-    
-    # 保存结果到文件
-    output_file = f'batch_results_{datetime.now().strftime("%Y%m%d_%H%M%S")}.json'
-    with open(output_file, 'w', encoding='utf-8') as f:
-        json.dump({
-            'run_at': datetime.now().isoformat(),
-            'elapsed_seconds': elapsed,
-            'results': results
-        }, f, ensure_ascii=False, indent=2)
-    print(f'\n结果已保存到: {output_file}')
+
 
 
 if __name__ == '__main__':

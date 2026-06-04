@@ -161,15 +161,15 @@ def update_cache(today_str: str, today_compact: str):
             # 添加今天的数据
             new_row = {
                 "日期": today_str,
-                "开盘": r["open"],
-                "收盘": r["close"],
-                "最高": r["high"],
-                "最低": r["low"],
-                "成交量": r["volume"],
-                "成交额": r["turnover"],
-                "振幅": r["amplitude"],
-                "涨跌幅": r["pct_change"],
-                "涨跌额": r["change_amount"],
+                "开盘": round(r["open"], 2),
+                "收盘": round(r["close"], 2),
+                "最高": round(r["high"], 2),
+                "最低": round(r["low"], 2),
+                "成交量": round(r["volume"], 2),
+                "成交额": round(r["turnover"] * 10000, 2),
+                "振幅": round(r["amplitude"], 2),
+                "涨跌幅": round(r["pct_change"], 2),
+                "涨跌额": round(r["change_amount"], 4),
                 "换手率": 0,
             }
             

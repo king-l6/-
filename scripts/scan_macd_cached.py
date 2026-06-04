@@ -21,7 +21,7 @@ except:
     pass
 
 def main():
-    files = glob.glob(os.path.join(CACHE_DIR, "*_20250414.json"))
+    files = glob.glob(os.path.join(CACHE_DIR, "*.json"))
     
     signals = []
     for fp in files:

@@ -52,7 +52,7 @@ def process_stock(filepath):
         json.dump(data, f, ensure_ascii=False)
     return True
 
-files = glob.glob(os.path.join(CACHE_DIR, "*_20250414.json"))
+files = glob.glob(os.path.join(CACHE_DIR, "*.json"))
 print(f"共 {len(files)} 只", flush=True)
 
 success = 0

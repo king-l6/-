@@ -39,18 +39,18 @@ for fpath in files:
             if clean[i-j]["MACD_BAR"] <= 0: ok = False; break
             if j > 0 and clean[i-j]["MACD_BAR"] >= clean[i-j+1]["MACD_BAR"]: ok = False; break
         if not ok: continue
-        pc = clean[i-1]["close"]
-        if pc > 0 and (k["close"] - pc) / pc >= 0.098: continue
-        sig_date = k["date"].split(" ")[0]
+        pc = clean[i-1]["收盘"]
+        if pc > 0 and (k["收盘"] - pc) / pc >= 0.098: continue
+        sig_date = k["日期"].split(" ")[0]
         if i + 1 < n:
-            buy_date = clean[i+1]["date"].split(" ")[0]
-            buy_price = clean[i+1]["open"]
+            buy_date = clean[i+1]["日期"].split(" ")[0]
+            buy_price = clean[i+1]["开盘"]
         else:
             buy_date = "明天"
-            buy_price = k["close"]
-        chg = (k["close"] - pc) / pc * 100 if pc > 0 else 0
+            buy_price = k["收盘"]
+        chg = (k["收盘"] - pc) / pc * 100 if pc > 0 else 0
         recent.append({"name": name, "sig_date": sig_date, "buy_date": buy_date,
-            "buy_price": buy_price, "close": k["close"], "change": chg})
+            "buy_price": buy_price, "close": k["收盘"], "change": chg})
         break
 
 recent.sort(key=lambda x: x["sig_date"], reverse=True)

@@ -21,30 +21,30 @@ def calculate_macd(klines):
     results = []
     ema12 = None
     ema26 = None
-    dea = 0
+    dea = None
     
     for i, kline in enumerate(klines):
-        close = kline['close']
+        close = kline['收盘']
         
         if i == 0:
             ema12 = close
             ema26 = close
             dif = 0
-            dea = 0
+            dea = dif
             macd_bar = 0
         else:
             ema12 = ema12 * 11/13 + close * 2/13
             ema26 = ema26 * 25/27 + close * 2/27
             dif = ema12 - ema26
             dea = dea * 8/10 + dif * 2/10
-            macd_bar = dif - dea
+            macd_bar = 2 * (dif - dea)
         
         results.append({
-            'date': kline['date'],
+            'date': kline['日期'],
             'close': close,
-            'open': kline['open'],
-            'high': kline['high'],
-            'low': kline['low'],
+            'open': kline['开盘'],
+            'high': kline['最高'],
+            'low': kline['最低'],
             'dif': dif,
             'dea': dea,
             'macd_bar': macd_bar
@@ -156,7 +156,7 @@ def run_backtest(results, filter_type='none'):
                 buy_idx = i
                 buy_date = results[i]['date']
             
-            shares = int(INITIAL_CAPITAL / buy_price / 100) * 100
+            shares = int(capital / buy_price / 100) * 100
             
             if shares <= 0:
                 continue
@@ -197,10 +197,10 @@ def main():
         except:
             continue
         
-        if 'klines' not in data or len(data['klines']) < 30:
+        if 'data' not in data or len(data['data']) < 30:
             continue
         
-        results = calculate_macd(data['klines'])
+        results = calculate_macd(data['data'])
         
         for ft in filters_to_run:
             trades = run_backtest(results, ft)
